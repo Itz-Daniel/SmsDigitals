@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error("Admin Reply Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to reply to ticket" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to send reply";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

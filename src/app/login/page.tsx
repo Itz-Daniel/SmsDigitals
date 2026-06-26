@@ -123,7 +123,7 @@ export default function LoginPage() {
         {/* Centered form container */}
         <div className="flex-1 flex items-center justify-center px-6 py-12 lg:px-16 xl:px-24 relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
             className="w-full max-w-[420px]"
@@ -201,7 +201,7 @@ export default function LoginPage() {
                 >
                   {/* Email */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40">
+                    <label htmlFor="email" className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40">
                       Email Address
                     </label>
                     <div className="group flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3 focus-within:border-brand-blue/50 focus-within:bg-brand-blue/[0.02] transition-all duration-300">
@@ -211,6 +211,9 @@ export default function LoginPage() {
                         className="text-white/25 group-focus-within:text-brand-blue transition-colors flex-shrink-0"
                       />
                       <input
+                        id="email"
+                        name="email"
+                        autoComplete="email"
                         type="email"
                         required
                         value={email}
@@ -225,12 +228,12 @@ export default function LoginPage() {
                   <AnimatePresence>
                     {loginMode === "password" && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 1, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         className="flex flex-col gap-1.5 overflow-hidden"
                       >
-                        <label className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40">
+                        <label htmlFor="password" className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40">
                           Password
                         </label>
                         <div className="group flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3 focus-within:border-brand-blue/50 focus-within:bg-brand-blue/[0.02] transition-all duration-300">
@@ -240,6 +243,9 @@ export default function LoginPage() {
                             className="text-white/25 group-focus-within:text-brand-blue transition-colors flex-shrink-0"
                           />
                           <input
+                            id="password"
+                            name="password"
+                            autoComplete="current-password"
                             type={showPassword ? "text" : "password"}
                             required={loginMode === "password"}
                             value={password}

@@ -71,7 +71,7 @@ export function AuthSidebar({
       <div className="relative z-10 flex flex-col justify-between h-full px-12 xl:px-16 py-12">
         {/* Logo */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 1, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="flex items-center gap-2.5"
@@ -86,7 +86,7 @@ export function AuthSidebar({
 
         {/* Hero copy */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 1, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15 }}
           className="flex flex-col gap-5 mt-16"
@@ -108,7 +108,7 @@ export function AuthSidebar({
 
         {/* Floating wallet card */}
         <motion.div
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 1, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.35 }}
           className="mt-10 w-full max-w-[400px]"
@@ -153,7 +153,7 @@ export function AuthSidebar({
 
         {/* Feature list */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
           className="mt-8 flex flex-col gap-2.5"
@@ -161,7 +161,7 @@ export function AuthSidebar({
           {features.map((f, i) => (
             <motion.div
               key={f.title}
-              initial={{ opacity: 0, x: -15 }}
+              initial={{ opacity: 1, x: -15 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.55 + i * 0.08 }}
               className="group flex items-center gap-4 rounded-xl px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-default"
@@ -187,7 +187,7 @@ export function AuthSidebar({
 
         {/* Stats footer */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.8 }}
           className="mt-auto pt-8 flex gap-10"
