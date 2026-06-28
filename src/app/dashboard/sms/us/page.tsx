@@ -64,35 +64,26 @@ export default function USPurchasePage() {
   useEffect(() => {
     fetchRentals();
 
-    const supabase = createClient();
-    
-    // 1. Setup Supabase Realtime subscription
-    const channel = supabase.channel('realtime-rentals-usa')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `region=eq.usa` }, (payload) => {
-        console.log('Realtime change received!', payload);
-        fetchRentals(); // Re-fetch the list to get updated data cleanly
-      })
-      .subscribe();
+    let channel: any = null;
+    const setupRealtime = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // 2. Poll the external provider ONLY for actively waiting rentals, without hitting DB first
-    const interval = setInterval(() => {
-      setRentals(currentRentals => {
-        currentRentals.forEach(rental => {
-          if (rental.status === 'Waiting') {
-            fetch('/api/check-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ rental_id: rental.id })
-            }).catch(console.error);
-          }
-        });
-        return currentRentals;
-      });
-    }, 5000);
+      channel = supabase.channel('realtime-rentals-usa')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `user_id=eq.${user.id}` }, (payload) => {
+          fetchRentals();
+        })
+        .subscribe();
+    };
+
+    setupRealtime();
 
     return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (channel) {
+        const supabase = createClient();
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -122,8 +113,6 @@ export default function USPurchasePage() {
 
   useEffect(() => {
     fetchRentals();
-    const interval = setInterval(fetchRentals, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

@@ -7,7 +7,7 @@ async function authenticateAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || user.email !== process.env.ADMIN_EMAIL) {
+  if (!user || user.app_metadata?.role !== 'admin') {
     return { error: "Unauthorized", status: 401 };
   }
 

@@ -15,7 +15,7 @@ export default async function ManagementPage() {
 
   // Strict Server-Side Security
   // Redirect any user who isn't the assigned admin.
-  if (!user || user.email !== process.env.ADMIN_EMAIL) {
+  if (!user || user.app_metadata?.role !== 'admin') {
     redirect('/dashboard');
   }
 

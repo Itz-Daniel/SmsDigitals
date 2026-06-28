@@ -14,7 +14,7 @@ export default async function ManagementLayout({
   }
 
   const email = user.email || "";
-  const isAdmin = email === process.env.ADMIN_EMAIL;
+  const isAdmin = user.app_metadata?.role === 'admin';
 
   if (!isAdmin) {
     redirect('/dashboard');

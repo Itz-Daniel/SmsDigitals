@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { GlobalCodePopup } from "@/components/GlobalCodePopup";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -26,7 +27,7 @@ export default async function DashboardLayout({
     .single();
 
   const avatarUrl = profileData?.avatar_url || null;
-  const isAdmin = email === process.env.ADMIN_EMAIL;
+  const isAdmin = user?.app_metadata?.role === 'admin';
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background text-foreground transition-colors duration-500">
@@ -40,6 +41,7 @@ export default async function DashboardLayout({
           {children}
         </div>
       </main>
+      <GlobalCodePopup userId={user.id} />
     </div>
   );
 }
