@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { X, Check } from "@phosphor-icons/react";
+import { X, Check, Wallet } from "@phosphor-icons/react";
+import Link from "next/link";
 
 interface PurchaseConfirmationModalProps {
   isOpen: boolean;
@@ -72,9 +73,19 @@ export function PurchaseConfirmationModal({
 
           <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-2">
             {error && (
-              <div className="mb-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
-                <span className="text-xl shrink-0 mt-0.5">⚠️</span>
-                <p className="leading-relaxed font-medium">{error}</p>
+              <div className={`mb-4 p-3.5 rounded-xl border text-sm flex gap-3 items-start animate-in fade-in slide-in-from-top-2 ${
+                error === "Insufficient balance." 
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-500" 
+                  : "bg-red-500/10 border-red-500/20 text-red-500"
+              }`}>
+                <span className="text-xl shrink-0 mt-0.5">{error === "Insufficient balance." ? "💰" : "⚠️"}</span>
+                <div className="leading-relaxed font-medium">
+                  {error === "Insufficient balance." ? (
+                    <>Your wallet balance is too low to purchase this number. Please top up to continue.</>
+                  ) : (
+                    <>{error}</>
+                  )}
+                </div>
               </div>
             )}
             
@@ -155,20 +166,30 @@ export function PurchaseConfirmationModal({
                 Cancel
               </button>
             )}
-            <button 
-              onClick={onConfirm}
-              disabled={isProcessing}
-              className={`${isProcessing ? 'w-full' : 'w-2/3'} py-4 rounded-xl bg-brand-blue text-white font-bold text-sm shadow-[0_0_20px_rgba(0,112,243,0.3)] hover:bg-brand-blue/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isProcessing ? (
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Check weight="bold" className="text-lg" />
-                  I Understand, Continue
-                </>
-              )}
-            </button>
+            {error === "Insufficient balance." ? (
+              <Link 
+                href="/dashboard/wallet"
+                className="w-2/3 py-4 rounded-xl bg-brand-blue text-white font-bold text-sm shadow-[0_0_20px_rgba(0,112,243,0.3)] hover:bg-brand-blue/90 transition-all flex items-center justify-center gap-2"
+              >
+                <Wallet weight="bold" className="text-lg" />
+                Top Up Balance
+              </Link>
+            ) : (
+              <button 
+                onClick={onConfirm}
+                disabled={isProcessing}
+                className={`${isProcessing ? 'w-full' : 'w-2/3'} py-4 rounded-xl bg-brand-blue text-white font-bold text-sm shadow-[0_0_20px_rgba(0,112,243,0.3)] hover:bg-brand-blue/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isProcessing ? (
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Check weight="bold" className="text-lg" />
+                    I Understand, Continue
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
         </motion.div>

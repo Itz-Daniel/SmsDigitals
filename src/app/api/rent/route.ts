@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse, ProviderLowBalanceError } from "@/lib/providers/sms-providers";
+
+async function notifyTelegramAdmin(message: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message })
+    });
+  } catch (e) {
+    console.error("Failed to send Telegram alert", e);
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -39,8 +55,13 @@ export async function POST(req: Request) {
         purchasedNumber = { ...res, provider: provider.name };
         console.log(`Success with ${provider.name}!`);
         break; // Stop waterfall if successful
-      } catch (e: unknown) {
-        console.error(`${provider.name} failed:`, e.message || e);
+      } catch (e: any) {
+        if (e.name === 'ProviderLowBalanceError') {
+          console.error(`🚨 ALERT: Provider ${provider.name} is OUT OF CREDIT!`);
+          await notifyTelegramAdmin(`🚨 ALERT: Provider [${provider.name.toUpperCase()}] is out of credit/balance! Please refill immediately to avoid service disruption.`);
+        } else {
+          console.error(`${provider.name} failed:`, e.message || e);
+        }
         console.log(`Falling back to next provider...`);
       }
     }

@@ -9,6 +9,13 @@ export interface CheckCodeResponse {
   code: string | null;
 }
 
+export class ProviderLowBalanceError extends Error {
+  constructor(providerName: string) {
+    super(`Provider ${providerName} is out of balance.`);
+    this.name = 'ProviderLowBalanceError';
+  }
+}
+
 // Map common generic names/IDs to specific provider codes
 type ProviderCode = '5sim' | 'grizzly' | 'smspva' | 'textverified' | 'smsman';
 
@@ -139,6 +146,9 @@ export const FiveSimApi = {
     
     if (!res.ok) {
       const errorText = await res.text();
+      if (errorText.toLowerCase().includes("not enough user balance")) {
+        throw new ProviderLowBalanceError('5sim');
+      }
       throw new Error(`5Sim Error: ${res.status} ${res.statusText} - ${errorText}`);
     }
     const data = await res.json();
@@ -237,6 +247,9 @@ export const GrizzlyApi = {
       const parts = text.split(":");
       return { orderId: parts[1], phone: parts[2], cost: 0.25 }; // Grizzly doesn't return cost in standard request, mock cost or fetch balance diff
     }
+    if (text === "NO_BALANCE") {
+      throw new ProviderLowBalanceError('grizzly');
+    }
     throw new Error(`Grizzly Error: ${text}`);
   },
 
@@ -294,6 +307,9 @@ export const SmspvaApi = {
 
     if (data.response === '1') {
       return { orderId: data.id.toString(), phone: data.number, cost: 0.30 }; // Mock cost
+    }
+    if (data.error_msg && data.error_msg.toLowerCase().includes("balance")) {
+      throw new ProviderLowBalanceError('smspva');
     }
     throw new Error(`SMSPVA Error: ${JSON.stringify(data)}`);
   },
@@ -406,6 +422,10 @@ export const SmsManApi = {
 
     if (data.request_id && data.number) {
       return { orderId: data.request_id.toString(), phone: data.number, cost: 0.50 };
+    }
+    if ((data.error_code && data.error_code.toLowerCase().includes("balance")) || 
+        (data.error_msg && data.error_msg.toLowerCase().includes("balance"))) {
+      throw new ProviderLowBalanceError('smsman');
     }
     throw new Error(`SMSMan Error: ${JSON.stringify(data)}`);
   },
