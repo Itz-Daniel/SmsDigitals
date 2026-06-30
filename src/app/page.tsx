@@ -61,6 +61,37 @@ const FAQ_ITEMS = [
   }
 ];
 
+const TESTIMONIALS = [
+  {
+    name: "Alex M.",
+    role: "Digital Marketer",
+    content: "I've tried dozens of SMS services for my campaigns. SmsDigitals is the only one that consistently works with WhatsApp and TikTok without getting blocked. Game changer.",
+    initial: "A",
+    color: "from-blue-500 to-indigo-500"
+  },
+  {
+    name: "Sarah T.",
+    role: "Freelance Developer",
+    content: "The API is incredibly fast, but even just using the dashboard is a breeze. The live pricing and auto-refunds mean I never waste money on failed numbers.",
+    initial: "S",
+    color: "from-emerald-400 to-teal-500"
+  },
+  {
+    name: "David O.",
+    role: "E-commerce Founder",
+    content: "We use SmsDigitals to verify our international stealth accounts. It's reliable, the UK and US numbers are always in stock, and the Paystack integration makes funding easy.",
+    initial: "D",
+    color: "from-orange-400 to-red-500"
+  },
+  {
+    name: "Elena K.",
+    role: "Social Media Manager",
+    content: "Finally, a service that doesn't feel sketchy. Clean UI, fast codes, and it just works. I tell all my clients to use this for their burner accounts.",
+    initial: "E",
+    color: "from-purple-500 to-pink-500"
+  }
+];
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const { setTheme, resolvedTheme } = useTheme();
@@ -323,6 +354,55 @@ export default function Home() {
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{feature.title}</h3>
                   <p className="text-[15px] text-slate-500 dark:text-white/40 leading-relaxed">{feature.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== TESTIMONIALS ===== */}
+        <section className="w-full py-24 md:py-32 overflow-hidden relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-blue/[0.03] dark:bg-brand-blue/[0.02] rounded-full blur-[100px] pointer-events-none" />
+          
+          <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.6, ease: customEase }}
+              className="text-center mb-16 md:mb-20"
+            >
+              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+                Trusted by professionals
+              </h2>
+              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto">
+                Don&apos;t just take our word for it. Here&apos;s what our users have to say.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {TESTIMONIALS.map((testimonial, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.5, delay: i * 0.1, ease: customEase }}
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors flex flex-col justify-between"
+                >
+                  <p className="text-[15px] md:text-base text-slate-600 dark:text-white/70 leading-relaxed mb-8 italic">
+                    &quot;{testimonial.content}&quot;
+                  </p>
+                  
+                  <div className="flex items-center gap-4 mt-auto">
+                    <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-sm shadow-inner`}>
+                      {testimonial.initial}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{testimonial.name}</h4>
+                      <p className="text-[13px] text-slate-500 dark:text-white/40">{testimonial.role}</p>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
             </div>
