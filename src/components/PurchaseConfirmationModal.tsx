@@ -89,71 +89,11 @@ export function PurchaseConfirmationModal({
               </div>
             )}
             
-            <div className="bg-brand-blue/5 border border-brand-blue/10 rounded-xl p-3.5">
-              <h3 className="text-sm font-bold text-brand-blue mb-0.5">Read rules before proceeding</h3>
-              <p className="text-[11px] text-brand-blue/70">📋 Important Rules</p>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 mt-2">
+              <p className="text-xs text-white/60 leading-relaxed">
+                By proceeding, you agree to our terms. Numbers are valid for up to <strong className="text-white">20 minutes</strong>. If no SMS arrives, you can cancel within the first 3 minutes for a <strong className="text-white">full refund</strong>.
+              </p>
             </div>
-          </div>
-
-          {/* Rules List - Scrollable */}
-          <div className="px-5 sm:px-6 pb-5 sm:pb-6 overflow-y-auto max-h-[42vh] custom-scrollbar space-y-4 pr-3 sm:pr-4">
-            
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">⏱️</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">Numbers are time-limited</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">You have up to 20 minutes after purchase to receive your verification code. The order auto-expires after this window.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">📱</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">One-time use only</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">Each number can only receive one verification SMS. It cannot be reused once a code is delivered.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">💰</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">Cancel for a refund</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">If no code arrives, cancel the order within 3 minutes of purchase to get a full wallet refund. After 3 minutes the cancel button unlocks.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">🌐</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">USA & Canada (+1) numbers</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">This server provides both US and Canadian numbers. Both share the +1 dial code. For USA-only services (e.g. POF), use Server 2 instead.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">🔄</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">Keep this page open</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">Your code will appear here automatically. Do not close or refresh the page while waiting for the SMS.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">⚠️</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-white mb-1">No guarantees on delivery</h4>
-                <p className="text-xs text-white/50 leading-[1.6]">Some services block certain numbers. If a code doesn&apos;t arrive, try a different server. Cancel for a refund if unsuccessful.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <span className="text-[22px] shrink-0 leading-none">🚫</span>
-              <div>
-                <h4 className="text-[13px] font-bold text-red-400 mb-1">Prohibited use</h4>
-                <p className="text-xs text-red-400/70 leading-[1.6]">Using these numbers for fraud, harassment, or any illegal activity is strictly forbidden and will result in an immediate account ban.</p>
-              </div>
-            </div>
-
           </div>
 
           {/* Footer Actions */}
