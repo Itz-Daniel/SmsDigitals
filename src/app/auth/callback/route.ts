@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -12,6 +13,39 @@ export async function GET(request: Request) {
     
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Process Affiliate Link immediately on auth success
+      const refCode = request.cookies.get('ref_code')?.value;
+      if (refCode && user) {
+        try {
+          const supabaseAdmin = createAdminClient();
+          
+          // Check if already referred
+          const { data: currentUser } = await supabaseAdmin
+            .from('profiles')
+            .select('referred_by')
+            .eq('id', user.id)
+            .single();
+
+          if (currentUser && !currentUser.referred_by) {
+            // Find referrer
+            const { data: referrer } = await supabaseAdmin
+              .from('profiles')
+              .select('id')
+              .eq('referral_code', refCode)
+              .single();
+              
+            if (referrer && referrer.id !== user.id) {
+              await supabaseAdmin
+                .from('profiles')
+                .update({ referred_by: referrer.id })
+                .eq('id', user.id);
+            }
+          }
+        } catch (err) {
+          console.error("Auth Callback Affiliate Link Error:", err);
+        }
+      }
       
       // Trigger welcome email for first-time users
       if (user && user.email && user.created_at) {
