@@ -269,16 +269,16 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Action 3: Virtual Cards */}
-          <div className="col-span-2 md:col-span-2 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex items-center gap-4 group cursor-pointer opacity-50 shadow-sm dark:shadow-none">
-            <div className="w-10 h-10 rounded-lg bg-white dark:bg-surface flex items-center justify-center text-slate-500 dark:text-white/60 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-              <CreditCard className="text-xl" />
+          {/* Action 3: Long-Term Rentals */}
+          <Link href="/dashboard/sms/long-term" className="col-span-2 md:col-span-2 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none">
+            <div className="w-10 h-10 rounded-lg bg-brand-blue/10 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-colors">
+              <ClockCounterClockwise className="text-xl" weight="duotone" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Virtual Cards <span className="text-[9px] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2">SOON</span></h4>
-              <p className="text-xs text-slate-500 dark:text-white/40">Manage global spending</p>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Rentals <span className="text-[9px] bg-brand-blue/10 text-brand-blue px-1.5 py-0.5 rounded ml-2 uppercase font-bold tracking-wider">New</span></h4>
+              <p className="text-xs text-slate-500 dark:text-white/40">Long-term numbers</p>
             </div>
-          </div>
+          </Link>
 
           {/* Action 4: Data / WiFi */}
           <div className="col-span-2 md:col-span-1 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex flex-col justify-center items-center gap-2 group cursor-pointer text-center opacity-50 shadow-sm dark:shadow-none">
