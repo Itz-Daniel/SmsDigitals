@@ -68,7 +68,7 @@ export function CurrencyOnboardingModal() {
           <div className="flex flex-col sm:flex-row gap-4 w-full mb-8 relative z-10">
             <button
               onClick={() => setSelected("NGN")}
-              className={`flex-1 flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
+              className={`relative flex-1 flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
                 selected === "NGN"
                   ? "border-brand-blue bg-brand-blue/5 shadow-[0_0_20px_rgba(0,112,243,0.1)]"
                   : "border-black/5 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5"
@@ -83,7 +83,7 @@ export function CurrencyOnboardingModal() {
 
             <button
               onClick={() => setSelected("USD")}
-              className={`flex-1 flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
+              className={`relative flex-1 flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
                 selected === "USD"
                   ? "border-brand-blue bg-brand-blue/5 shadow-[0_0_20px_rgba(0,112,243,0.1)]"
                   : "border-black/5 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5"
