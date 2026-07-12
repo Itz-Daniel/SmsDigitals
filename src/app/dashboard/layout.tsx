@@ -1,6 +1,8 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { GlobalCodePopup } from "@/components/GlobalCodePopup";
+import { CurrencyProvider } from "@/components/CurrencyContext";
+import { CurrencyOnboardingModal } from "@/components/CurrencyOnboardingModal";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -35,13 +37,16 @@ export default async function DashboardLayout({
       <div className="hidden lg:block">
         <Sidebar email={email} initials={initials} avatarUrl={avatarUrl} isAdmin={isAdmin} />
       </div>
-      <main className="flex-1 flex flex-col h-full relative overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <Header avatarUrl={avatarUrl} isAdmin={isAdmin} email={email} />
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full flex-1">
-          {children}
-        </div>
-      </main>
-      <GlobalCodePopup userId={user.id} />
+      <CurrencyProvider>
+        <main className="flex-1 flex flex-col h-full relative overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <Header avatarUrl={avatarUrl} isAdmin={isAdmin} email={email} />
+          <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full flex-1">
+            {children}
+          </div>
+        </main>
+        <GlobalCodePopup userId={user.id} />
+        <CurrencyOnboardingModal />
+      </CurrencyProvider>
     </div>
   );
 }

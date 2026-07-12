@@ -6,6 +6,7 @@ import { ClockCounterClockwise, ArrowsLeftRight, Hash, CreditCard, WifiHigh, Gif
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrency } from "@/components/CurrencyContext";
 
 const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
   ssr: false,
@@ -13,12 +14,12 @@ const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
 import ConvertModal from "@/components/dashboard/ConvertModal";
 
 export default function DashboardPage() {
+  const { currency, setCurrency } = useCurrency();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [wallet, setWallet] = useState<{ balance_ngn: number; balance_usd: number; id: string } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(1500);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN');
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
 
@@ -257,16 +258,16 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Action 2: Transfers */}
-          <div className="col-span-2 md:col-span-2 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex items-center gap-4 group cursor-pointer opacity-50 shadow-sm dark:shadow-none">
-            <div className="w-10 h-10 rounded-lg bg-white dark:bg-surface flex items-center justify-center text-slate-500 dark:text-white/60 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-              <ArrowsLeftRight className="text-xl" />
+          {/* Action 2: Affiliate Program */}
+          <Link href="/dashboard/affiliates" className="col-span-2 md:col-span-2 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none">
+            <div className="w-10 h-10 rounded-lg bg-brand-blue/10 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-colors">
+              <Gift className="text-xl" weight="duotone" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Transfer Funds <span className="text-[9px] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2">SOON</span></h4>
-              <p className="text-xs text-slate-500 dark:text-white/40">Send money instantly</p>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Affiliates <span className="text-[9px] bg-[#10B981]/10 text-[#10B981] px-1.5 py-0.5 rounded ml-2 uppercase font-bold tracking-wider">New</span></h4>
+              <p className="text-xs text-slate-500 dark:text-white/40">Earn rewards for invites</p>
             </div>
-          </div>
+          </Link>
 
           {/* Action 3: Virtual Cards */}
           <div className="col-span-2 md:col-span-2 row-span-1 rounded-2xl border border-black/5 dark:border-white/5 bg-slate-100 dark:bg-base hover:bg-slate-200 dark:hover:bg-white/5 transition-colors p-5 flex items-center gap-4 group cursor-pointer opacity-50 shadow-sm dark:shadow-none">

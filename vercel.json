@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/refunds",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/renew-rentals",
+      "schedule": "0 0 * * *"
     }
   ]
 }

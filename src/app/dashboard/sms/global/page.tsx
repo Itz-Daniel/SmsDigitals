@@ -8,6 +8,7 @@ import Link from "next/link";
 import { SERVICES, COUNTRIES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { PurchaseConfirmationModal } from "@/components/PurchaseConfirmationModal";
+import { useCurrency } from "@/components/CurrencyContext";
 
 interface Rental {
   id: string;
@@ -38,7 +39,7 @@ export default function GlobalPurchasePage() {
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const { currency } = useCurrency();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -196,22 +197,6 @@ export default function GlobalPurchasePage() {
             <div className="p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 shadow-2xl dark:shadow-none">
               <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(2rem-0.375rem)] p-6 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col gap-6">
                 
-                {/* Currency Toggle */}
-                <div className="flex bg-slate-200 dark:bg-[#111111] p-1 rounded-xl border border-black/5 dark:border-white/5">
-                  <button 
-                    onClick={() => setCurrency("USD")}
-                    className={`flex-1 py-2 text-sm font-semibold transition-colors rounded-lg ${currency === "USD" ? "bg-white text-slate-900 dark:bg-white/10 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white"}`}
-                  >
-                    USD ($)
-                  </button>
-                  <button 
-                    onClick={() => setCurrency("NGN")}
-                    className={`flex-1 py-2 text-sm font-semibold transition-colors rounded-lg ${currency === "NGN" ? "bg-white text-slate-900 dark:bg-white/10 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white"}`}
-                  >
-                    NGN (₦)
-                  </button>
-                </div>
-
                 {/* Form Groups */}
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-3">

@@ -123,8 +123,8 @@ export default function AdminSupportPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Support Queue</h1>
           <p className="text-sm text-slate-500 dark:text-white/40">Manage and reply to customer tickets.</p>
         </div>
-        <div className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-black/10 border border-slate-900 dark:border-white/20 px-4 py-2 rounded-xl text-slate-900 dark:text-white dark:text-green-400 font-bold text-sm">
-          <WarningCircle size={20} weight="fill" />
+        <div className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 border border-slate-900 dark:border-white/20 px-4 py-2 rounded-xl font-bold text-sm">
+          <WarningCircle size={20} weight="fill" className="text-orange-400 dark:text-orange-500" />
           {openTicketsCount} Open Tickets
         </div>
       </div>

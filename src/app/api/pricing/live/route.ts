@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
+import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 
 export const dynamic = 'force-dynamic';
 
@@ -12,56 +13,75 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
     }
 
-    // Fetch live prices concurrently
-    const [fiveSimRes, grizzlyRes] = await Promise.allSettled([
-      FiveSimApi.getPrice(country, serviceName),
-      GrizzlyApi.getPrice(country, serviceName)
-    ]);
-
-    const prices: number[] = [];
-
-    if (fiveSimRes.status === 'fulfilled' && typeof fiveSimRes.value.cost === 'number' && !isNaN(fiveSimRes.value.cost)) {
-      // Assuming cost is in USD (if account is set to USD) or fallback raw amount
-      // Most 5sim USD accounts return prices around 0.10 to 1.00
-      prices.push(fiveSimRes.value.cost);
-    }
-
-    if (grizzlyRes.status === 'fulfilled' && typeof grizzlyRes.value.cost === 'number' && !isNaN(grizzlyRes.value.cost)) {
-      prices.push(grizzlyRes.value.cost);
-    }
-
-    if (prices.length === 0) {
-      return NextResponse.json({ error: "Out of Stock", available: false }, { status: 200 });
-    }
-
-    // Find the absolute lowest raw price available
-    const lowestRawCost = Math.min(...prices);
-
-    // Fetch dynamic profit margin and exchange rate
     const supabaseAdmin = createAdminClient();
-    const { data: settings } = await supabaseAdmin.from('settings').select('profit_margin, exchange_rate').eq('id', 1).single();
-    const profitMargin = settings?.profit_margin || 0.40;
+
+    // 1. Check local cache first (valid for 15 minutes)
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: cached } = await supabaseAdmin
+      .from('cached_prices')
+      .select('lowest_raw_cost, updated_at')
+      .eq('country', country)
+      .eq('service', serviceName)
+      .single();
+
+    let lowestRawCost = 0;
+    let fromCache = false;
+
+    if (cached && new Date(cached.updated_at).getTime() > new Date(fifteenMinsAgo).getTime()) {
+      lowestRawCost = cached.lowest_raw_cost;
+      fromCache = true;
+    } else {
+      // 2. Fetch live prices concurrently
+      const results = await Promise.allSettled([
+        FiveSimApi.getPrice(country, serviceName),
+        GrizzlyApi.getPrice(country, serviceName)
+      ]);
+
+      const prices: number[] = [];
+      for (const res of results) {
+        if (res.status === 'fulfilled' && typeof res.value.cost === 'number' && !isNaN(res.value.cost) && res.value.cost > 0) {
+          prices.push(res.value.cost);
+        }
+      }
+
+      if (prices.length === 0) {
+        // If entirely out of stock, see if we have a stale cache we can fallback to gracefully
+        if (cached) {
+          lowestRawCost = cached.lowest_raw_cost;
+          fromCache = true; // Fallback to stale cache
+        } else {
+          return NextResponse.json({ error: "Out of Stock", available: false }, { status: 200 });
+        }
+      } else {
+        lowestRawCost = Math.min(...prices);
+
+        // 3. Update cache asynchronously (don't await so we return fast)
+        supabaseAdmin.rpc('upsert_cached_price', {
+          p_country: country,
+          p_service: serviceName,
+          p_lowest_raw_cost: lowestRawCost
+        }).then(({error}) => {
+          if (error) console.error("Cache Upsert Error:", error);
+        });
+      }
+    }
+
+    // 4. Fetch dynamic exchange rate
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
     
-    // Calculate final retail price
-    const retailCostUsd = lowestRawCost + (lowestRawCost * profitMargin);
-    let finalCost = retailCostUsd;
-    
-    if (currency === 'NGN') {
-      finalCost = retailCostUsd * exchangeRate;
-    }
-
-    // Round safely
-    finalCost = currency === 'NGN' ? Math.ceil(finalCost) : Math.round(finalCost * 100) / 100;
+    // 5. Calculate Smart Tiered Pricing
+    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency);
 
     return NextResponse.json({
       success: true,
       available: true,
       cost: finalCost,
-      currency: currency
+      currency: currency,
+      cached: fromCache
     });
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error("Live Pricing API Error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }

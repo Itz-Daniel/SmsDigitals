@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { House, Swap, Wallet, Hash, CreditCard, ClockCounterClockwise, Gear, SignOut, Headset, ChartLineUp } from "@phosphor-icons/react";
+import { House, Swap, Wallet, Hash, CreditCard, ClockCounterClockwise, Gear, SignOut, Headset, ChartLineUp, Storefront, UsersThree } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 
@@ -18,7 +18,10 @@ export const navGroups = [
     title: "SERVICES",
     items: [
       { name: "Fund Wallet", href: "/dashboard/fund", icon: Wallet },
-      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash, badge: "NEW" },
+      { name: "Digital Marketplace", href: "/dashboard/marketplace", icon: Storefront, badge: "NEW" },
+      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash },
+      { name: "Long Term Rentals", href: "/dashboard/sms/long-term", icon: ClockCounterClockwise },
+      { name: "Affiliate Program", href: "/dashboard/affiliates", icon: UsersThree, badge: "EARN" },
       { name: "Virtual Cards", href: "/dashboard/cards", icon: CreditCard, disabled: true, badge: "SOON", badgeStyle: "disabled" },
     ],
   },

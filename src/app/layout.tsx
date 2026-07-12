@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { FloatingSupport } from "@/components/FloatingSupport";
+import { ReferralTracker } from "@/components/ReferralTracker";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +52,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-brand-blue/30 selection:text-white min-h-[100dvh] flex flex-col bg-background text-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <Suspense fallback={null}>
+            <ReferralTracker />
+          </Suspense>
           {children}
           <FloatingSupport />
         </ThemeProvider>

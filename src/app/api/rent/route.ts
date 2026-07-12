@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse, ProviderLowBalanceError } from "@/lib/providers/sms-providers";
+import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 
 async function notifyTelegramAdmin(message: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -28,6 +29,21 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // --- RATE LIMITING ---
+    // Max 3 requests per 20 seconds per user
+    const { data: isAllowed, error: rateLimitError } = await supabase.rpc('check_rate_limit', {
+      p_identifier: user.id,
+      p_endpoint: '/api/rent',
+      p_max_requests: 3,
+      p_window_seconds: 20
+    });
+
+    if (rateLimitError) {
+      console.error("Rate limit check failed:", rateLimitError);
+    } else if (isAllowed === false) {
+      return NextResponse.json({ error: "You are doing that too fast. Please wait 20 seconds." }, { status: 429 });
     }
 
     const { serviceId, serviceName = "", country, region, currency = 'USD' } = await req.json();
@@ -71,21 +87,11 @@ export async function POST(req: Request) {
     }
 
     // --- CALCULATE FINAL PRICE ---
-    // Fetch dynamic profit margin and exchange rate
     const supabaseAdmin = createAdminClient();
-    const { data: settings } = await supabaseAdmin.from('settings').select('profit_margin, exchange_rate').eq('id', 1).single();
-    const profitMargin = settings?.profit_margin || 0.40;
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
     
-    const rawPriceUsd = purchasedNumber.cost + (purchasedNumber.cost * profitMargin);
-    let finalCost = rawPriceUsd;
-    
-    if (currency === 'NGN') {
-      finalCost = rawPriceUsd * exchangeRate;
-    }
-
-    // Round to 2 decimal places
-    finalCost = Math.round(finalCost * 100) / 100;
+    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency);
 
     // --- DEDUCT BALANCE & CREATE RENTAL ---
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // Expires in 15 minutes

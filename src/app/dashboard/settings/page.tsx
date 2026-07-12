@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { User, LockKey, Spinner, CheckCircle, WarningCircle, Gear } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrency } from "@/components/CurrencyContext";
 import { motion } from "motion/react";
 import clsx from "clsx";
 
 export default function SettingsPage() {
+  const { currency, setCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
   const [loading, setLoading] = useState(true);
   
@@ -207,6 +209,25 @@ export default function SettingsPage() {
                         placeholder="John Doe"
                         className="w-full bg-white dark:bg-[#050505] border border-black/5 dark:border-white/10 rounded-xl py-3 px-4 text-slate-900 dark:text-white text-sm font-medium focus:border-brand-blue/50 outline-none transition-colors shadow-sm dark:shadow-none"
                       />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-widest">Display Currency</label>
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <label className={clsx("flex-1 p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all", currency === 'NGN' ? "bg-brand-blue/5 border-brand-blue" : "border-black/10 dark:border-white/10 opacity-70")}>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-slate-900 dark:text-white">₦ Naira (NGN)</span>
+                          </div>
+                          <input type="radio" name="currency" className="hidden" checked={currency === 'NGN'} onChange={() => setCurrency('NGN')} />
+                        </label>
+                        <label className={clsx("flex-1 p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all", currency === 'USD' ? "bg-brand-blue/5 border-brand-blue" : "border-black/10 dark:border-white/10 opacity-70")}>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-slate-900 dark:text-white">$ USD</span>
+                          </div>
+                          <input type="radio" name="currency" className="hidden" checked={currency === 'USD'} onChange={() => setCurrency('USD')} />
+                        </label>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-white/30 mt-1">Changes instantly apply across the entire dashboard.</p>
                     </div>
 
                     {profileMsg && (

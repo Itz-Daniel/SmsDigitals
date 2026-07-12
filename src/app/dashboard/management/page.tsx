@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminSettingsPanel from "./AdminSettingsPanel";
 import GlobalNotificationManager from "./GlobalNotificationManager";
+import DigitalIssuesPanel from "./DigitalIssuesPanel";
 
 export const metadata = {
   title: 'System Management | Bliss Digital',
@@ -19,17 +20,18 @@ export default async function ManagementPage() {
     redirect('/dashboard');
   }
 
-  // Fetch current margin directly from the database for the initial server render
+  // Fetch current margin and affiliate percentage directly from the database for the initial server render
   const { data: settings } = await supabase
     .from('settings')
-    .select('profit_margin')
+    .select('profit_margin, affiliate_percentage')
     .eq('id', 1)
     .single();
 
   const initialMargin = settings?.profit_margin || 0.40;
+  const initialAffiliatePercentage = settings?.affiliate_percentage || 5.0;
 
   return (
-    <div className="min-h-screen p-4 md:p-8 pt-24 max-w-4xl mx-auto flex flex-col gap-8">
+    <div className="min-h-screen p-4 md:p-8 pt-24 max-w-4xl mx-auto flex flex-col gap-8 pb-20">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3 text-slate-900 dark:text-white">
           <span className="text-brand-blue">HQ</span> Control Center
@@ -39,7 +41,8 @@ export default async function ManagementPage() {
         </p>
       </div>
 
-      <AdminSettingsPanel initialMargin={initialMargin} />
+      <DigitalIssuesPanel />
+      <AdminSettingsPanel initialMargin={initialMargin} initialAffiliatePercentage={initialAffiliatePercentage} />
       <GlobalNotificationManager />
     </div>
   );

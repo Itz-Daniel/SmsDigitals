@@ -108,7 +108,11 @@ export default function RegisterPage() {
     });
 
     if (error) {
-      setError(error.message);
+      if (error.message.includes("Password should contain at least one character of each")) {
+        setError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
     } else {
       // Trigger WhatsApp Admin Alert (fire and forget)

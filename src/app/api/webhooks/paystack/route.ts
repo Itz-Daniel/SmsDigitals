@@ -63,6 +63,18 @@ export async function POST(req: Request) {
       }
 
       console.log(`Successfully funded ${amountInNgn} NGN for user ${userId} via Webhook`);
+
+      // 5. Process Affiliate Payout
+      try {
+        await supabase.rpc('process_affiliate_payout', {
+          p_user_id: userId,
+          p_deposit_amount: amountInNgn,
+          p_reference: reference
+        });
+        console.log(`Processed affiliate payout (if any) for user ${userId}`);
+      } catch (err) {
+        console.error("Affiliate Payout Error:", err);
+      }
     }
 
     return NextResponse.json({ success: true });

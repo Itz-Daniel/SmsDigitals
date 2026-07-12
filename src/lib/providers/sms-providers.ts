@@ -159,6 +159,33 @@ export const FiveSimApi = {
     throw new Error("5Sim: No number returned");
   },
 
+  async rentNumber(country: string, serviceId: string, serviceName: string): Promise<ProviderResponse> {
+    const apiKey = process.env.FIVESIM_API_KEY;
+    if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
+
+    const mappedService = mapServiceToProvider(serviceName, '5sim');
+    const mappedCountry = mapCountryToProvider(country, '5sim');
+
+    // Default to 'any' operator for highest success rate. For 5sim, renting is "hosting".
+    const res = await fetch(`https://5sim.net/v1/user/buy/hosting/${mappedCountry}/any/${mappedService}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      if (errorText.toLowerCase().includes("not enough user balance")) {
+        throw new ProviderLowBalanceError('5sim');
+      }
+      throw new Error(`5Sim Rent Error: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    const data = await res.json();
+    
+    if (data.id && data.phone) {
+      return { orderId: data.id.toString(), phone: data.phone, cost: data.price };
+    }
+    throw new Error("5Sim Rent: No number returned");
+  },
+
   async checkCode(orderId: string): Promise<CheckCodeResponse> {
     const apiKey = process.env.FIVESIM_API_KEY;
     if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
@@ -312,6 +339,40 @@ export const SmspvaApi = {
       throw new ProviderLowBalanceError('smspva');
     }
     throw new Error(`SMSPVA Error: ${JSON.stringify(data)}`);
+  },
+
+  async rentNumber(country: string, serviceId: string, serviceName: string): Promise<ProviderResponse> {
+    const apiKey = process.env.SMSPVA_API_KEY;
+    if (!apiKey) throw new Error("SMSPVA_API_KEY missing");
+
+    const mappedService = mapServiceToProvider(serviceName, 'smspva');
+    const mappedCountry = mapCountryToProvider(country, 'smspva');
+
+    const url = `https://smspva.com/api/rent.php?method=get_number&country=${mappedCountry}&service=${mappedService}&apikey=${apiKey}&dtype=month&dcount=1`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`SMSPVA Rent HTTP Error: ${res.status}`);
+    
+    const data = await res.json();
+    if (data.response === '1' || data.status === 1) {
+      return { orderId: data.id.toString(), phone: data.number, cost: 5.00 }; // Ensure to sync real cost via API if available
+    }
+    
+    if (data.error_msg && data.error_msg.toLowerCase().includes("balance")) {
+      throw new ProviderLowBalanceError('smspva');
+    }
+    throw new Error(`SMSPVA Rent Error: ${JSON.stringify(data)}`);
+  },
+
+  async prolongNumber(orderId: string): Promise<boolean> {
+    const apiKey = process.env.SMSPVA_API_KEY;
+    if (!apiKey) return false;
+
+    const url = `https://smspva.com/api/rent.php?method=prolong&apikey=${apiKey}&id=${orderId}&dtype=month&dcount=1`;
+    const res = await fetch(url);
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    return data.response === '1' || data.status === 1;
   },
 
   async checkCode(orderId: string, country: string, serviceId: string): Promise<CheckCodeResponse> {
