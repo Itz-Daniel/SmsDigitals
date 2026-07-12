@@ -31,6 +31,7 @@ export const navGroups = [
       { name: "SMS History", href: "/dashboard/history", icon: ClockCounterClockwise },
       { name: "Admin Overview", href: "/dashboard/management/overview", icon: ChartLineUp },
       { name: "Admin Support", href: "/dashboard/management/support", icon: Headset },
+      { name: "Global Settings", href: "/dashboard/management", icon: Gear },
     ],
   },
   {
@@ -113,7 +114,7 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {navGroups.map((group) => {
           const filteredItems = group.items.filter(item => {
-            if ((item.name === "Admin Support" || item.name === "Admin Overview") && !isAdmin) return false;
+            if ((item.name === "Admin Support" || item.name === "Admin Overview" || item.name === "Global Settings") && !isAdmin) return false;
             return true;
           });
 
