@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { adminSettingsSchema, getFieldErrors } from "@/lib/validation";
 
 export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
@@ -39,26 +40,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { profit_margin, affiliate_percentage } = await req.json();
+    const body = await req.json();
+    const validationResult = adminSettingsSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      const errors = getFieldErrors(validationResult.error);
+      return NextResponse.json({ error: "Validation failed", errors }, { status: 400 });
+    }
+
+    const { profit_margin, affiliate_percentage } = validationResult.data;
 
     const updateData: any = {};
 
     if (profit_margin !== undefined) {
-        if (typeof profit_margin !== 'number' || profit_margin < 0) {
-            return NextResponse.json({ error: "Invalid profit margin" }, { status: 400 });
-        }
         updateData.profit_margin = profit_margin;
     }
 
     if (affiliate_percentage !== undefined) {
-        if (typeof affiliate_percentage !== 'number' || affiliate_percentage < 0) {
-            return NextResponse.json({ error: "Invalid affiliate percentage" }, { status: 400 });
-        }
         updateData.affiliate_percentage = affiliate_percentage;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-        return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
     const supabaseAdmin = createAdminClient();

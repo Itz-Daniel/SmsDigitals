@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buyAccsPurchase, getBuyAccsGoods } from "@/lib/providers/buyaccs";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { marketplaceBuySchema, getFieldErrors } from "@/lib/validation";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +15,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { provider_api_id } = await req.json();
+    const body = await req.json();
+    const validationResult = marketplaceBuySchema.safeParse(body);
 
-    if (!provider_api_id) {
-      return NextResponse.json({ error: "Missing product ID." }, { status: 400 });
+    if (!validationResult.success) {
+      const errors = getFieldErrors(validationResult.error);
+      return NextResponse.json({ error: "Validation failed", errors }, { status: 400 });
     }
+
+    const { provider_api_id } = validationResult.data;
 
     // 1. Fetch current price and stock directly from the wholesale provider (server-side secure)
     const goods = await getBuyAccsGoods();
