@@ -305,7 +305,7 @@ export default function DashboardPage() {
                     <div 
                       className="h-full bg-brand-blue rounded-full"
                       style={{ 
-                        width: \`\${Math.min(100, ((wallet?.lifetime_deposits_usd || 0) / (wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50)) * 100)}%\` 
+                        width: `${Math.min(100, ((wallet?.lifetime_deposits_usd || 0) / (wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50)) * 100)}%` 
                       }}
                     ></div>
                   </div>
