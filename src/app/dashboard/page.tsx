@@ -284,7 +284,8 @@ export default function DashboardPage() {
               
               <div className="mt-6">
                 <p className="text-2xl font-bold font-mono tracking-tighter">
-                  ${wallet?.lifetime_deposits_usd ? wallet.lifetime_deposits_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                  {currency === 'NGN' ? '₦' : '$'}
+                  {wallet?.lifetime_deposits_usd ? (currency === 'NGN' ? wallet.lifetime_deposits_usd * exchangeRate : wallet.lifetime_deposits_usd).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">Total Lifetime Deposits</p>
               </div>
@@ -298,7 +299,7 @@ export default function DashboardPage() {
                   <div className="flex justify-between text-xs mb-2 text-slate-400">
                     <span>Progress</span>
                     <span className="font-mono text-white">
-                      ${wallet?.lifetime_deposits_usd || 0} / ${wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50}
+                      {currency === 'NGN' ? '₦' : '$'}{((wallet?.lifetime_deposits_usd || 0) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()} / {currency === 'NGN' ? '₦' : '$'}{((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()}
                     </span>
                   </div>
                   <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
@@ -310,7 +311,7 @@ export default function DashboardPage() {
                     ></div>
                   </div>
                   <p className="text-xs text-slate-400 mt-3">
-                    Deposit <span className="text-white font-bold">${((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) - (wallet?.lifetime_deposits_usd || 0)).toFixed(2)}</span> more to reach {wallet && wallet.lifetime_deposits_usd >= 150 ? 'Gold' : wallet && wallet.lifetime_deposits_usd >= 50 ? 'Silver' : 'Bronze'}!
+                    Deposit <span className="text-white font-bold">{currency === 'NGN' ? '₦' : '$'}{(((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) - (wallet?.lifetime_deposits_usd || 0)) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span> more to reach {wallet && wallet.lifetime_deposits_usd >= 150 ? 'Gold' : wallet && wallet.lifetime_deposits_usd >= 50 ? 'Silver' : 'Bronze'}!
                   </p>
                 </>
               )}
