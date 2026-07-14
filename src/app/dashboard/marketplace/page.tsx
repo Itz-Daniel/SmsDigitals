@@ -26,6 +26,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useCurrency } from "@/components/CurrencyContext";
 
+import { createClient } from "@/lib/supabase/client";
+
 interface DigitalProduct {
   id: string;
   provider_api_id: string;
@@ -68,6 +70,10 @@ export default function MarketplacePage() {
   const [filteredProducts, setFilteredProducts] = useState<DigitalProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Admin Gate State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
+  
   // Filtering and Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -87,7 +93,21 @@ export default function MarketplacePage() {
   const DEFAULT_LIMIT = 8;
 
   useEffect(() => {
-    fetchProducts();
+    const checkAccessAndFetch = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user?.app_metadata?.role === 'admin') {
+        setIsAdmin(true);
+        fetchProducts();
+      } else {
+        setIsAdmin(false);
+        setIsLoading(false); // Stop loader so we can show Coming Soon
+      }
+      setIsCheckingRole(false);
+    };
+
+    checkAccessAndFetch();
   }, []);
 
   useEffect(() => {
@@ -235,10 +255,45 @@ export default function MarketplacePage() {
       </div>
 
       {/* Categories & Products */}
-      {isLoading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-500">
-          <Spinner size={48} className="animate-spin text-brand-blue" />
-          <p className="font-bold">Loading live inventory...</p>
+      {isCheckingRole || isLoading ? (
+        <div className="space-y-12 animate-pulse">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-200 dark:bg-white/10 rounded-2xl"></div>
+              <div>
+                <div className="h-6 w-32 bg-slate-200 dark:bg-white/10 rounded-lg mb-2"></div>
+                <div className="h-4 w-24 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/5 rounded-3xl p-6 flex flex-col gap-4 h-[220px]">
+                  <div className="w-16 h-6 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
+                  <div className="w-3/4 h-6 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
+                  <div className="flex-1 space-y-2 mt-2">
+                    <div className="w-full h-4 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
+                    <div className="w-5/6 h-4 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
+                  </div>
+                  <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
+                    <div className="w-20 h-8 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
+                    <div className="w-20 h-10 bg-slate-200 dark:bg-white/10 rounded-xl"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : !isAdmin ? (
+        <div className="py-32 flex flex-col items-center justify-center text-center px-4">
+          <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+            <Storefront size={40} weight="duotone" />
+          </div>
+          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">Marketplace Coming Soon</h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md text-lg leading-relaxed">
+            We are currently upgrading our marketplace to bring you the best premium accounts at the lowest wholesale prices. 
+            <br/><br/>
+            Check back shortly!
+          </p>
         </div>
       ) : Object.keys(groupedProducts).length === 0 ? (
         <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-500 bg-white dark:bg-[#111] rounded-3xl border border-black/5 dark:border-white/5">

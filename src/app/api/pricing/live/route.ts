@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
-import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
     }
 
     const supabaseAdmin = createAdminClient();
+    const supabase = await createClient(); // For getting the current user session
 
     // 1. Check local cache first (valid for 15 minutes)
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
@@ -67,11 +69,27 @@ export async function POST(req: Request) {
     }
 
     // 4. Fetch dynamic exchange rate
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single(); // fallback
     const exchangeRate = settings?.exchange_rate || 1500;
     
+    // Check if user is authenticated to get VIP discount
+    const { data: { user } } = await supabase.auth.getUser();
+    let userDiscount = 0;
+    
+    if (user) {
+      const { data: wallet } = await supabaseAdmin
+        .from('wallets')
+        .select('lifetime_deposits_usd')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (wallet?.lifetime_deposits_usd) {
+        userDiscount = calculateUserDiscount(wallet.lifetime_deposits_usd);
+      }
+    }
+
     // 5. Calculate Smart Tiered Pricing
-    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency);
+    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount);
 
     return NextResponse.json({
       success: true,

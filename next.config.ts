@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Allow local network devices to connect for development
-  allowedDevOrigins: ['192.168.1.218'],
+  allowedDevOrigins: ['192.168.1.218', ],
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if

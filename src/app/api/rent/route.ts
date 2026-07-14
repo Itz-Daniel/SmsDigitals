@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse, ProviderLowBalanceError } from "@/lib/providers/sms-providers";
-import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 
 async function notifyTelegramAdmin(message: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -88,10 +88,14 @@ export async function POST(req: Request) {
 
     // --- CALCULATE FINAL PRICE ---
     const supabaseAdmin = createAdminClient();
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single(); // fall back handled below
     const exchangeRate = settings?.exchange_rate || 1500;
     
-    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency);
+    // Get User's VIP Discount
+    const { data: wallet } = await supabaseAdmin.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
+    const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
+    
+    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount);
 
     // --- DEDUCT BALANCE & CREATE RENTAL ---
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // Expires in 15 minutes

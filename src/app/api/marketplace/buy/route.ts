@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buyAccsPurchase, getBuyAccsGoods } from "@/lib/providers/buyaccs";
-import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { buyUltimateLogsService, getUltimateLogsServices } from "@/lib/providers/ultimatelogs";
+import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { marketplaceBuySchema, getFieldErrors } from "@/lib/validation";
 
 export const dynamic = 'force-dynamic';
@@ -25,30 +25,39 @@ export async function POST(req: Request) {
 
     const { provider_api_id } = validationResult.data;
 
-    // 1. Fetch current price and stock directly from the wholesale provider (server-side secure)
-    const goods = await getBuyAccsGoods();
+    // 1. Fetch current price and stock directly from the wholesale provider
+    const goods = await getUltimateLogsServices();
     const product = goods.find(g => g.id.toString() === provider_api_id.toString());
 
-    if (!product || product.count <= 0) {
+    if (!product || product.in_stock <= 0) {
       return NextResponse.json({ error: "Product is out of stock or unavailable." }, { status: 404 });
     }
 
-    // Recalculate price securely on the server
-    const retailPrice = calculateFinalRetailPrice(product.price, 1, 'USD');
+    // Fetch exchange rate to properly convert NGN to USD
+    const { data: settings } = await supabase.from('settings').select('exchange_rate').eq('id', 1).single();
+    const exchangeRate = settings?.exchange_rate || 1500;
+
+    // Convert wholesale price to USD
+    let wholesalePriceUsd = product.price;
+    if (product.currency === 'NGN') {
+      wholesalePriceUsd = product.price / exchangeRate;
+    }
+
+    // Get User's VIP Discount
+    const { data: wallet } = await supabase.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
+    const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
+
+    // Recalculate price securely on the server with user's discount
+    const retailPrice = calculateFinalRetailPrice(wholesalePriceUsd, 1, 'USD', userDiscount);
 
     // 2. We use our unified RPC to deduct balance and log order atomically.
-    // However, we only want to deduct IF the buy succeeds. 
-    // To do this perfectly, we will fetch Buy-Accs first. But if Buy-Accs succeeds and our DB fails, 
-    // we lose money and user gets nothing. 
-    // Safer approach: Deduct first, Buy second, Refund if Buy fails.
-    
     const { data: orderResult, error: orderError } = await supabase.rpc('buy_digital_good', {
       p_user_id: user.id,
       p_provider_api_id: product.id.toString(),
-      p_product_name: product.title || 'Digital Account',
+      p_product_name: product.name || 'Digital Account',
       p_cost: retailPrice,
       p_currency: 'USD',
-      p_account_logs: 'PENDING_DELIVERY' // Placeholder until API returns
+      p_account_logs: 'Processing Order...' // Placeholder
     });
 
     if (orderError || !orderResult?.success) {
@@ -59,11 +68,11 @@ export async function POST(req: Request) {
     const orderId = orderResult.order_id;
 
     // 3. Purchase from wholesale API live
-    const purchaseResult = await buyAccsPurchase(product.id, 1);
+    const purchaseResult = await buyUltimateLogsService(product.id, 1);
 
     if (!purchaseResult.success) {
       // PURCHASE FAILED! We must refund the user immediately via our refund RPC
-      console.error(`Buy-accs API failed for order ${orderId}:`, purchaseResult.error);
+      console.error(`Ultimate Logs API failed for order ${orderId}:`, purchaseResult.error);
       
       await supabase.rpc('refund_digital_order', {
         p_order_id: orderId
@@ -72,15 +81,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Wholesale provider failed to deliver. You have been refunded automatically." }, { status: 502 });
     }
 
-    // 4. Purchase succeeded! Update the order with the real credentials
-    // buy-accs returns credentials in various formats. We will stringify whatever data they return.
-    const logs = typeof purchaseResult.data === 'string' 
-      ? purchaseResult.data 
-      : JSON.stringify(purchaseResult.data, null, 2);
+    // 4. Purchase succeeded! Save the provider's order ID and immediately delivered items.
+    let logs = `Ultimate Logs Order ID: ${purchaseResult.data.order_id}\n\nAccounts Delivered:\n`;
+    
+    if (purchaseResult.data.items && Array.isArray(purchaseResult.data.items)) {
+      purchaseResult.data.items.forEach((item: any, index: number) => {
+        logs += `${index + 1}. ${item.details || 'No details provided'}\n`;
+        if (item.url) logs += `   URL: ${item.url}\n`;
+      });
+    } else {
+      logs += 'Status: Processing.\nCheck your email or contact support if not delivered instantly.';
+    }
 
     await supabase
       .from('digital_orders')
-      .update({ account_logs: logs })
+      .update({ account_logs: logs, status: 'completed' })
       .eq('id', orderId);
 
     // Success!

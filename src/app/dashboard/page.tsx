@@ -16,7 +16,7 @@ import ConvertModal from "@/components/dashboard/ConvertModal";
 export default function DashboardPage() {
   const { currency, setCurrency } = useCurrency();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
-  const [wallet, setWallet] = useState<{ balance_ngn: number; balance_usd: number; id: string } | null>(null);
+  const [wallet, setWallet] = useState<{ balance_ngn: number; balance_usd: number; lifetime_deposits_usd: number; id: string } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(1500);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -34,8 +34,8 @@ export default function DashboardPage() {
       // Fetch Profile, Wallet, and Settings concurrently
       const [profileRes, walletRes, settingsRes] = await Promise.all([
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-        supabase.from("wallets").select("balance_ngn, balance_usd, id").eq("user_id", user.id).single(),
-        supabase.from("settings").select("exchange_rate").eq("id", 1).single()
+        supabase.from("wallets").select("balance_ngn, balance_usd, lifetime_deposits_usd, id").eq("user_id", user.id).single(),
+        supabase.from("api_settings").select("exchange_rate").single()
       ]);
 
       if (profileRes.data) {
@@ -84,8 +84,41 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="w-full h-[60vh] flex items-center justify-center">
-        <Spinner className="animate-spin text-3xl text-brand-blue" />
+      <div className="flex flex-col gap-12 pb-12 w-full max-w-5xl text-slate-900 dark:text-white transition-colors duration-500 animate-pulse">
+        {/* Skeleton Hero */}
+        <section className="w-full flex flex-col gap-6">
+          <div>
+            <div className="h-8 bg-slate-200 dark:bg-white/10 rounded-lg w-64 mb-3"></div>
+            <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-lg w-48"></div>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-surface/30 p-8 md:p-10 flex flex-col gap-8">
+            <div className="flex items-center justify-between">
+              <div className="w-24 h-4 bg-slate-200 dark:bg-white/10 rounded-full"></div>
+              <div className="w-32 h-8 bg-slate-200 dark:bg-white/10 rounded-full"></div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="w-64 h-16 bg-slate-200 dark:bg-white/10 rounded-2xl"></div>
+              <div className="w-48 h-4 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
+            </div>
+            <div className="flex gap-4 min-h-[52px]">
+              <div className="w-32 h-12 bg-slate-200 dark:bg-white/10 rounded-xl"></div>
+              <div className="w-32 h-12 bg-slate-200 dark:bg-white/10 rounded-xl"></div>
+            </div>
+          </div>
+        </section>
+
+        {/* Skeleton Bento Grid */}
+        <section className="w-full flex flex-col gap-6">
+          <div className="h-6 bg-slate-200 dark:bg-white/10 rounded-lg w-32"></div>
+          <div className="grid grid-cols-4 md:grid-cols-6 grid-flow-dense gap-4">
+            <div className="col-span-2 md:col-span-2 row-span-2 h-64 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+            <div className="col-span-2 md:col-span-2 row-span-1 h-32 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+            <div className="col-span-2 md:col-span-2 row-span-1 h-32 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+            <div className="col-span-2 md:col-span-1 row-span-1 h-32 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+            <div className="col-span-2 md:col-span-1 row-span-1 h-32 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+            <div className="col-span-4 md:col-span-2 row-span-1 h-32 rounded-2xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10"></div>
+          </div>
+        </section>
       </div>
     );
   }
@@ -108,127 +141,181 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-surface/30 backdrop-blur-sm shadow-xl shadow-black/5 dark:shadow-none p-8 md:p-10 flex flex-col gap-8 group">
-          {/* Ambient Glow */}
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand-blue/10 rounded-full blur-[100px] pointer-events-none transition-opacity duration-700 opacity-50 group-hover:opacity-100"></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 relative overflow-hidden rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-surface/30 backdrop-blur-sm shadow-xl shadow-black/5 dark:shadow-none p-8 md:p-10 flex flex-col gap-8 group">
+            {/* Ambient Glow */}
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand-blue/10 rounded-full blur-[100px] pointer-events-none transition-opacity duration-700 opacity-50 group-hover:opacity-100"></div>
 
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest text-slate-400 dark:text-white/40 uppercase">
-              <div className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
-              Wallet Balance
-              <button 
-                onClick={() => setShowBalance(!showBalance)} 
-                className="ml-2 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95"
-                title={showBalance ? "Hide balance" : "Show balance"}
-              >
-                {showBalance ? <EyeSlash size={16} weight="duotone" /> : <Eye size={16} weight="duotone" />}
-              </button>
-            </div>
-            <div className="flex bg-slate-100 dark:bg-base rounded-full p-1 border border-black/5 dark:border-white/5 relative">
-              {/* Highlight background pill */}
-              <motion.div
-                layoutId="currency-pill"
-                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-surface rounded-full shadow-sm border border-black/5 dark:border-white/10"
-                initial={false}
-                animate={{
-                  left: currency === 'NGN' ? '4px' : 'calc(50% + 2px)',
-                }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              />
-              <button
-                onClick={() => setCurrency('NGN')}
-                className={`px-4 py-1 text-xs font-semibold rounded-full relative z-10 transition-colors ${currency === 'NGN' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                NGN
-              </button>
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-4 py-1 text-xs font-semibold rounded-full relative z-10 transition-colors ${currency === 'USD' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                USD
-              </button>
-            </div>
-          </div>
-
-          <div className="relative z-10 flex flex-col">
-            <AnimatePresence mode="wait">
-              {currency === 'NGN' ? (
-                <motion.h1
-                  key="balance-ngn"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.2 }}
-                  className="w-full text-5xl md:text-[clamp(3.5rem,5vw,5.5rem)] font-bold tracking-tighter leading-none flex items-center gap-4 text-slate-900 dark:text-white"
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest text-slate-400 dark:text-white/40 uppercase">
+                <div className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+                Wallet Balance
+                <button 
+                  onClick={() => setShowBalance(!showBalance)} 
+                  className="ml-2 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95"
+                  title={showBalance ? "Hide balance" : "Show balance"}
                 >
-                  <span className="text-slate-400 dark:text-white/40 font-mono mr-2">₦</span>
-                  {showBalance ? wallet?.balance_ngn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '****'}
-                </motion.h1>
-              ) : (
-                <motion.h1
-                  key="balance-usd"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.2 }}
-                  className="w-full text-5xl md:text-[clamp(3.5rem,5vw,5.5rem)] font-bold tracking-tighter leading-none flex items-center gap-4 text-slate-900 dark:text-white"
-                >
-                  <span className="text-slate-400 dark:text-white/40 font-mono mr-2">$</span>
-                  {showBalance ? wallet?.balance_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '****'}
-                </motion.h1>
-              )}
-            </AnimatePresence>
-            <span className="text-sm text-slate-500 dark:text-white/40 mt-3 font-mono">
-              Available Balance · Wallet ID #{wallet?.id.substring(0, 6).toUpperCase()}
-            </span>
-          </div>
-
-          {/* Action Module */}
-          <div className="flex flex-col md:flex-row gap-4 mt-2 items-start md:items-center relative z-10 min-h-[52px]">
-            <AnimatePresence mode="popLayout">
-              {currency === 'NGN' ? (
+                  {showBalance ? <EyeSlash size={16} weight="duotone" /> : <Eye size={16} weight="duotone" />}
+                </button>
+              </div>
+              <div className="flex bg-slate-100 dark:bg-base rounded-full p-1 border border-black/5 dark:border-white/5 relative">
+                {/* Highlight background pill */}
                 <motion.div
-                  key="ngn-actions"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="w-full md:w-auto"
+                  layoutId="currency-pill"
+                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-surface rounded-full shadow-sm border border-black/5 dark:border-white/10"
+                  initial={false}
+                  animate={{
+                    left: currency === 'NGN' ? '4px' : 'calc(50% + 2px)',
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+                <button
+                  onClick={() => setCurrency('NGN')}
+                  className={`px-4 py-1 text-xs font-semibold rounded-full relative z-10 transition-colors ${currency === 'NGN' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                  {profile && (
-                    <QuickFund
-                      email={profile.email}
-                      publicKey={publicKey}
-                      onSuccessPayment={handleSuccessfulPayment}
-                    />
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="usd-actions"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="w-full md:w-auto"
+                  NGN
+                </button>
+                <button
+                  onClick={() => setCurrency('USD')}
+                  className={`px-4 py-1 text-xs font-semibold rounded-full relative z-10 transition-colors ${currency === 'USD' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                  <button
-                    onClick={() => setIsConvertModalOpen(true)}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-[13px] rounded-xl bg-brand-blue text-white text-sm font-bold tracking-wide hover:bg-brand-blue-hover transition-transform active:scale-95 duration-200 shadow-[0_0_15px_rgba(0,112,243,0.3)]"
+                  USD
+                </button>
+              </div>
+            </div>
+
+            <div className="relative z-10 flex flex-col">
+              <AnimatePresence mode="wait">
+                {currency === 'NGN' ? (
+                  <motion.h1
+                    key="balance-ngn"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full text-5xl md:text-[clamp(3.5rem,5vw,5.5rem)] font-bold tracking-tighter leading-none flex items-center gap-4 text-slate-900 dark:text-white"
                   >
-                    <ArrowsLeftRight weight="bold" className="text-lg" />
-                    Convert to USD
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <span className="text-slate-400 dark:text-white/40 font-mono mr-2">₦</span>
+                    {showBalance ? wallet?.balance_ngn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '****'}
+                  </motion.h1>
+                ) : (
+                  <motion.h1
+                    key="balance-usd"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full text-5xl md:text-[clamp(3.5rem,5vw,5.5rem)] font-bold tracking-tighter leading-none flex items-center gap-4 text-slate-900 dark:text-white"
+                  >
+                    <span className="text-slate-400 dark:text-white/40 font-mono mr-2">$</span>
+                    {showBalance ? wallet?.balance_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '****'}
+                  </motion.h1>
+                )}
+              </AnimatePresence>
+              <span className="text-sm text-slate-500 dark:text-white/40 mt-3 font-mono">
+                Available Balance · Wallet ID #{wallet?.id.substring(0, 6).toUpperCase()}
+              </span>
+            </div>
 
-            <Link href="/dashboard/transactions" className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-slate-700 dark:text-white text-sm font-semibold tracking-wide hover:bg-slate-200 dark:hover:bg-white/10 transition-transform active:scale-95 duration-200">
-              <ClockCounterClockwise weight="bold" className="text-lg" />
-              History
-            </Link>
+            {/* Action Module */}
+            <div className="flex flex-col md:flex-row gap-4 mt-2 items-start md:items-center relative z-10 min-h-[52px]">
+              <AnimatePresence mode="popLayout">
+                {currency === 'NGN' ? (
+                  <motion.div
+                    key="ngn-actions"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="w-full md:w-auto"
+                  >
+                    {profile && (
+                      <QuickFund
+                        email={profile.email}
+                        publicKey={publicKey}
+                        onSuccessPayment={handleSuccessfulPayment}
+                      />
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="usd-actions"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="w-full md:w-auto"
+                  >
+                    <button
+                      onClick={() => setIsConvertModalOpen(true)}
+                      className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-[13px] rounded-xl bg-brand-blue text-white text-sm font-bold tracking-wide hover:bg-brand-blue-hover transition-transform active:scale-95 duration-200 shadow-[0_0_15px_rgba(0,112,243,0.3)]"
+                    >
+                      <ArrowsLeftRight weight="bold" className="text-lg" />
+                      Convert to USD
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <Link href="/dashboard/transactions" className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-slate-700 dark:text-white text-sm font-semibold tracking-wide hover:bg-slate-200 dark:hover:bg-white/10 transition-transform active:scale-95 duration-200">
+                <ClockCounterClockwise weight="bold" className="text-lg" />
+                History
+              </Link>
+            </div>
+
+            {successMsg && <p className="text-[#10B981] text-sm font-medium relative z-10 flex items-center gap-1 mt-[-10px]"><CheckCircle weight="fill" /> {successMsg}</p>}
           </div>
 
-          {successMsg && <p className="text-[#10B981] text-sm font-medium relative z-10 flex items-center gap-1 mt-[-10px]"><CheckCircle weight="fill" /> {successMsg}</p>}
+          {/* VIP Status Card */}
+          <div className="md:col-span-1 rounded-2xl border border-black/5 dark:border-white/10 bg-slate-900 text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-xl">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-2xl"></div>
+            
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold tracking-tight text-sm uppercase text-slate-400">VIP Status</h3>
+                {wallet && wallet.lifetime_deposits_usd >= 500 ? (
+                  <span className="bg-yellow-500/20 text-yellow-500 px-2.5 py-1 rounded-full text-xs font-bold border border-yellow-500/20">GOLD (12% OFF)</span>
+                ) : wallet && wallet.lifetime_deposits_usd >= 150 ? (
+                  <span className="bg-slate-300/20 text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold border border-slate-300/20">SILVER (7% OFF)</span>
+                ) : wallet && wallet.lifetime_deposits_usd >= 50 ? (
+                  <span className="bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold border border-orange-500/20">BRONZE (3% OFF)</span>
+                ) : (
+                  <span className="bg-white/10 text-white/60 px-2.5 py-1 rounded-full text-xs font-bold">STANDARD</span>
+                )}
+              </div>
+              
+              <div className="mt-6">
+                <p className="text-2xl font-bold font-mono tracking-tighter">
+                  ${wallet?.lifetime_deposits_usd ? wallet.lifetime_deposits_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Total Lifetime Deposits</p>
+              </div>
+            </div>
 
+            <div className="mt-8">
+              {wallet && wallet.lifetime_deposits_usd >= 500 ? (
+                <div className="text-sm font-medium text-yellow-400">You've reached the highest VIP tier! Enjoy 12% off everything.</div>
+              ) : (
+                <>
+                  <div className="flex justify-between text-xs mb-2 text-slate-400">
+                    <span>Progress</span>
+                    <span className="font-mono text-white">
+                      ${wallet?.lifetime_deposits_usd || 0} / ${wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-brand-blue rounded-full"
+                      style={{ 
+                        width: \`\${Math.min(100, ((wallet?.lifetime_deposits_usd || 0) / (wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50)) * 100)}%\` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-3">
+                    Deposit <span className="text-white font-bold">${((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) - (wallet?.lifetime_deposits_usd || 0)).toFixed(2)}</span> more to reach {wallet && wallet.lifetime_deposits_usd >= 150 ? 'Gold' : wallet && wallet.lifetime_deposits_usd >= 50 ? 'Silver' : 'Bronze'}!
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </motion.section>
 
