@@ -347,10 +347,11 @@ export default function Home() {
         </section>
 
         {/* ===== LONG-TERM RENTALS ===== */}
-        <section className="w-full py-24 md:py-32 bg-[#0A0F1C] border-y border-white/5 relative overflow-hidden">
-          {/* Immersive Glows */}
-          <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-blue/20 blur-[120px] rounded-full pointer-events-none"></div>
-          <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none"></div>
+        {/* ===== LONG-TERM RENTALS ===== */}
+        <section className="w-full py-24 md:py-32 bg-slate-50 dark:bg-[#0A0F1C] border-y border-slate-200 dark:border-white/5 relative overflow-hidden">
+          {/* Immersive Glows (Hidden on mobile to prevent lag) */}
+          <div className="hidden lg:block absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-blue/20 blur-[120px] rounded-full pointer-events-none"></div>
+          <div className="hidden lg:block absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none"></div>
 
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -360,13 +361,13 @@ export default function Home() {
                 viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.6, ease: customEase }}
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/20 text-brand-blue text-xs font-bold tracking-widest uppercase mb-6 border border-brand-blue/30 shadow-[0_0_20px_rgba(0,112,243,0.2)]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue text-xs font-bold tracking-widest uppercase mb-6 border border-brand-blue/20 dark:border-brand-blue/30 shadow-[0_0_20px_rgba(0,112,243,0.1)] dark:shadow-[0_0_20px_rgba(0,112,243,0.2)]">
                   <Clock weight="fill" size={14} /> Long-Term Rentals
                 </div>
-                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-6 leading-[1.1]">
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-[1.1]">
                   Keep the same number for <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">30+ days.</span>
                 </h2>
-                <p className="text-lg text-white/60 leading-relaxed mb-8">
+                <p className="text-lg text-slate-500 dark:text-white/60 leading-relaxed mb-8">
                   Need a number that lasts? Rent real US & UK mobile numbers for a month or more. Enjoy unlimited SMS receiving, perfect for securing persistent accounts like WhatsApp, Telegram, or banking.
                 </p>
                 
@@ -377,15 +378,15 @@ export default function Home() {
                     "Auto-renew options to keep your number forever"
                   ].map((text, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-brand-blue/20 text-brand-blue flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-6 h-6 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center shrink-0 mt-0.5">
                         <CheckCircle weight="bold" size={12} />
                       </div>
-                      <span className="text-white/80 font-medium">{text}</span>
+                      <span className="text-slate-700 dark:text-white/80 font-medium">{text}</span>
                     </li>
                   ))}
                 </ul>
 
-                <Link href="/register" className="h-14 px-8 inline-flex items-center justify-center gap-2 bg-brand-blue text-white text-sm font-bold rounded-full hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-brand-blue/30">
+                <Link href="/register" className="h-14 px-8 inline-flex items-center justify-center gap-2 bg-brand-blue text-white text-sm font-bold rounded-full hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-brand-blue/25 dark:shadow-brand-blue/30">
                   Rent a Number Now <ArrowRight weight="bold" size={16} />
                 </Link>
               </motion.div>
@@ -397,45 +398,45 @@ export default function Home() {
                 transition={{ duration: 0.6, delay: 0.2, ease: customEase }}
                 className="relative"
               >
-                <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden">
+                <div className="relative bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
                   <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-400 via-brand-blue to-purple-500"></div>
                   
-                  {/* Subtle glass reflection */}
-                  <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/10 blur-[50px] rounded-full pointer-events-none"></div>
+                  {/* Subtle glass reflection (Hidden on mobile) */}
+                  <div className="hidden lg:block absolute -top-24 -right-24 w-48 h-48 bg-white/10 blur-[50px] rounded-full pointer-events-none"></div>
 
                   <div className="flex justify-between items-center mb-8 relative z-10">
                     <div>
-                      <p className="text-sm font-bold text-white flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="text-xl">🇺🇸</span> United States
                       </p>
-                      <p className="text-xs text-white/50 mt-1">Real Mobile Number</p>
+                      <p className="text-xs text-slate-500 dark:text-white/50 mt-1">Real Mobile Number</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-black text-brand-blue">₦7,500 <span className="text-sm text-white/40 font-medium">/ mo</span></p>
+                      <p className="text-xl font-black text-brand-blue">₦7,500 <span className="text-sm text-slate-400 dark:text-white/40 font-medium">/ mo</span></p>
                     </div>
                   </div>
                   
                   <div className="space-y-4 relative z-10">
-                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-brand-blue/20 text-brand-blue flex items-center justify-center">
+                    <div className="bg-slate-50/50 dark:bg-black/40 border border-slate-200/50 dark:border-white/5 rounded-2xl p-4 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center shrink-0">
                         <ShieldCheck weight="fill" size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white">Active Rental</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Active Rental</p>
                         <p className="text-xs text-brand-blue font-semibold">28 Days Remaining</p>
                       </div>
                     </div>
                     
-                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4">
-                      <p className="text-[10px] font-bold text-white/40 mb-3 uppercase tracking-wider">Recent Messages</p>
+                    <div className="bg-slate-50/50 dark:bg-black/40 border border-slate-200/50 dark:border-white/5 rounded-2xl p-4">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-white/40 mb-3 uppercase tracking-wider">Recent Messages</p>
                       <div className="flex flex-col gap-3">
-                        <div className="flex gap-3 items-start opacity-50">
-                          <div className="w-1.5 h-1.5 rounded-full bg-white/30 mt-1.5 shrink-0"></div>
-                          <p className="text-sm font-medium text-white/70">Your WhatsApp code is 849-211.</p>
+                        <div className="flex gap-3 items-start opacity-70 dark:opacity-50">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-white/30 mt-1.5 shrink-0"></div>
+                          <p className="text-sm font-medium text-slate-600 dark:text-white/70">Your WhatsApp code is 849-211.</p>
                         </div>
                         <div className="flex gap-3 items-start">
                           <div className="w-1.5 h-1.5 rounded-full bg-brand-blue mt-1.5 shrink-0 animate-pulse shadow-[0_0_8px_rgba(0,112,243,0.8)]"></div>
-                          <p className="text-sm font-bold text-white">PayPal: Your security code is 912384.</p>
+                          <p className="text-sm font-bold text-slate-800 dark:text-white">PayPal: Your security code is 912384.</p>
                         </div>
                       </div>
                     </div>
