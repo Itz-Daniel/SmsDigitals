@@ -149,92 +149,13 @@ export default function Home() {
             <div className="absolute -top-[300px] w-[900px] h-[900px] bg-gradient-to-b from-brand-blue/[0.07] dark:from-brand-blue/[0.04] to-transparent rounded-full blur-[100px]" />
           </div>
 
-          <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 relative">
+          <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 relative flex flex-col lg:block">
             
-            {/* FLOATING 3D MARKETPLACE CARD - LEFT (Desktop Only) */}
-            <motion.div
-              initial={{ opacity: 0, x: -50, rotate: 0 }}
-              animate={{ opacity: 1, x: 0, rotate: [-5, -2, -5], y: [0, 10, 0] }}
-              transition={{ 
-                opacity: { duration: 0.8, delay: 0.2 }, 
-                x: { duration: 0.8, ease: customEase, delay: 0.2 }, 
-                rotate: { repeat: Infinity, duration: 7, ease: "easeInOut" },
-                y: { repeat: Infinity, duration: 6, ease: "easeInOut" }
-              }}
-              className="hidden lg:block absolute left-4 xl:left-10 top-60 w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
-              style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
-            >
-              <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-slate-900/5 to-transparent pointer-events-none"></div>
-              <div className="flex items-center gap-4 mb-4 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-lg shadow-black/20">
-                  <TwitterLogo weight="fill" size={24} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">X Premium / Blue</p>
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-white/50 font-medium">Aged • Verified</p>
-                </div>
-              </div>
-              <div className="flex justify-between items-end mb-5 relative z-10">
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xl font-black text-brand-blue tracking-tighter">₦12,900</p>
-                    <p className="text-xs font-semibold text-slate-400 line-through">₦18,000</p>
-                  </div>
-                </div>
-              </div>
-              <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
-                <ShoppingCart weight="bold" size={16} />
-                Buy Account
-              </Link>
-            </motion.div>
-
-            {/* FLOATING 3D MARKETPLACE CARD - RIGHT (Desktop Only) */}
-            <motion.div
-              initial={{ opacity: 0, x: 50, rotate: 0 }}
-              animate={{ opacity: 1, x: 0, rotate: [6, 3, 6], y: [0, -15, 0] }}
-              transition={{ 
-                opacity: { duration: 0.8 }, 
-                x: { duration: 0.8, ease: customEase }, 
-                rotate: { repeat: Infinity, duration: 6, ease: "easeInOut" },
-                y: { repeat: Infinity, duration: 5, ease: "easeInOut" }
-              }}
-              className="hidden lg:block absolute right-4 xl:right-10 top-40 w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
-              style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
-            >
-              <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-brand-blue/5 to-transparent pointer-events-none"></div>
-              <div className="flex items-center gap-4 mb-4 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
-                  <FacebookLogo weight="fill" size={24} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Dating Facebook</p>
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-white/50 font-medium">High Quality • Aged</p>
-                </div>
-              </div>
-              <div className="flex justify-between items-end mb-5 relative z-10">
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
-                  <p className="text-xl font-black text-brand-blue tracking-tighter">₦2,500 <span className="text-sm text-slate-400 font-medium">/ $1.60</span></p>
-                </div>
-              </div>
-              <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
-                <ShoppingCart weight="bold" size={16} />
-                Buy Account
-              </Link>
-            </motion.div>
-
             <motion.div
               initial={{ opacity: 1, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: customEase }}
-              className="flex flex-col items-center text-center max-w-3xl mx-auto"
+              className="flex flex-col items-center text-center max-w-3xl mx-auto z-10 relative"
             >
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.08] border border-brand-blue/20 text-brand-blue text-xs font-bold tracking-widest uppercase mb-8">
                 <GlobeHemisphereWest weight="fill" size={14} /> 44+ Countries Available
@@ -258,6 +179,89 @@ export default function Home() {
                 No credit card required · Fund with NGN or USD
               </p>
             </motion.div>
+
+            {/* FLOATING CARDS CONTAINER */}
+            <div className="mt-16 lg:mt-0 flex gap-6 overflow-x-auto lg:overflow-visible pb-8 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] justify-start sm:justify-center w-[100vw] -ml-6 px-6 lg:w-auto lg:ml-0 lg:px-0 lg:block relative z-20">
+              
+              {/* FLOATING 3D MARKETPLACE CARD - LEFT */}
+              <motion.div
+                initial={{ opacity: 0, x: -50, rotate: 0 }}
+                animate={{ opacity: 1, x: 0, rotate: [-5, -2, -5], y: [0, 10, 0] }}
+                transition={{ 
+                  opacity: { duration: 0.8, delay: 0.2 }, 
+                  x: { duration: 0.8, ease: customEase, delay: 0.2 }, 
+                  rotate: { repeat: Infinity, duration: 7, ease: "easeInOut" },
+                  y: { repeat: Infinity, duration: 6, ease: "easeInOut" }
+                }}
+                className="relative lg:absolute shrink-0 left-auto lg:left-4 xl:left-10 top-auto lg:top-60 w-[260px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+                style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
+              >
+                <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-slate-900/5 to-transparent pointer-events-none"></div>
+                <div className="flex items-center gap-4 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-lg shadow-black/20 shrink-0">
+                    <TwitterLogo weight="fill" size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">X Premium / Blue</p>
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-white/50 font-medium">Aged • Verified</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-end mb-5 relative z-10">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-black text-brand-blue tracking-tighter">₦12,900</p>
+                      <p className="text-xs font-semibold text-slate-400 line-through">₦18,000</p>
+                    </div>
+                  </div>
+                </div>
+                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                  <ShoppingCart weight="bold" size={16} />
+                  Buy Account
+                </Link>
+              </motion.div>
+
+              {/* FLOATING 3D MARKETPLACE CARD - RIGHT */}
+              <motion.div
+                initial={{ opacity: 0, x: 50, rotate: 0 }}
+                animate={{ opacity: 1, x: 0, rotate: [6, 3, 6], y: [0, -15, 0] }}
+                transition={{ 
+                  opacity: { duration: 0.8 }, 
+                  x: { duration: 0.8, ease: customEase }, 
+                  rotate: { repeat: Infinity, duration: 6, ease: "easeInOut" },
+                  y: { repeat: Infinity, duration: 5, ease: "easeInOut" }
+                }}
+                className="relative lg:absolute shrink-0 right-auto lg:right-4 xl:right-10 top-auto lg:top-40 w-[260px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+                style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
+              >
+                <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-brand-blue/5 to-transparent pointer-events-none"></div>
+                <div className="flex items-center gap-4 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 shrink-0">
+                    <FacebookLogo weight="fill" size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Dating Facebook</p>
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-white/50 font-medium">High Quality • Aged</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-end mb-5 relative z-10">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
+                    <p className="text-xl font-black text-brand-blue tracking-tighter">₦2,500 <span className="text-sm text-slate-400 font-medium">/ $1.60</span></p>
+                  </div>
+                </div>
+                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                  <ShoppingCart weight="bold" size={16} />
+                  Buy Account
+                </Link>
+              </motion.div>
+            </div>
           </div>
         </section>
 
