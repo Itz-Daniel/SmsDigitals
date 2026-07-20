@@ -78,7 +78,7 @@ const TESTIMONIALS = [
   {
     name: "Sarah T.",
     role: "Customer",
-    content: "I've tried dozens of SMS services for my campaigns. SmsDigitals is the only one that consistently works with WhatsApp and TikTok without getting blocked. Game changer.",
+    content: "The Long-Term Rentals feature is exactly what I needed. I've kept my US number for 3 months now for my banking verification and haven't had a single issue. Very reliable.",
     initial: "S",
     color: "from-emerald-400 to-teal-500"
   },
