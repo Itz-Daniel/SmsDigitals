@@ -181,7 +181,7 @@ export default function Home() {
             </motion.div>
 
             {/* FLOATING CARDS CONTAINER */}
-            <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row flex-wrap gap-6 justify-center items-center w-full lg:block relative z-20">
+            <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row flex-wrap gap-6 justify-center items-center w-full lg:block relative lg:static z-20">
               
               {/* FLOATING 3D MARKETPLACE CARD - LEFT */}
               <motion.div
