@@ -18,7 +18,10 @@ import {
   UserCirclePlus,
   Crosshair,
   CheckCircle,
-  MapPin
+  MapPin,
+  FacebookLogo,
+  ShoppingCart,
+  Storefront
 } from "@phosphor-icons/react";
 
 const customEase: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -142,7 +145,46 @@ export default function Home() {
             <div className="absolute -top-[300px] w-[900px] h-[900px] bg-gradient-to-b from-brand-blue/[0.07] dark:from-brand-blue/[0.04] to-transparent rounded-full blur-[100px]" />
           </div>
 
-          <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32">
+          <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 relative">
+            
+            {/* FLOATING 3D MARKETPLACE CARD (Desktop Only) */}
+            <motion.div
+              initial={{ opacity: 0, x: 50, rotate: 0 }}
+              animate={{ opacity: 1, x: 0, rotate: [6, 3, 6], y: [0, -15, 0] }}
+              transition={{ 
+                opacity: { duration: 0.8 }, 
+                x: { duration: 0.8, ease: customEase }, 
+                rotate: { repeat: Infinity, duration: 6, ease: "easeInOut" },
+                y: { repeat: Infinity, duration: 5, ease: "easeInOut" }
+              }}
+              className="hidden lg:block absolute right-4 xl:right-10 top-40 w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+              style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
+            >
+              <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-brand-blue/5 to-transparent pointer-events-none"></div>
+              <div className="flex items-center gap-4 mb-4 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+                  <FacebookLogo weight="fill" size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Dating Facebook</p>
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-white/50 font-medium">High Quality • Aged</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-end mb-5 relative z-10">
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
+                  <p className="text-xl font-black text-brand-blue tracking-tighter">₦2,500 <span className="text-sm text-slate-400 font-medium">/ $1.60</span></p>
+                </div>
+              </div>
+              <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                <ShoppingCart weight="bold" size={16} />
+                Buy Account
+              </Link>
+            </motion.div>
+
             <motion.div
               initial={{ opacity: 1, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -249,6 +291,75 @@ export default function Home() {
                   <p className="text-slate-500 dark:text-white/40 leading-relaxed text-[15px]">
                     {item.desc}
                   </p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== DIGITAL MARKETPLACE SHOWCASE ===== */}
+        <section className="w-full py-24 md:py-32 bg-brand-blue/5 dark:bg-brand-blue/[0.02] border-y border-brand-blue/10 dark:border-brand-blue/[0.05] relative overflow-hidden">
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-brand-blue/10 blur-[100px] rounded-full pointer-events-none"></div>
+          
+          <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6, ease: customEase }}
+                className="max-w-2xl"
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.15] text-brand-blue text-xs font-bold tracking-widest uppercase mb-6">
+                  <Storefront weight="fill" size={14} /> New Feature
+                </div>
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+                  Premium Digital Marketplace
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-white/50 leading-relaxed">
+                  Beyond just SMS verification. Instantly purchase aged, high-quality social accounts, game keys, and digital assets. Clean UI, secure delivery, and zero hassle.
+                </p>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6, delay: 0.1, ease: customEase }}
+              >
+                <Link href="/register" className="h-12 px-6 inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold rounded-full hover:scale-105 transition-transform shadow-lg">
+                  Explore Marketplace <ArrowRight weight="bold" size={16} />
+                </Link>
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { name: "Aged Facebook", price: "₦3,000", tag: "Social", color: "text-blue-500", bg: "bg-blue-500/10" },
+                { name: "Twitter / X Blue", price: "₦15,000", tag: "Premium", color: "text-slate-900 dark:text-white", bg: "bg-slate-200 dark:bg-white/10" },
+                { name: "Instagram 10k+", price: "₦8,500", tag: "Social", color: "text-pink-500", bg: "bg-pink-500/10" },
+                { name: "Google Voice US", price: "₦4,500", tag: "Communication", color: "text-emerald-500", bg: "bg-emerald-500/10" }
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.5, delay: i * 0.1, ease: customEase }}
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 flex flex-col hover:border-brand-blue/30 transition-colors shadow-sm hover:shadow-xl hover:-translate-y-1 duration-300"
+                >
+                  <div className="flex justify-between items-start mb-12">
+                    <div className={`w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center`}>
+                      <Storefront weight="fill" size={20} />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 border border-slate-200 dark:border-white/10 px-2 py-1 rounded-full">
+                      {item.tag}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg tracking-tight text-slate-900 dark:text-white mb-1">{item.name}</h3>
+                    <p className="text-xl font-black text-brand-blue tracking-tighter">{item.price}</p>
+                  </div>
                 </motion.div>
               ))}
             </div>
