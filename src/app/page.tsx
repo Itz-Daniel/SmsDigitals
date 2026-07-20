@@ -342,6 +342,99 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ===== LONG-TERM RENTALS ===== */}
+        <section className="w-full py-24 md:py-32 bg-slate-50 dark:bg-[#080808] border-t border-slate-200/80 dark:border-white/5 relative overflow-hidden">
+          <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6, ease: customEase }}
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-widest uppercase mb-6 border border-emerald-500/20">
+                  <Clock weight="fill" size={14} /> Long-Term Rentals
+                </div>
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-[1.1]">
+                  Keep the same number for <span className="text-emerald-500">30+ days.</span>
+                </h2>
+                <p className="text-lg text-slate-500 dark:text-white/40 leading-relaxed mb-8">
+                  Need a number that lasts? Rent real US & UK mobile numbers for a month or more. Enjoy unlimited SMS receiving, perfect for securing persistent accounts like WhatsApp, Telegram, or banking.
+                </p>
+                
+                <ul className="flex flex-col gap-4 mb-10">
+                  {[
+                    "Unlimited SMS receiving during your rental period",
+                    "Real SIM-routed numbers, not virtual VoIP lines",
+                    "Auto-renew options to keep your number forever"
+                  ].map((text, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <CheckCircle weight="bold" size={12} />
+                      </div>
+                      <span className="text-slate-700 dark:text-white/70 font-medium">{text}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link href="/register" className="h-12 px-8 inline-flex items-center justify-center gap-2 bg-emerald-500 text-white text-sm font-bold rounded-full hover:bg-emerald-600 hover:scale-105 transition-all shadow-lg shadow-emerald-500/25">
+                  Rent a Number Now <ArrowRight weight="bold" size={16} />
+                </Link>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6, delay: 0.2, ease: customEase }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+                <div className="relative bg-white dark:bg-[#111] border border-slate-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span className="text-xl">🇺🇸</span> United States
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-white/40 mt-1">Real Mobile Number</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-emerald-500">₦7,500 <span className="text-sm text-slate-400 font-medium">/ mo</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 dark:bg-black/50 border border-slate-100 dark:border-white/5 rounded-2xl p-4 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                        <ShieldCheck weight="fill" size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Active Rental</p>
+                        <p className="text-xs text-emerald-500 font-semibold">28 Days Remaining</p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 dark:bg-black/50 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
+                      <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Recent Messages</p>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex gap-3 items-start opacity-70">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-white/20 mt-1.5 shrink-0"></div>
+                          <p className="text-sm font-medium text-slate-600 dark:text-white/60">Your WhatsApp code is 849-211.</p>
+                        </div>
+                        <div className="flex gap-3 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0 animate-pulse"></div>
+                          <p className="text-sm font-bold text-slate-800 dark:text-white">PayPal: Your security code is 912384.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
         {/* ===== DIGITAL MARKETPLACE SHOWCASE ===== */}
         <section className="w-full py-24 md:py-32 bg-brand-blue/5 dark:bg-brand-blue/[0.02] border-y border-brand-blue/10 dark:border-brand-blue/[0.05] relative overflow-hidden">
           <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-brand-blue/10 blur-[100px] rounded-full pointer-events-none"></div>
