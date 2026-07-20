@@ -70,21 +70,21 @@ const FAQ_ITEMS = [
 const TESTIMONIALS = [
   {
     name: "Alex M.",
-    role: "Digital Marketer",
+    role: "Customer",
     content: "I've tried dozens of SMS services for my campaigns. SmsDigitals is the only one that consistently works with WhatsApp and TikTok without getting blocked. Game changer.",
     initial: "A",
     color: "from-blue-500 to-indigo-500"
   },
   {
     name: "Sarah T.",
-    role: "Freelance Developer",
-    content: "The API is incredibly fast, but even just using the dashboard is a breeze. The live pricing and auto-refunds mean I never waste money on failed numbers.",
+    role: "Customer",
+    content: "I've tried dozens of SMS services for my campaigns. SmsDigitals is the only one that consistently works with WhatsApp and TikTok without getting blocked. Game changer.",
     initial: "S",
     color: "from-emerald-400 to-teal-500"
   },
   {
     name: "David O.",
-    role: "E-commerce Founder",
+    role: "Customer",
     content: "We use SmsDigitals to verify our international stealth accounts. It's reliable, the UK and US numbers are always in stock, and the Paystack integration makes funding easy.",
     initial: "D",
     color: "from-orange-400 to-red-500"
@@ -181,19 +181,16 @@ export default function Home() {
             </motion.div>
 
             {/* FLOATING CARDS CONTAINER */}
-            <div className="mt-16 lg:mt-0 flex gap-6 overflow-x-auto lg:overflow-visible pb-8 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] justify-start sm:justify-center w-[100vw] -ml-6 px-6 lg:w-auto lg:ml-0 lg:px-0 lg:block relative z-20">
+            <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row flex-wrap gap-6 justify-center items-center w-full lg:block relative z-20">
               
               {/* FLOATING 3D MARKETPLACE CARD - LEFT */}
               <motion.div
-                initial={{ opacity: 0, x: -50, rotate: 0 }}
-                animate={{ opacity: 1, x: 0, rotate: [-5, -2, -5], y: [0, 10, 0] }}
+                animate={{ rotate: [-5, -2, -5], y: [0, 10, 0] }}
                 transition={{ 
-                  opacity: { duration: 0.8, delay: 0.2 }, 
-                  x: { duration: 0.8, ease: customEase, delay: 0.2 }, 
                   rotate: { repeat: Infinity, duration: 7, ease: "easeInOut" },
                   y: { repeat: Infinity, duration: 6, ease: "easeInOut" }
                 }}
-                className="relative lg:absolute shrink-0 left-auto lg:left-4 xl:left-10 top-auto lg:top-60 w-[260px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+                className="relative lg:absolute shrink-0 left-auto lg:left-0 xl:left-10 top-auto lg:top-60 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
                 style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
               >
                 <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-slate-900/5 to-transparent pointer-events-none"></div>
@@ -226,15 +223,12 @@ export default function Home() {
 
               {/* FLOATING 3D MARKETPLACE CARD - RIGHT */}
               <motion.div
-                initial={{ opacity: 0, x: 50, rotate: 0 }}
-                animate={{ opacity: 1, x: 0, rotate: [6, 3, 6], y: [0, -15, 0] }}
+                animate={{ rotate: [6, 3, 6], y: [0, -15, 0] }}
                 transition={{ 
-                  opacity: { duration: 0.8 }, 
-                  x: { duration: 0.8, ease: customEase }, 
                   rotate: { repeat: Infinity, duration: 6, ease: "easeInOut" },
                   y: { repeat: Infinity, duration: 5, ease: "easeInOut" }
                 }}
-                className="relative lg:absolute shrink-0 right-auto lg:right-4 xl:right-10 top-auto lg:top-40 w-[260px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+                className="relative lg:absolute shrink-0 right-auto lg:right-0 xl:right-10 top-auto lg:top-40 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
                 style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
               >
                 <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-brand-blue/5 to-transparent pointer-events-none"></div>
