@@ -21,7 +21,10 @@ import {
   MapPin,
   FacebookLogo,
   ShoppingCart,
-  Storefront
+  Storefront,
+  TwitterLogo,
+  InstagramLogo,
+  GoogleLogo
 } from "@phosphor-icons/react";
 
 const customEase: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -148,7 +151,48 @@ export default function Home() {
 
           <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 relative">
             
-            {/* FLOATING 3D MARKETPLACE CARD (Desktop Only) */}
+            {/* FLOATING 3D MARKETPLACE CARD - LEFT (Desktop Only) */}
+            <motion.div
+              initial={{ opacity: 0, x: -50, rotate: 0 }}
+              animate={{ opacity: 1, x: 0, rotate: [-5, -2, -5], y: [0, 10, 0] }}
+              transition={{ 
+                opacity: { duration: 0.8, delay: 0.2 }, 
+                x: { duration: 0.8, ease: customEase, delay: 0.2 }, 
+                rotate: { repeat: Infinity, duration: 7, ease: "easeInOut" },
+                y: { repeat: Infinity, duration: 6, ease: "easeInOut" }
+              }}
+              className="hidden lg:block absolute left-4 xl:left-10 top-60 w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
+              style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
+            >
+              <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-slate-900/5 to-transparent pointer-events-none"></div>
+              <div className="flex items-center gap-4 mb-4 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-lg shadow-black/20">
+                  <TwitterLogo weight="fill" size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">X Premium / Blue</p>
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-white/50 font-medium">Aged • Verified</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-end mb-5 relative z-10">
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40 mb-1">Live Price</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-black text-brand-blue tracking-tighter">₦12,900</p>
+                    <p className="text-xs font-semibold text-slate-400 line-through">₦18,000</p>
+                  </div>
+                </div>
+              </div>
+              <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                <ShoppingCart weight="bold" size={16} />
+                Buy Account
+              </Link>
+            </motion.div>
+
+            {/* FLOATING 3D MARKETPLACE CARD - RIGHT (Desktop Only) */}
             <motion.div
               initial={{ opacity: 0, x: 50, rotate: 0 }}
               animate={{ opacity: 1, x: 0, rotate: [6, 3, 6], y: [0, -15, 0] }}
@@ -336,11 +380,13 @@ export default function Home() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { name: "Aged Facebook", price: "₦3,000", tag: "Social", color: "text-blue-500", bg: "bg-blue-500/10" },
-                { name: "Twitter / X Blue", price: "₦15,000", tag: "Premium", color: "text-slate-900 dark:text-white", bg: "bg-slate-200 dark:bg-white/10" },
-                { name: "Instagram 10k+", price: "₦8,500", tag: "Social", color: "text-pink-500", bg: "bg-pink-500/10" },
-                { name: "Google Voice US", price: "₦4,500", tag: "Communication", color: "text-emerald-500", bg: "bg-emerald-500/10" }
-              ].map((item, i) => (
+                { name: "Aged Facebook", price: "₦1,950", oldPrice: "₦3,500", tag: "Social", color: "text-blue-500", bg: "bg-blue-500/10", icon: FacebookLogo },
+                { name: "Twitter / X Blue", price: "₦12,900", oldPrice: "₦18,000", tag: "Premium", color: "text-slate-900 dark:text-white", bg: "bg-slate-200 dark:bg-white/10", icon: TwitterLogo },
+                { name: "Instagram 10k+", price: "₦7,450", oldPrice: "₦10,000", tag: "Social", color: "text-pink-500", bg: "bg-pink-500/10", icon: InstagramLogo },
+                { name: "Google Voice US", price: "₦3,950", oldPrice: "₦5,000", tag: "Communication", color: "text-emerald-500", bg: "bg-emerald-500/10", icon: GoogleLogo }
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 30 }}
@@ -351,7 +397,7 @@ export default function Home() {
                 >
                   <div className="flex justify-between items-start mb-12">
                     <div className={`w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center`}>
-                      <Storefront weight="fill" size={20} />
+                      <Icon weight="fill" size={20} />
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 border border-slate-200 dark:border-white/10 px-2 py-1 rounded-full">
                       {item.tag}
@@ -359,10 +405,13 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg tracking-tight text-slate-900 dark:text-white mb-1">{item.name}</h3>
-                    <p className="text-xl font-black text-brand-blue tracking-tighter">{item.price}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-black text-brand-blue tracking-tighter">{item.price}</p>
+                      <p className="text-xs font-semibold text-slate-400 line-through">{item.oldPrice}</p>
+                    </div>
                   </div>
                 </motion.div>
-              ))}
+              )})}
             </div>
           </div>
         </section>
