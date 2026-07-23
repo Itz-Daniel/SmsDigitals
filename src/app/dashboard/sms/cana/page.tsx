@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, AppWindow, ArrowRight, Spinner, CaretDown, MagnifyingGlass, WarningCircle, Clock, CheckCircle } from "@phosphor-icons/react";
+import { MapPin, AppWindow, ArrowRight, Spinner, CaretDown, MagnifyingGlass, WarningCircle, Clock, CheckCircle, Copy, Check, Radio } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES } from "@/lib/data/sms-data";
@@ -22,7 +22,13 @@ interface Rental {
   created_at: string;
 }
 
-
+const POPULAR_QUICK_SERVICES = [
+  { id: "wa", name: "WhatsApp" },
+  { id: "tg", name: "Telegram" },
+  { id: "lf", name: "TikTok" },
+  { id: "go", name: "Google" },
+  { id: "oi", name: "Tinder" },
+];
 
 export default function CanaPurchasePage() {
   const region = "cana"; // Canada/USA Server 1
@@ -34,14 +40,65 @@ export default function CanaPurchasePage() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean>(true);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+  const [isOutOfStock, setIsOutOfStock] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [rentals, setRentals] = useState<Rental[]>([]);
+
+  const fetchRentals = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) return;
+
+      const { data } = await supabase
+        .from('rentals')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('region', 'cana')
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        setRentals(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch rentals:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRentals();
+
+    let channel: any = null;
+    let isMounted = true;
+    const supabase = createClient();
+
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !isMounted) return;
+
+      channel = supabase.channel(`realtime-rentals-cana-${Math.random()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `user_id=eq.${user.id}` }, () => {
+          fetchRentals();
+        })
+        .subscribe();
+    };
+
+    setupRealtime();
+
+    return () => {
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
 
   const fetchLivePrice = async (serviceName: string, cur: string) => {
     setIsFetchingPrice(true);
@@ -57,12 +114,14 @@ export default function CanaPurchasePage() {
       const data = await res.json();
       if (data.available && data.cost !== undefined) {
         setLivePrice(data.cost);
+        setIsAvailable(true);
       } else {
         setIsOutOfStock(true);
+        setIsAvailable(false);
       }
     } catch (err) {
-      console.error("Live price error:", err);
       setIsOutOfStock(true);
+      setIsAvailable(false);
     } finally {
       setIsFetchingPrice(false);
     }
@@ -72,294 +131,313 @@ export default function CanaPurchasePage() {
     fetchLivePrice(selectedServiceName, currency);
   }, [selectedServiceName, currency]);
 
-  const fetchRentals = async () => {
-    try {
-      const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error || !user) return;
-
-      const { data } = await supabase
-        .from('rentals')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('region', 'canada')
-        .order('created_at', { ascending: false });
-
-      if (data) {
-        setRentals(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch rentals:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchRentals();
-
-    let channel: any = null;
-    const setupRealtime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      channel = supabase.channel('realtime-rentals-cana')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `user_id=eq.${user.id}` }, (payload) => {
-          fetchRentals();
-        })
-        .subscribe();
-    };
-
-    setupRealtime();
-
-    return () => {
-      if (channel) {
-        const supabase = createClient();
-        supabase.removeChannel(channel);
-      }
-    };
-  }, []);
-
-
-
   const handlePurchase = async () => {
     setIsPurchasing(true);
     setError(null);
-    
     try {
-      const serviceName = selectedServiceName;
-
-      const response = await fetch('/api/rent', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceId: selectedService,
-          serviceName,
-          country: "canada",
-          region: "canada",
-          currency
+          country: 'canada',
+          service: selectedService,
+          serviceName: selectedServiceName,
+          currency: currency
         })
       });
 
-      const data = await response.json();
-      
-      if (response.ok) {
+      const data = await res.json();
+      if (data.success) {
         setIsModalOpen(false);
-        await fetchRentals();
+        fetchRentals();
       } else {
-        setError(data.error || "Failed to generate number.");
+        setError(data.error || "Purchase failed. Check your wallet balance.");
       }
-    } catch (err) {
-      setError("Network error. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsPurchasing(false);
     }
   };
 
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-4 md:p-8 font-sans pb-32 transition-colors duration-500">
-      <div className="max-w-6xl mx-auto flex flex-col relative">
+      <div className="max-w-7xl mx-auto flex flex-col gap-6 relative">
         
         {/* Background ambient glow */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-blue/10 blur-[150px] rounded-full pointer-events-none"></div>
 
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          className="flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10 w-full mt-8"
-        >
-          {/* Left Column: Purchase Section */}
-          <div className="w-full lg:w-[45%] flex flex-col gap-8">
-            
-            <div className="flex flex-col gap-2">
-              <Link 
-                href="/dashboard/sms"
-                className="w-fit mb-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-2"
-              >
-                ← Back to Servers
-              </Link>
+        {/* TOP COMMAND HEADER BAR */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#111111] p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm relative z-10">
+          <div className="flex flex-col gap-1">
+            <Link 
+              href="/dashboard/sms"
+              className="w-fit text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-1.5 mb-1"
+            >
+              ← Back to Server Selection
+            </Link>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                <span>🇨🇦</span> Canada & USA Server Node
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                99.8% Online
+              </span>
+            </div>
+          </div>
 
-              <div className="w-fit rounded-full px-3 py-1 bg-white dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center gap-2 mb-4 shadow-sm dark:shadow-none">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-black animate-pulse"></span>
-                <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-slate-600 dark:text-white/60">
-                  Server: USA / Canada
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 px-4 py-2 rounded-2xl border border-black/5 dark:border-white/5">
+            <Radio size={18} className="text-brand-blue animate-pulse" />
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-white/40 font-bold">Routing</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white">Server 1 Direct SIM</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MAIN SPLIT GRID (Control Hub Left + Live Monitor Right) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10"
+        >
+          {/* LEFT COLUMN: ORDER CONTROL CARD (5 Cols on LG) */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-black/5 dark:border-white/10 shadow-xl flex flex-col gap-6 relative overflow-hidden">
+              
+              <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <AppWindow size={20} className="text-brand-blue" /> Deploy Virtual Number
+                </h2>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+                  Canada / USA
                 </span>
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-[4rem] font-bold tracking-tighter leading-[0.9] text-transparent bg-clip-text bg-gradient-to-br from-slate-900 via-slate-800 to-slate-500 dark:from-white dark:via-white/90 dark:to-white/30">
-                Procure <br/> Numbers.
-              </h1>
-              <p className="text-slate-500 dark:text-white/40 mt-4 max-w-sm text-sm">Instantly deploy highly-trusted virtual numbers for seamless global verification.</p>
-            </div>
 
-            {/* Double-Bezel Card */}
-            <div className="p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 shadow-2xl dark:shadow-none">
-              <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(2rem-0.375rem)] p-6 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col gap-6">
-                
-                {/* Form Groups */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-3">
-                    <label className="text-[11px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest flex items-center gap-2">
-                      <MapPin weight="bold" /> Target Region
-                    </label>
-                    
-                    {/* Locked Region Tab */}
-                    <div className="flex flex-wrap gap-2">
-                      <button className="flex-1 min-w-[100px] py-3 px-2 rounded-xl text-xs font-bold transition-all bg-brand-blue text-white shadow-[0_0_20px_rgba(0,112,243,0.3)] cursor-default">
-                        North America (+1)
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest flex items-center gap-2">
-                      <AppWindow weight="bold" /> Required Service
-                    </label>
-                    <div className="relative z-20">
-                      <button 
-                        onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                        className="w-full bg-white dark:bg-[#111111] border border-black/5 dark:border-white/10 rounded-xl p-4 text-slate-900 dark:text-white text-left focus:border-brand-blue/50 transition-colors flex justify-between items-center shadow-sm dark:shadow-none"
+              {/* QUICK SERVICE SELECTION TAGS */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                  Popular Services
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_QUICK_SERVICES.map((s) => {
+                    const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
+                    const isSelected = selectedServiceName.toLowerCase().includes(s.name.toLowerCase());
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          if (matched) {
+                            setSelectedService(matched.id);
+                            setSelectedServiceName(matched.name);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                          isSelected
+                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
+                            : "bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10"
+                        }`}
                       >
-                        <span className="truncate pr-4">{selectedServiceName}</span>
-                        <CaretDown weight="bold" className={`transition-transform duration-300 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                        {s.name}
                       </button>
-                      
-                      <AnimatePresence>
-                        {isServiceDropdownOpen && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-40" 
-                              onClick={() => setIsServiceDropdownOpen(false)} 
-                            />
-                            <motion.div 
-                              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0A0A0A] border border-black/10 dark:border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[350px]"
-                            >
-                              <div className="p-3 border-b border-black/5 dark:border-white/5 bg-slate-50 dark:bg-[#111111] sticky top-0 z-10">
-                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/40 rounded-lg px-3 py-2 border border-black/5 dark:border-white/5 focus-within:border-brand-blue/50 transition-colors">
-                                  <MagnifyingGlass className="text-slate-400 dark:text-white/40 flex-shrink-0" />
-                                  <input 
-                                    type="text"
-                                    placeholder="Search 1,300+ services..."
-                                    value={serviceSearchQuery}
-                                    onChange={(e) => setServiceSearchQuery(e.target.value)}
-                                    className="bg-transparent border-none outline-none text-sm w-full text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30"
-                                    autoFocus
-                                  />
-                                </div>
-                              </div>
-                              
-                                <div className="overflow-y-auto p-1 custom-scrollbar flex-1">
-                                  {SERVICES.filter((s: any) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
-                                    .slice(0, 30)
-                                    .map((service: any) => (
-                                      <button
-                                        key={service.id}
-                                        onClick={() => {
-                                          setSelectedService(service.id);
-                                          setSelectedServiceName(service.name);
-                                          setIsServiceDropdownOpen(false);
-                                          setServiceSearchQuery("");
-                                        }}
-                                        className={`w-full text-left flex justify-between px-4 py-3 rounded-lg text-sm transition-colors ${selectedService === service.id ? "bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue font-bold" : "text-slate-600 dark:text-white/70 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"}`}
-                                      >
-                                        <span>{service.name}</span>
-                                      </button>
-                                    ))}
-                                {SERVICES.filter((s: any) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase())).length === 0 && (
-                                  <div className="p-8 text-center flex flex-col items-center gap-2 text-slate-400 dark:text-white/40">
-                                    <WarningCircle size={24} />
-                                    <span className="text-sm">No services found.</span>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="flex items-center justify-between px-2 py-1">
-                  <span className="text-xs font-bold text-slate-400 dark:text-white/50 uppercase tracking-widest">Live Price</span>
+              {/* FULL SERVICE DROPDOWN SELECTOR */}
+              <div className="flex flex-col gap-2 relative">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                  Select Target Application
+                </label>
+                <div className="relative z-20">
+                  <button 
+                    onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center shadow-sm"
+                  >
+                    <span className="truncate pr-4 font-bold text-sm">{selectedServiceName}</span>
+                    <CaretDown weight="bold" className={`transition-transform duration-300 text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isServiceDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsServiceDropdownOpen(false)} 
+                        />
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0D1322] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[350px]"
+                        >
+                          <div className="p-3 border-b border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
+                            <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-2 border border-slate-200 dark:border-white/10">
+                              <MagnifyingGlass className="text-slate-400 dark:text-white/40 flex-shrink-0" />
+                              <input 
+                                type="text"
+                                placeholder="Search 1,300+ services..."
+                                value={serviceSearchQuery}
+                                onChange={(e) => setServiceSearchQuery(e.target.value)}
+                                className="bg-transparent border-none outline-none text-sm w-full text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="overflow-y-auto p-2 custom-scrollbar flex-1 space-y-1">
+                            {SERVICES.filter((s: any) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
+                              .slice(0, 40)
+                              .map((service: any) => (
+                                <button
+                                  key={service.id}
+                                  onClick={() => {
+                                    setSelectedService(service.id);
+                                    setSelectedServiceName(service.name);
+                                    setIsServiceDropdownOpen(false);
+                                    setServiceSearchQuery("");
+                                  }}
+                                  className={`w-full text-left flex justify-between px-3.5 py-2.5 rounded-xl text-sm transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                                >
+                                  <span>{service.name}</span>
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* LIVE PRICING & STOCK BOX */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-wider block mb-0.5">Live Unit Price</span>
                   {isFetchingPrice ? (
-                    <span className="text-sm font-mono text-brand-blue animate-pulse">Fetching...</span>
-                  ) : isOutOfStock ? (
-                    <span className="text-sm font-bold text-red-500">Out of Stock</span>
+                    <span className="text-sm font-bold text-brand-blue animate-pulse">Calculating...</span>
+                  ) : isOutOfStock || livePrice === null ? (
+                    <span className="text-sm font-bold text-red-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500"></span> Out of Stock
+                    </span>
                   ) : (
-                    <span className="text-lg font-mono font-bold text-slate-900 dark:text-white">
+                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
                       {currency === 'USD' ? '$' : '₦'}
                       {livePrice?.toLocaleString()}
                     </span>
                   )}
                 </div>
 
-                {/* Main Action Area */}
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  disabled={isPurchasing || isFetchingPrice || isOutOfStock}
-                  className="w-full group bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-gray-100 rounded-xl p-4 flex items-center justify-between transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                >
-                  <span className="text-sm font-bold tracking-wide">
-                    {isPurchasing ? "Connecting to Network..." : "Purchase Number"}
+                {!isOutOfStock && livePrice !== null && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    In Stock
                   </span>
-                  <div className="w-10 h-10 rounded-full bg-white/10 dark:bg-black/10 flex items-center justify-center group-hover:bg-brand-blue group-hover:text-white transition-colors duration-500">
-                    {isPurchasing ? <Spinner className="animate-spin" /> : <ArrowRight weight="bold" className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
-                  </div>
-                </button>
+                )}
               </div>
+
+              {/* ORDER ACTION BUTTON */}
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                disabled={isPurchasing || isFetchingPrice || isOutOfStock || livePrice === null}
+                className="w-full bg-brand-blue text-white hover:bg-blue-600 rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-base transition-all shadow-lg shadow-brand-blue/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {isPurchasing ? (
+                  <>
+                    <Spinner size={20} className="animate-spin" /> Provisioning Number...
+                  </>
+                ) : (
+                  <>
+                    Deploy Canada Number <ArrowRight weight="bold" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Right Column: Active Numbers Stream */}
-          <div className="w-full xl:w-[60%] flex flex-col gap-6">
-            <div className="flex items-center justify-between pb-4 border-b border-black/5 dark:border-white/5">
-              <h3 className="text-xl font-medium flex items-center gap-2 text-slate-900 dark:text-white">
-                Network Stream <span className="text-brand-blue/50">·</span> <span className="text-sm text-slate-500 dark:text-white/40 font-normal">{rentals.length} active nodes</span>
-              </h3>
+          {/* RIGHT COLUMN: LIVE VERIFICATION MONITOR (7 Cols on LG) */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                Live Verification Monitor
+              </h2>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white">
+                {rentals.length} Active {rentals.length === 1 ? 'Line' : 'Lines'}
+              </span>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <AnimatePresence>
                 {rentals.length === 0 ? (
-                  <div className="p-12 border border-black/10 dark:border-white/5 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 text-slate-400 dark:text-white/20 bg-slate-50 dark:bg-transparent">
-                    <AppWindow size={48} weight="thin" />
-                    <p className="text-sm">No active numbers on this server.</p>
+                  <div className="p-12 rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white/50 dark:bg-[#111111]/50 backdrop-blur-sm flex flex-col items-center justify-center text-center gap-3">
+                    <div className="w-16 h-16 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shadow-inner">
+                      <Radio size={32} className="animate-pulse" />
+                    </div>
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">No Active Verifications</h3>
+                    <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm leading-relaxed font-medium">
+                      Select a target application on the left and click <strong className="text-slate-800 dark:text-white">Deploy Canada Number</strong> to receive instant SMS codes.
+                    </p>
                   </div>
                 ) : (
                   rentals.map((rental) => (
                     <motion.div 
                       key={rental.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white dark:bg-[#111111] border border-black/5 dark:border-white/5 rounded-2xl p-5 hover:border-black/10 dark:hover:border-white/10 transition-colors flex flex-col gap-4 shadow-sm dark:shadow-none"
+                      className="bg-white dark:bg-[#111111] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-4 items-center">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black/10 text-slate-900 dark:text-white' : 'bg-red-500/10 text-red-500'}`}>
-                            {rental.status === 'Waiting' ? <Clock weight="duotone" size={24} className="animate-pulse" /> : rental.status === 'Received' ? <CheckCircle weight="fill" size={24} /> : <WarningCircle weight="fill" size={24} />}
+                      {/* Top Bar: Service + Status Pill */}
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            {rental.status === 'Waiting' ? <Clock weight="duotone" size={20} className="animate-pulse" /> : rental.status === 'Received' ? <CheckCircle weight="fill" size={20} /> : <WarningCircle weight="fill" size={20} />}
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{SERVICES.find(s => s.id === rental.service)?.name || rental.service}</span>
-                            <span className="text-[11px] text-slate-500 dark:text-white/40 uppercase tracking-widest">{rental.status}</span>
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                              {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
+                            </h4>
+                            <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase tracking-widest font-semibold">
+                              Canada Dedicated
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right flex flex-col items-end">
-                          <span className="text-lg font-mono tracking-wider text-slate-900 dark:text-white">{rental.phone_number}</span>
-                          <span className="text-[10px] text-slate-400 dark:text-white/30">{rental.currency === 'USD' ? '$' : '₦'}{rental.cost}</span>
-                        </div>
+
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                          {rental.status === 'Waiting' ? 'Waiting for SMS...' : rental.status === 'Received' ? '✓ Code Received' : rental.status}
+                        </span>
                       </div>
 
-                      {/* Code Display Area */}
-                      <div className={`w-full p-4 rounded-xl flex items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-50 dark:bg-black shadow-inner border-black/5 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black/5 border-slate-900 dark:border-white/20' : 'bg-red-500/5 border-red-500/10'}`}>
+                      {/* Phone Number Bar with Copy Button */}
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40">Virtual Phone Number</span>
+                          <span className="text-lg font-mono font-bold tracking-wider text-slate-900 dark:text-white">{rental.phone_number}</span>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(rental.phone_number, `phone-${rental.id}`)}
+                          className="px-3 py-2 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          {copiedId === `phone-${rental.id}` ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                          {copiedId === `phone-${rental.id}` ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+
+                      {/* SMS Code Display Area */}
+                      <div className={`p-4 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-100/70 dark:bg-black/40 border-slate-200 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20 shadow-lg' : 'bg-red-500/5 border-red-500/10'}`}>
                         {rental.status === 'Waiting' ? (
-                          <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-blue/10 border border-brand-blue/20">
-                              <Spinner className="w-3.5 h-3.5 text-brand-blue animate-spin" />
-                              <span className="text-xs font-medium text-brand-blue">Waiting for SMS...</span>
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+                            <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
+                              <Spinner className="w-4 h-4 animate-spin" />
+                              Listening for incoming message...
                             </div>
                             <CancelOrderButton 
                               rentalId={rental.id} 
@@ -368,23 +446,30 @@ export default function CanaPurchasePage() {
                             />
                           </div>
                         ) : rental.status === 'Received' ? (
-                          <div className="flex flex-col items-center">
-                            <span className="text-[10px] uppercase text-slate-900 dark:text-white tracking-widest mb-1">Received Code</span>
-                            <span className="text-3xl font-mono tracking-[0.2em] text-slate-900 dark:text-white drop-shadow-[0_0_5px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
-                              {rental.sms_code}
-                            </span>
+                          <div className="flex items-center justify-between w-full">
+                            <div>
+                              <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-black/60 font-bold block">SMS Verification Code</span>
+                              <span className="text-3xl font-mono font-black tracking-[0.2em] text-slate-900 dark:text-white dark:text-slate-900">
+                                {rental.sms_code}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(rental.sms_code || '', `code-${rental.id}`)}
+                              className="px-4 py-2.5 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-1.5 shadow-md shadow-brand-blue/30"
+                            >
+                              {copiedId === `code-${rental.id}` ? <Check size={14} /> : <Copy size={14} />}
+                              {copiedId === `code-${rental.id}` ? 'Copied Code!' : 'Copy Code'}
+                            </button>
                           </div>
                         ) : (
-                          <span className="text-slate-400 dark:text-white/30 text-sm">Rental Cancelled or Expired</span>
+                          <span className="text-slate-400 dark:text-white/40 text-xs font-medium">Rental Expired / Cancelled</span>
                         )}
                       </div>
-
                     </motion.div>
                   ))
                 )}
               </AnimatePresence>
             </div>
-
           </div>
         </motion.div>
       </div>
