@@ -68,9 +68,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Fetch dynamic exchange rate
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single(); // fallback
+    // 4. Fetch dynamic exchange rate and brand pricing config
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate, brand_pricing').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
+    const brandPricing = settings?.brand_pricing || null;
     
     // Check if user is authenticated to get VIP discount
     const { data: { user } } = await supabase.auth.getUser();
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
     }
 
     // 5. Calculate Smart Tiered Pricing & Brand Margins
-    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount, serviceName);
+    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount, serviceName, brandPricing);
 
     return NextResponse.json({
       success: true,

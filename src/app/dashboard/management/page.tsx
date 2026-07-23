@@ -20,15 +20,16 @@ export default async function ManagementPage() {
     redirect('/dashboard');
   }
 
-  // Fetch current margin and affiliate percentage directly from the database for the initial server render
+  // Fetch current settings directly from database
   const { data: settings } = await supabase
     .from('settings')
-    .select('profit_margin, affiliate_percentage')
+    .select('profit_margin, affiliate_percentage, brand_pricing')
     .eq('id', 1)
     .single();
 
   const initialMargin = settings?.profit_margin || 0.40;
   const initialAffiliatePercentage = settings?.affiliate_percentage || 5.0;
+  const initialBrandPricing = settings?.brand_pricing || null;
 
   return (
     <div className="min-h-screen p-4 md:p-8 pt-24 max-w-4xl mx-auto flex flex-col gap-8 pb-20">
@@ -42,7 +43,11 @@ export default async function ManagementPage() {
       </div>
 
       <DigitalIssuesPanel />
-      <AdminSettingsPanel initialMargin={initialMargin} initialAffiliatePercentage={initialAffiliatePercentage} />
+      <AdminSettingsPanel 
+        initialMargin={initialMargin} 
+        initialAffiliatePercentage={initialAffiliatePercentage}
+        initialBrandPricing={initialBrandPricing}
+      />
       <GlobalNotificationManager />
     </div>
   );

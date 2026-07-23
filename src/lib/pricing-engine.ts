@@ -1,21 +1,20 @@
-interface BrandMarginRule {
+export interface BrandMarginRule {
   minPriceUsd: number;
   multiplier: number;
 }
 
-const BRAND_PRICE_RULES: Record<string, BrandMarginRule> = {
-  // Premium High-Demand Services (Realistic Pricing Floors & Multipliers)
-  "telegram": { minPriceUsd: 1.00, multiplier: 2.5 },   // Min ~$1.00 (₦1,500)
-  "tinder": { minPriceUsd: 1.20, multiplier: 2.5 },     // Min ~$1.20 (₦1,800)
-  "whatsapp": { minPriceUsd: 0.90, multiplier: 2.2 },   // Min ~$0.90 (₦1,350)
-  "openai": { minPriceUsd: 1.00, multiplier: 2.5 },     // Min ~$1.00 (₦1,500)
-  "chatgpt": { minPriceUsd: 1.00, multiplier: 2.5 },    // Min ~$1.00 (₦1,500)
-  "instagram": { minPriceUsd: 0.80, multiplier: 2.0 },  // Min ~$0.80 (₦1,200)
-  "facebook": { minPriceUsd: 0.80, multiplier: 2.0 },   // Min ~$0.80 (₦1,200)
-  "twitter": { minPriceUsd: 0.80, multiplier: 2.0 },    // Min ~$0.80 (₦1,200)
-  "google": { minPriceUsd: 0.75, multiplier: 2.0 },     // Min ~$0.75 (₦1,125)
-  "gmail": { minPriceUsd: 0.75, multiplier: 2.0 },      // Min ~$0.75 (₦1,125)
-  "tiktok": { minPriceUsd: 0.75, multiplier: 2.0 },     // Min ~$0.75 (₦1,125)
+export const DEFAULT_BRAND_PRICE_RULES: Record<string, BrandMarginRule> = {
+  "telegram": { minPriceUsd: 1.00, multiplier: 2.5 },
+  "tinder": { minPriceUsd: 1.20, multiplier: 2.5 },
+  "whatsapp": { minPriceUsd: 0.90, multiplier: 2.2 },
+  "openai": { minPriceUsd: 1.00, multiplier: 2.5 },
+  "chatgpt": { minPriceUsd: 1.00, multiplier: 2.5 },
+  "instagram": { minPriceUsd: 0.80, multiplier: 2.0 },
+  "facebook": { minPriceUsd: 0.80, multiplier: 2.0 },
+  "twitter": { minPriceUsd: 0.80, multiplier: 2.0 },
+  "google": { minPriceUsd: 0.75, multiplier: 2.0 },
+  "gmail": { minPriceUsd: 0.75, multiplier: 2.0 },
+  "tiktok": { minPriceUsd: 0.75, multiplier: 2.0 },
 };
 
 export function calculateTieredMargin(rawCostUsd: number): number {
@@ -40,13 +39,17 @@ export function calculateFinalRetailPrice(
   exchangeRate: number, 
   currency: string = 'USD', 
   userDiscount: number = 0,
-  serviceName: string = ''
+  serviceName: string = '',
+  customBrandRules?: Record<string, BrandMarginRule> | null
 ): number {
   const nameLower = (serviceName || '').toLowerCase();
+  const rules = customBrandRules && Object.keys(customBrandRules).length > 0 
+    ? customBrandRules 
+    : DEFAULT_BRAND_PRICE_RULES;
   
   let matchedRule: BrandMarginRule | null = null;
-  for (const [key, rule] of Object.entries(BRAND_PRICE_RULES)) {
-    if (nameLower.includes(key)) {
+  for (const [key, rule] of Object.entries(rules)) {
+    if (nameLower.includes(key.toLowerCase())) {
       matchedRule = rule;
       break;
     }
@@ -55,8 +58,8 @@ export function calculateFinalRetailPrice(
   let retailUsd = 0;
 
   if (matchedRule) {
-    const calculatedUsd = rawCostUsd * matchedRule.multiplier;
-    retailUsd = Math.max(calculatedUsd, matchedRule.minPriceUsd);
+    const calculatedUsd = rawCostUsd * (matchedRule.multiplier || 1.0);
+    retailUsd = Math.max(calculatedUsd, matchedRule.minPriceUsd || 0);
   } else {
     const margin = calculateTieredMargin(rawCostUsd);
     retailUsd = rawCostUsd + (rawCostUsd * margin);

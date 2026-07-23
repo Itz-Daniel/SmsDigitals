@@ -88,14 +88,15 @@ export async function POST(req: Request) {
 
     // --- CALCULATE FINAL PRICE ---
     const supabaseAdmin = createAdminClient();
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single(); // fall back handled below
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate, brand_pricing').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
+    const brandPricing = settings?.brand_pricing || null;
     
     // Get User's VIP Discount
     const { data: wallet } = await supabaseAdmin.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
     const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
     
-    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount, serviceName);
+    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount, serviceName, brandPricing);
 
     // --- DEDUCT BALANCE & CREATE RENTAL ---
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // Expires in 15 minutes

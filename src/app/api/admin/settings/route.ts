@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { adminSettingsSchema, getFieldErrors } from "@/lib/validation";
 
 export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
@@ -15,15 +16,16 @@ export async function GET(req: Request) {
 
     const { data: settings, error } = await supabase
       .from('settings')
-      .select('profit_margin, affiliate_percentage')
+      .select('profit_margin, affiliate_percentage, brand_pricing')
       .eq('id', 1)
       .single();
 
     if (error) throw error;
 
     return NextResponse.json({ 
-        profit_margin: settings.profit_margin,
-        affiliate_percentage: settings.affiliate_percentage
+        profit_margin: settings?.profit_margin || 0.4,
+        affiliate_percentage: settings?.affiliate_percentage || 5.0,
+        brand_pricing: settings?.brand_pricing || null
     });
   } catch (error: unknown) {
     console.error("Settings API Error:", error);
@@ -48,16 +50,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Validation failed", errors }, { status: 400 });
     }
 
-    const { profit_margin, affiliate_percentage } = validationResult.data;
+    const { profit_margin, affiliate_percentage, brand_pricing } = validationResult.data;
 
     const updateData: any = {};
 
     if (profit_margin !== undefined) {
-        updateData.profit_margin = profit_margin;
+      updateData.profit_margin = profit_margin;
     }
 
     if (affiliate_percentage !== undefined) {
-        updateData.affiliate_percentage = affiliate_percentage;
+      updateData.affiliate_percentage = affiliate_percentage;
+    }
+
+    if (brand_pricing !== undefined) {
+      updateData.brand_pricing = brand_pricing;
     }
 
     const supabaseAdmin = createAdminClient();

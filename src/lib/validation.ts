@@ -13,7 +13,11 @@ export const marketplaceBuySchema = z.object({
 export const adminSettingsSchema = z.object({
   profit_margin: z.number().nonnegative('Profit margin must be zero or greater').optional(),
   affiliate_percentage: z.number().nonnegative('Affiliate percentage must be zero or greater').optional(),
-}).refine(data => data.profit_margin !== undefined || data.affiliate_percentage !== undefined, {
+  brand_pricing: z.record(z.string(), z.object({
+    minPriceUsd: z.number().nonnegative(),
+    multiplier: z.number().positive(),
+  })).optional(),
+}).refine(data => data.profit_margin !== undefined || data.affiliate_percentage !== undefined || data.brand_pricing !== undefined, {
   message: 'No fields to update',
 });
 
