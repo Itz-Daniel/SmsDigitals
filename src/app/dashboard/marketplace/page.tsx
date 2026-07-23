@@ -70,10 +70,7 @@ export default function MarketplacePage() {
   const [filteredProducts, setFilteredProducts] = useState<DigitalProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Admin Gate State
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingRole, setIsCheckingRole] = useState(true);
-  
+
   // Filtering and Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -93,21 +90,7 @@ export default function MarketplacePage() {
   const DEFAULT_LIMIT = 8;
 
   useEffect(() => {
-    const checkAccessAndFetch = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user?.app_metadata?.role === 'admin') {
-        setIsAdmin(true);
-        fetchProducts();
-      } else {
-        setIsAdmin(false);
-        setIsLoading(false); // Stop loader so we can show Coming Soon
-      }
-      setIsCheckingRole(false);
-    };
-
-    checkAccessAndFetch();
+    fetchProducts();
   }, []);
 
   useEffect(() => {
@@ -255,7 +238,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Categories & Products */}
-      {isCheckingRole || isLoading ? (
+      {isLoading ? (
         <div className="space-y-12 animate-pulse">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -282,18 +265,6 @@ export default function MarketplacePage() {
               ))}
             </div>
           </div>
-        </div>
-      ) : !isAdmin ? (
-        <div className="py-32 flex flex-col items-center justify-center text-center px-4">
-          <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-3xl flex items-center justify-center mb-6 shadow-sm">
-            <Storefront size={40} weight="duotone" />
-          </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">Marketplace Coming Soon</h2>
-          <p className="text-slate-500 dark:text-slate-400 max-w-md text-lg leading-relaxed">
-            We are currently upgrading our marketplace to bring you the best premium accounts at the lowest wholesale prices. 
-            <br/><br/>
-            Check back shortly!
-          </p>
         </div>
       ) : Object.keys(groupedProducts).length === 0 ? (
         <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-500 bg-white dark:bg-[#111] rounded-3xl border border-black/5 dark:border-white/5">
