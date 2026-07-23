@@ -265,44 +265,44 @@ export default function DashboardPage() {
           </div>
 
           {/* VIP Status Card */}
-          <div className="md:col-span-1 rounded-2xl border border-black/5 dark:border-white/10 bg-slate-900 text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-xl">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-2xl"></div>
+          <div className="md:col-span-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-lg dark:shadow-xl transition-colors">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 dark:bg-yellow-500/10 rounded-full blur-2xl pointer-events-none"></div>
             
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold tracking-tight text-sm uppercase text-slate-400">VIP Status</h3>
+                <h3 className="font-bold tracking-tight text-sm uppercase text-slate-500 dark:text-slate-400">VIP Status</h3>
                 {wallet && wallet.lifetime_deposits_usd >= 500 ? (
-                  <span className="bg-yellow-500/20 text-yellow-500 px-2.5 py-1 rounded-full text-xs font-bold border border-yellow-500/20">GOLD (12% OFF)</span>
+                  <span className="bg-amber-500/10 text-amber-600 dark:bg-yellow-500/20 dark:text-yellow-400 px-2.5 py-1 rounded-full text-xs font-bold border border-amber-500/20 dark:border-yellow-500/20">GOLD (12% OFF)</span>
                 ) : wallet && wallet.lifetime_deposits_usd >= 150 ? (
-                  <span className="bg-slate-300/20 text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold border border-slate-300/20">SILVER (7% OFF)</span>
+                  <span className="bg-slate-200 text-slate-700 dark:bg-slate-300/20 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold border border-slate-300/30 dark:border-slate-300/20">SILVER (7% OFF)</span>
                 ) : wallet && wallet.lifetime_deposits_usd >= 50 ? (
-                  <span className="bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold border border-orange-500/20">BRONZE (3% OFF)</span>
+                  <span className="bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold border border-orange-500/20">BRONZE (3% OFF)</span>
                 ) : (
-                  <span className="bg-white/10 text-white/60 px-2.5 py-1 rounded-full text-xs font-bold">STANDARD</span>
+                  <span className="bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60 px-2.5 py-1 rounded-full text-xs font-bold">STANDARD</span>
                 )}
               </div>
               
               <div className="mt-6">
-                <p className="text-2xl font-bold font-mono tracking-tighter">
+                <p className="text-2xl font-bold font-mono tracking-tighter text-slate-900 dark:text-white">
                   {currency === 'NGN' ? '₦' : '$'}
                   {wallet?.lifetime_deposits_usd ? (currency === 'NGN' ? wallet.lifetime_deposits_usd * exchangeRate : wallet.lifetime_deposits_usd).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">Total Lifetime Deposits</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Lifetime Deposits</p>
               </div>
             </div>
 
             <div className="mt-8">
               {wallet && wallet.lifetime_deposits_usd >= 500 ? (
-                <div className="text-sm font-medium text-yellow-400">You've reached the highest VIP tier! Enjoy 12% off everything.</div>
+                <div className="text-sm font-medium text-amber-600 dark:text-yellow-400">You've reached the highest VIP tier! Enjoy 12% off everything.</div>
               ) : (
                 <>
-                  <div className="flex justify-between text-xs mb-2 text-slate-400">
+                  <div className="flex justify-between text-xs mb-2 text-slate-500 dark:text-slate-400">
                     <span>Progress</span>
-                    <span className="font-mono text-white">
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
                       {currency === 'NGN' ? '₦' : '$'}{((wallet?.lifetime_deposits_usd || 0) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()} / {currency === 'NGN' ? '₦' : '$'}{((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-brand-blue rounded-full"
                       style={{ 
@@ -310,8 +310,8 @@ export default function DashboardPage() {
                       }}
                     ></div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-3">
-                    Deposit <span className="text-white font-bold">{currency === 'NGN' ? '₦' : '$'}{(((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) - (wallet?.lifetime_deposits_usd || 0)) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span> more to reach {wallet && wallet.lifetime_deposits_usd >= 150 ? 'Gold' : wallet && wallet.lifetime_deposits_usd >= 50 ? 'Silver' : 'Bronze'}!
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                    Deposit <span className="text-slate-900 dark:text-white font-bold">{currency === 'NGN' ? '₦' : '$'}{(((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) - (wallet?.lifetime_deposits_usd || 0)) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span> more to reach {wallet && wallet.lifetime_deposits_usd >= 150 ? 'Gold' : wallet && wallet.lifetime_deposits_usd >= 50 ? 'Silver' : 'Bronze'}!
                   </p>
                 </>
               )}

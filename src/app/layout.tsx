@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { FloatingSupport } from "@/components/FloatingSupport";
 import { ReferralTracker } from "@/components/ReferralTracker";
+import { CookieConsent } from "@/components/CookieConsent";
 import { Suspense } from "react";
 
 const geistSans = Geist({
@@ -57,6 +58,7 @@ export default function RootLayout({
           </Suspense>
           {children}
           <FloatingSupport />
+          <CookieConsent />
         </ThemeProvider>
       </body>
     </html>
