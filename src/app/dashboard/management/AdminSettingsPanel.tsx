@@ -62,7 +62,7 @@ export default function AdminSettingsPanel({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to update settings.");
+        throw new Error(data.error || data.message || "Failed to update settings.");
       }
 
       setMessage({ text: `Settings & Brand Margins successfully saved.`, type: "success" });
@@ -79,12 +79,12 @@ export default function AdminSettingsPanel({
   };
 
   const updateBrandRule = (key: string, field: "minPriceUsd" | "multiplier", val: string) => {
-    const num = parseFloat(val) || 0;
+    const num = parseFloat(val);
     setBrandPricingMap(prev => ({
       ...prev,
       [key]: {
         ...prev[key],
-        [field]: num
+        [field]: isNaN(num) ? 0 : num
       }
     }));
   };
@@ -203,6 +203,13 @@ export default function AdminSettingsPanel({
                 <X size={18} weight="bold" />
               </button>
             </div>
+
+            {message && message.type === 'error' && (
+              <div className="p-4 rounded-xl flex items-start gap-3 bg-red-500/10 text-red-500 border border-red-500/20">
+                <WarningCircle size={20} weight="fill" className="shrink-0 mt-0.5" />
+                <p className="text-xs font-medium leading-relaxed">{message.text}</p>
+              </div>
+            )}
 
             {/* BRAND LIST */}
             <div className="overflow-y-auto max-h-[400px] flex flex-col gap-3 pr-1 custom-scrollbar">

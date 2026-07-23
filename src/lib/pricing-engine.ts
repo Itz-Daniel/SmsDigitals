@@ -6,7 +6,7 @@ export interface BrandMarginRule {
 export const DEFAULT_BRAND_PRICE_RULES: Record<string, BrandMarginRule> = {
   "telegram": { minPriceUsd: 1.00, multiplier: 2.5 },
   "tinder": { minPriceUsd: 1.20, multiplier: 2.5 },
-  "whatsapp": { minPriceUsd: 0.90, multiplier: 2.2 },
+  "whatsapp": { minPriceUsd: 0.90, multiplier: 1.5 },
   "openai": { minPriceUsd: 1.00, multiplier: 2.5 },
   "chatgpt": { minPriceUsd: 1.00, multiplier: 2.5 },
   "instagram": { minPriceUsd: 0.80, multiplier: 2.0 },

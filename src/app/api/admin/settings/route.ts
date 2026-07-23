@@ -20,16 +20,29 @@ export async function GET(req: Request) {
       .eq('id', 1)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Fallback if brand_pricing column does not exist on Supabase table yet
+      const { data: fallback } = await supabase
+        .from('settings')
+        .select('profit_margin, affiliate_percentage')
+        .eq('id', 1)
+        .single();
+
+      return NextResponse.json({ 
+        profit_margin: fallback?.profit_margin || 0.4,
+        affiliate_percentage: fallback?.affiliate_percentage || 5.0,
+        brand_pricing: null
+      });
+    }
 
     return NextResponse.json({ 
-        profit_margin: settings?.profit_margin || 0.4,
-        affiliate_percentage: settings?.affiliate_percentage || 5.0,
-        brand_pricing: settings?.brand_pricing || null
+      profit_margin: settings?.profit_margin || 0.4,
+      affiliate_percentage: settings?.affiliate_percentage || 5.0,
+      brand_pricing: settings?.brand_pricing || null
     });
-  } catch (error: unknown) {
-    console.error("Settings API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Settings GET API Error:", error);
+    return NextResponse.json({ error: error?.message || "Failed to fetch settings" }, { status: 500 });
   }
 }
 
@@ -47,24 +60,16 @@ export async function POST(req: Request) {
 
     if (!validationResult.success) {
       const errors = getFieldErrors(validationResult.error);
-      return NextResponse.json({ error: "Validation failed", errors }, { status: 400 });
+      const firstError = Object.values(errors)[0] || "Validation failed";
+      return NextResponse.json({ error: `Validation Error: ${firstError}`, errors }, { status: 400 });
     }
 
     const { profit_margin, affiliate_percentage, brand_pricing } = validationResult.data;
 
     const updateData: any = {};
-
-    if (profit_margin !== undefined) {
-      updateData.profit_margin = profit_margin;
-    }
-
-    if (affiliate_percentage !== undefined) {
-      updateData.affiliate_percentage = affiliate_percentage;
-    }
-
-    if (brand_pricing !== undefined) {
-      updateData.brand_pricing = brand_pricing;
-    }
+    if (profit_margin !== undefined) updateData.profit_margin = profit_margin;
+    if (affiliate_percentage !== undefined) updateData.affiliate_percentage = affiliate_percentage;
+    if (brand_pricing !== undefined) updateData.brand_pricing = brand_pricing;
 
     const supabaseAdmin = createAdminClient();
     const { error } = await supabaseAdmin
@@ -72,11 +77,20 @@ export async function POST(req: Request) {
       .update(updateData)
       .eq('id', 1);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase settings update error:", error);
+      // Check if error is missing column 'brand_pricing'
+      if (error.message?.includes('brand_pricing') || error.code === 'PGRST204' || error.message?.includes('column')) {
+        return NextResponse.json({ 
+          error: "Supabase table 'settings' is missing the 'brand_pricing' column. Please run SQL in Supabase SQL Editor: ALTER TABLE settings ADD COLUMN IF NOT EXISTS brand_pricing JSONB DEFAULT '{}'::jsonb;" 
+        }, { status: 400 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({ success: true, ...updateData });
-  } catch (error: unknown) {
-    console.error("Settings API Error:", error);
-    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Settings POST API Error:", error);
+    return NextResponse.json({ error: error?.message || "Failed to update settings" }, { status: 500 });
   }
 }

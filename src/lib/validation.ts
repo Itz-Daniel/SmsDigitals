@@ -14,8 +14,8 @@ export const adminSettingsSchema = z.object({
   profit_margin: z.number().nonnegative('Profit margin must be zero or greater').optional(),
   affiliate_percentage: z.number().nonnegative('Affiliate percentage must be zero or greater').optional(),
   brand_pricing: z.record(z.string(), z.object({
-    minPriceUsd: z.number().nonnegative(),
-    multiplier: z.number().positive(),
+    minPriceUsd: z.coerce.number().nonnegative(),
+    multiplier: z.coerce.number().nonnegative(),
   })).optional(),
 }).refine(data => data.profit_margin !== undefined || data.affiliate_percentage !== undefined || data.brand_pricing !== undefined, {
   message: 'No fields to update',
