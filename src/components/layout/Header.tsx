@@ -45,12 +45,8 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
               <List size={24} weight="bold" />
             </button>
             
-            <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-              <div className="w-6 h-6 rounded bg-brand-blue flex items-center justify-center text-white">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
+            <Link href="/dashboard" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+              <img src="/icon.svg" alt="SmsDigitals" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
               SmsDigitals
             </Link>
           </div>
@@ -120,12 +116,8 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
             >
               {/* Drawer Header */}
               <div className="h-20 flex items-center justify-between px-6 border-b border-black/5 dark:border-white/5">
-                <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                  <div className="w-6 h-6 rounded bg-brand-blue flex items-center justify-center text-white">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
+                <Link href="/dashboard" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                  <img src="/icon.svg" alt="SmsDigitals" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
                   SmsDigitals
                 </Link>
                 <button 

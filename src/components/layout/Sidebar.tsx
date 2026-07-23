@@ -85,12 +85,8 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
     <aside className="w-64 border-r border-black/5 dark:border-white/5 bg-slate-50 dark:bg-base flex flex-col h-[100dvh] sticky top-0 transition-colors duration-500">
       {/* Logo Area */}
       <div className="h-20 flex items-center px-8 border-b border-black/5 dark:border-white/5">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-          <div className="w-6 h-6 rounded bg-brand-blue flex items-center justify-center text-white">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
+        <Link href="/dashboard" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+          <img src="/icon.svg" alt="SmsDigitals" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
           SmsDigitals
         </Link>
       </div>

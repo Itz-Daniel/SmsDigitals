@@ -115,9 +115,7 @@ export default function Home() {
       <nav className="fixed top-0 left-0 w-full z-50 bg-white/80 dark:bg-[#030303]/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/5 transition-all">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-brand-blue flex items-center justify-center text-white shadow-sm">
-              <ChatCircleDots weight="fill" size={14} />
-            </div>
+            <img src="/icon.svg" alt="SmsDigitals" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
             <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">SmsDigitals</span>
           </div>
           <div className="flex items-center gap-5">
@@ -753,9 +751,7 @@ export default function Home() {
         <footer className="w-full border-t border-slate-200/80 dark:border-white/5 bg-white dark:bg-[#030303] py-12">
           <div className="max-w-[1200px] mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-md bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-black">
-                <ChatCircleDots weight="fill" size={11} />
-              </div>
+              <img src="/icon.svg" alt="SmsDigitals" className="w-6 h-6 rounded-md object-cover shadow-sm" />
               <span className="font-bold text-sm text-slate-900 dark:text-white">SmsDigitals</span>
             </div>
 
