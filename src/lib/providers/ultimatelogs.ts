@@ -1,8 +1,7 @@
-const DEFAULT_API_KEY = "ulm_C6dzlJnLhNCtj5yH3WsMamqjhyl9y24ALZIkoCAb8cF5TQk9";
 const BASE_URL = 'https://ultimatelogsmarketplace.com/api/v1';
 
-function getApiKey(): string {
-  return process.env.ULTIMATE_LOGS_API_KEY || DEFAULT_API_KEY;
+function getApiKey(): string | undefined {
+  return process.env.ULTIMATE_LOGS_API_KEY;
 }
 
 export interface UltimateLogsProduct {
