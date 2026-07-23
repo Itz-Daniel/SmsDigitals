@@ -18,6 +18,9 @@ import {
   PlayCircle,
   DiscordLogo,
   RedditLogo,
+  TelegramLogo,
+  WhatsappLogo,
+  YoutubeLogo,
   GridFour,
   CheckCircle,
   WarningCircle,
@@ -62,7 +65,105 @@ function getCategoryIcon(categoryName: string, size = 28) {
   if (name.includes("netflix")) return <PlayCircle size={size} className="text-red-600" weight="fill" />;
   if (name.includes("discord")) return <DiscordLogo size={size} className="text-indigo-500" weight="fill" />;
   if (name.includes("reddit")) return <RedditLogo size={size} className="text-orange-600" weight="fill" />;
+  if (name.includes("telegram") || name.includes("tg")) return <TelegramLogo size={size} className="text-sky-400" weight="fill" />;
+  if (name.includes("whatsapp") || name.includes("wa")) return <WhatsappLogo size={size} className="text-green-500" weight="fill" />;
   return <GridFour size={size} className="text-brand-blue" weight="fill" />;
+}
+
+// Brand icon helper for individual product cards
+function getProductBrandIcon(productName: string, categoryName: string, size = 22) {
+  const text = `${productName} ${categoryName}`.toLowerCase();
+
+  if (text.includes("facebook") || text.includes("fb")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-blue-600/10 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-600/20">
+        <FacebookLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("instagram") || text.includes("ig")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-pink-600/10 text-pink-600 dark:bg-pink-600/20 dark:text-pink-400 flex items-center justify-center shrink-0 border border-pink-600/20">
+        <InstagramLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("twitter") || text.includes(" x ") || text.includes("x.com")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-500 dark:bg-sky-500/20 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-500/20">
+        <TwitterLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("tiktok")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-slate-900/10 text-slate-900 dark:bg-white/10 dark:text-white flex items-center justify-center shrink-0 border border-slate-900/20 dark:border-white/20">
+        <TiktokLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("vpn") || text.includes("nord") || text.includes("express") || text.includes("surfshark")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+        <ShieldCheck size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("netflix") || text.includes("stream") || text.includes("hulu") || text.includes("prime")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-red-600/10 text-red-600 dark:bg-red-600/20 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-600/20">
+        <PlayCircle size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("telegram") || text.includes("tg")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-sky-400/10 text-sky-400 dark:bg-sky-400/20 dark:text-sky-300 flex items-center justify-center shrink-0 border border-sky-400/20">
+        <TelegramLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("whatsapp") || text.includes("wa")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-green-500/10 text-green-500 dark:bg-green-500/20 dark:text-green-400 flex items-center justify-center shrink-0 border border-green-500/20">
+        <WhatsappLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("discord")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+        <DiscordLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("reddit")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-orange-600/10 text-orange-600 dark:bg-orange-600/20 dark:text-orange-400 flex items-center justify-center shrink-0 border border-orange-600/20">
+        <RedditLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("mail") || text.includes("gmail") || text.includes("outlook") || text.includes("yahoo") || text.includes("google")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 dark:bg-amber-500/20 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+        <EnvelopeSimple size={size} weight="fill" />
+      </div>
+    );
+  }
+  if (text.includes("youtube") || text.includes("yt")) {
+    return (
+      <div className="w-10 h-10 rounded-2xl bg-red-500/10 text-red-500 dark:bg-red-500/20 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-500/20">
+        <YoutubeLogo size={size} weight="fill" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20 dark:text-brand-blue flex items-center justify-center shrink-0 border border-brand-blue/20">
+      <GridFour size={size} weight="fill" />
+    </div>
+  );
 }
 
 export default function MarketplacePage() {
@@ -308,8 +409,9 @@ export default function MarketplacePage() {
                   {visibleItems.map((product) => (
                     <div key={product.id} className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/5 rounded-3xl p-6 flex flex-col hover:shadow-xl hover:border-brand-blue/30 transition-all group relative overflow-hidden">
                       
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-lg">
+                      <div className="flex justify-between items-center mb-4">
+                        {getProductBrandIcon(product.name, product.category, 20)}
+                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-1.5 rounded-xl">
                           <TrendUp size={12} weight="bold" />
                           {product.stock} left
                         </span>
