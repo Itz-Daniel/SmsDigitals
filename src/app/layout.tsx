@@ -35,9 +35,11 @@ export const metadata: Metadata = {
     description: "Receive SMS verifications instantly. Real SIM numbers from 44+ countries.",
   },
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon.svg?v=2", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg?v=2",
+    apple: "/icon.svg?v=2",
   },
   metadataBase: new URL("https://smsdigitals.com"),
 };
