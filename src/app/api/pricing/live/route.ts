@@ -88,8 +88,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Calculate Smart Tiered Pricing
-    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount);
+    // 5. Calculate Smart Tiered Pricing & Brand Margins
+    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount, serviceName);
 
     return NextResponse.json({
       success: true,

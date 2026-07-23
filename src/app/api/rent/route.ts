@@ -95,7 +95,7 @@ export async function POST(req: Request) {
     const { data: wallet } = await supabaseAdmin.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
     const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
     
-    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount);
+    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount, serviceName);
 
     // --- DEDUCT BALANCE & CREATE RENTAL ---
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // Expires in 15 minutes
