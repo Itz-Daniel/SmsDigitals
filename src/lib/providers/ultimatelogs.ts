@@ -1,8 +1,8 @@
-const API_KEY = process.env.ULTIMATE_LOGS_API_KEY;
+const DEFAULT_API_KEY = "ulm_C6dzlJnLhNCtj5yH3WsMamqjhyl9y24ALZIkoCAb8cF5TQk9";
 const BASE_URL = 'https://ultimatelogsmarketplace.com/api/v1';
 
-if (!API_KEY) {
-  console.warn("ULTIMATE_LOGS_API_KEY is missing from environment variables.");
+function getApiKey(): string {
+  return process.env.ULTIMATE_LOGS_API_KEY || DEFAULT_API_KEY;
 }
 
 export interface UltimateLogsProduct {
@@ -29,7 +29,8 @@ let productsCache: { data: UltimateLogsProduct[], expiresAt: number } | null = n
  * Cached for 5 minutes (300s) in memory.
  */
 export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> => {
-  if (!API_KEY) return [];
+  const apiKey = getApiKey();
+  if (!apiKey) return [];
 
   if (productsCache && Date.now() < productsCache.expiresAt) {
     return productsCache.data;
@@ -39,7 +40,7 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
     const res = await fetch(`${BASE_URL}/products`, {
       method: 'GET',
       headers: {
-        'X-API-Key': API_KEY,
+        'X-API-Key': apiKey,
         'Accept': 'application/json'
       },
       cache: 'no-store'
@@ -81,13 +82,14 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
  * THIS IS NEVER CACHED.
  */
 export async function buyUltimateLogsService(productId: number, quantity: number = 1): Promise<{ success: boolean; data?: any; error?: string }> {
-  if (!API_KEY) return { success: false, error: "API key missing" };
+  const apiKey = getApiKey();
+  if (!apiKey) return { success: false, error: "API key missing" };
 
   try {
     const res = await fetch(`${BASE_URL}/purchase`, {
       method: 'POST',
       headers: {
-        'X-API-Key': API_KEY,
+        'X-API-Key': apiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
