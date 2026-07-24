@@ -16,7 +16,8 @@ import {
   ArrowsClockwise,
   LockKey,
   Wallet,
-  Spinner
+  Spinner,
+  Crown
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
@@ -41,6 +42,7 @@ export default function DeveloperApiPage() {
 
   // Active Customer Wallet Check
   const [isFunded, setIsFunded] = useState<boolean | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   const [checkingWallet, setCheckingWallet] = useState(true);
 
   useEffect(() => {
@@ -50,6 +52,18 @@ export default function DeveloperApiPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setIsFunded(false);
+          setCheckingWallet(false);
+          return;
+        }
+
+        // ADMIN BYPASS: Admins bypass all deposit & wallet funding restrictions automatically
+        const isAdmin = user.user_metadata?.role === 'admin' || 
+                        user.app_metadata?.role === 'admin' ||
+                        user.email?.toLowerCase().includes('admin');
+
+        if (isAdmin) {
+          setIsAdminUser(true);
+          setIsFunded(true);
           setCheckingWallet(false);
           return;
         }
@@ -215,13 +229,13 @@ print(res.json())`;
     return (
       <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-4 text-slate-400 dark:text-white/40">
         <Spinner size={32} className="animate-spin text-brand-blue" />
-        <span className="text-sm font-bold">Verifying Wallet Status...</span>
+        <span className="text-sm font-bold">Verifying Account Credentials...</span>
       </div>
     );
   }
 
-  // RESTRICTED ACCESS CARD FOR UNFUNDED NEW ACCOUNTS
-  if (isFunded === false) {
+  // RESTRICTED ACCESS CARD FOR UNFUNDED NON-ADMIN ACCOUNTS
+  if (isFunded === false && !isAdminUser) {
     return (
       <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-4 md:p-8 font-sans pb-32 flex items-center justify-center transition-colors duration-500">
         <div className="max-w-xl mx-auto flex flex-col gap-6 text-center items-center bg-white dark:bg-[#111111] p-8 md:p-12 rounded-3xl border border-black/5 dark:border-white/10 shadow-2xl relative overflow-hidden">
@@ -240,7 +254,7 @@ print(res.json())`;
               Unlock Developer API Access
             </h1>
             <p className="text-slate-500 dark:text-white/50 text-sm leading-relaxed max-w-md">
-              Reseller API Keys and automated endpoints are reserved for funded accounts. Fund your wallet with at least <strong className="text-slate-800 dark:text-white">₦1,000 / $1.00</strong> to instantly generate API Keys and access automated documentation.
+              Reseller API Keys and automated endpoints are reserved for active platform users. Fund your wallet with at least <strong className="text-slate-800 dark:text-white">₦1,000 / $1.00</strong> to instantly generate API Keys and access automated documentation.
             </p>
           </div>
 
@@ -269,7 +283,9 @@ print(res.json())`;
               <div className="w-10 h-10 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
                 <Code size={24} weight="bold" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-widest text-brand-blue">Reseller & Developer API v1</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-brand-blue flex items-center gap-1">
+                Reseller & Developer API v1 {isAdminUser && <span className="ml-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 font-extrabold uppercase flex items-center gap-1"><Crown size={12} weight="fill" /> Admin Bypass Active</span>}
+              </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
               Automate SMS Procurements
@@ -385,14 +401,14 @@ print(res.json())`;
 
           {/* RIGHT: INTERACTIVE CODE SNIPPETS & DOCS */}
           <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-black/5 dark:border-white/10 shadow-xl flex flex-col gap-6">
+            <div className="bg-[#111111] dark:bg-[#111111] bg-white text-slate-900 dark:text-white rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
               
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/5 pb-4">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <TerminalWindow size={20} className="text-brand-blue" /> API Interactive Playground
                 </h2>
 
-                <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-black/5 dark:border-white/5">
+                <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200/80 dark:border-white/5">
                   <button
                     onClick={() => setSelectedEndpoint("buy")}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${selectedEndpoint === "buy" ? "bg-brand-blue text-white shadow-sm" : "text-slate-600 dark:text-white/60"}`}
