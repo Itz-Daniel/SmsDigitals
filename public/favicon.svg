@@ -1,35 +1,84 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0070F3"/>
-      <stop offset="100%" stop-color="#0A0F1D"/>
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="50%" stop-color="#05070D"/>
+      <stop offset="100%" stop-color="#0F172A"/>
     </linearGradient>
-    <linearGradient id="bubbleGrad" x1="128" y1="96" x2="384" y2="392" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#2563EB"/>
+
+    <!-- Top Ribbon Gradient: Electric Cyan to Brand Blue -->
+    <linearGradient id="topRibbon" x1="120" y1="100" x2="380" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#0070F3"/>
       <stop offset="100%" stop-color="#1D4ED8"/>
     </linearGradient>
-    <linearGradient id="accentGrad" x1="184" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#38BDF8"/>
-      <stop offset="100%" stop-color="#60A5FA"/>
+
+    <!-- Middle Layer Ribbon Gradient: Brand Blue to Deep Royal -->
+    <linearGradient id="midRibbon" x1="160" y1="200" x2="360" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1E40AF"/>
     </linearGradient>
+
+    <!-- Bottom Layer Ribbon Gradient: Royal Blue to Neon Violet -->
+    <linearGradient id="botRibbon" x1="130" y1="280" x2="390" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+
+    <!-- Specular Highlight Overlay -->
+    <linearGradient id="highlight" x1="150" y1="110" x2="350" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Realistic Layer Drop Shadow -->
+    <filter id="layerShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <!-- Ambient Cyan Glow -->
+    <filter id="cyanGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="35" result="blur"/>
+    </filter>
   </defs>
 
   <!-- Outer Squircle Container -->
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
-  <rect x="2" y="2" width="508" height="508" rx="110" stroke="white" stroke-opacity="0.15" stroke-width="4"/>
+  <rect x="2" y="2" width="508" height="508" rx="110" stroke="white" stroke-opacity="0.12" stroke-width="3"/>
 
-  <!-- Subtle Background Ambient Glow -->
-  <circle cx="256" cy="240" r="160" fill="#0070F3" fill-opacity="0.3" filter="blur(40px)"/>
+  <!-- Ambient Backdrop Neon Glow -->
+  <circle cx="256" cy="256" r="140" fill="#0070F3" fill-opacity="0.25" filter="url(#cyanGlow)"/>
+  <circle cx="340" cy="160" r="80" fill="#00E5FF" fill-opacity="0.2" filter="url(#cyanGlow)"/>
 
-  <!-- SMS Speech Bubble Body -->
-  <path d="M128 152C128 121.072 153.072 96 184 96H328C358.928 96 384 121.072 384 152V272C384 302.928 358.928 328 328 328H236L164 384V328H184C153.072 328 128 302.928 128 272V152Z" fill="url(#bubbleGrad)" stroke="white" stroke-opacity="0.2" stroke-width="4"/>
+  <!-- LAYER 3: BOTTOM RIBBON LOOP (S Bottom Curve) -->
+  <path d="M 180 340 C 140 340 130 380 165 405 C 205 435 320 425 365 390 C 400 362 385 315 325 295 L 210 260 Z" 
+        fill="url(#botRibbon)" 
+        filter="url(#layerShadow)"/>
 
-  <!-- SMS Text Lines / Signal Indicators -->
-  <rect x="176" y="160" width="160" height="24" rx="12" fill="white"/>
-  <rect x="176" y="208" width="104" height="24" rx="12" fill="url(#accentGrad)"/>
-  <circle cx="312" cy="220" r="12" fill="#38BDF8"/>
+  <!-- LAYER 2: MIDDLE DIAGONAL BRIDGE RIBBON -->
+  <path d="M 360 175 C 385 200 375 240 320 265 L 190 320 C 145 340 130 310 155 280 C 185 245 285 195 360 175 Z" 
+        fill="url(#midRibbon)" 
+        filter="url(#layerShadow)"/>
 
-  <!-- Verified Green Badge -->
-  <circle cx="360" cy="128" r="32" fill="#10B981" stroke="#0A0F1D" stroke-width="8"/>
-  <path d="M346 128L355 137L374 118" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- LAYER 1: TOP RIBBON LOOP (S Upper Curve) -->
+  <path d="M 335 170 C 375 170 385 130 350 105 C 310 75 195 85 150 120 C 115 148 130 195 190 215 L 305 250 Z" 
+        fill="url(#topRibbon)" 
+        filter="url(#layerShadow)"/>
+
+  <!-- Glassmorphic Edge Specular Highlight -->
+  <path d="M 160 115 C 200 88 300 80 345 105" 
+        stroke="url(#highlight)" 
+        stroke-width="6" 
+        stroke-linecap="round" 
+        fill="none"/>
+
+  <!-- Center Metallic Core Accent (S Center Slice) -->
+  <path d="M 230 235 L 282 277" 
+        stroke="#00E5FF" 
+        stroke-width="5" 
+        stroke-linecap="round" 
+        stroke-opacity="0.8"/>
 </svg>

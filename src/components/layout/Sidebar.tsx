@@ -126,22 +126,7 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                 const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 const isDisabled = item.disabled;
 
-                let badgeCount = item.badge;
-                let badgeStyleClass = "bg-brand-blue/10 text-brand-blue border-brand-blue/20 font-bold";
-
-                if (item.badgeStyle === "disabled") {
-                  badgeStyleClass = "bg-slate-500/10 text-slate-400 border-slate-500/20";
-                } else if (item.badgeStyle === "new" || item.badge === "NEW") {
-                  badgeStyleClass = "bg-brand-blue/15 text-brand-blue border-brand-blue/30 font-extrabold shadow-sm";
-                } else if (item.badgeStyle === "support") {
-                  if (isAdmin && openTicketsCount > 0) {
-                    badgeCount = `${openTicketsCount}`;
-                    badgeStyleClass = "bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold";
-                  } else if (!isAdmin && hasUnreadReply) {
-                    badgeCount = "1 NEW";
-                    badgeStyleClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold animate-pulse";
-                  }
-                }
+                let badgeText = item.badge;
 
                 if (isDisabled) {
                   return (
@@ -154,8 +139,8 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                         <span>{item.name}</span>
                       </div>
                       {item.badge && (
-                        <span className={clsx("text-[9px] px-2 py-0.5 rounded-full border", badgeStyleClass)}>
-                          {badgeCount}
+                        <span className="text-[9px] px-2 py-0.5 rounded-full border bg-slate-500/10 text-slate-400 border-slate-500/20 font-bold">
+                          {badgeText}
                         </span>
                       )}
                     </div>
@@ -167,21 +152,48 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                     key={item.name}
                     href={item.href}
                     className={clsx(
-                      "flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all group",
+                      "flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all group relative overflow-hidden",
                       isActive
-                        ? "bg-brand-blue text-white shadow-sm shadow-brand-blue/20"
+                        ? "bg-brand-blue text-white shadow-md shadow-brand-blue/30"
                         : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
                     )}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 relative z-10">
                       <Icon size={18} className={clsx(isActive ? "text-white" : "text-slate-500 dark:text-white/40 group-hover:text-slate-900 dark:group-hover:text-white")} />
                       <span>{item.name}</span>
                     </div>
 
                     {item.badge && (
-                      <span className={clsx("text-[9px] px-2 py-0.5 rounded-full border", badgeStyleClass)}>
-                        {badgeCount}
-                      </span>
+                      <div className="relative z-10 shrink-0">
+                        {item.badge === "NEW" ? (
+                          <span
+                            className={clsx(
+                              "text-[9px] px-2 py-0.5 rounded-full border font-extrabold tracking-wider transition-all flex items-center gap-1.5",
+                              isActive
+                                ? "bg-white/20 text-white border-white/40 shadow-[0_0_10px_rgba(255,255,255,0.4)] backdrop-blur-md"
+                                : "bg-brand-blue/15 text-brand-blue dark:text-cyan-400 border-brand-blue/30 dark:border-cyan-400/30 shadow-[0_0_12px_rgba(0,112,243,0.35)] animate-pulse"
+                            )}
+                          >
+                            <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0 animate-ping", isActive ? "bg-emerald-300" : "bg-brand-blue dark:bg-cyan-400")} />
+                            {item.badge}
+                          </span>
+                        ) : item.badgeStyle === "support" && ((isAdmin && openTicketsCount > 0) || (!isAdmin && hasUnreadReply)) ? (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-extrabold animate-pulse">
+                            {isAdmin ? `${openTicketsCount} OPEN` : "1 NEW"}
+                          </span>
+                        ) : (
+                          <span
+                            className={clsx(
+                              "text-[9px] px-2 py-0.5 rounded-full border font-bold",
+                              isActive
+                                ? "bg-white/20 text-white border-white/30"
+                                : "bg-brand-blue/10 text-brand-blue border-brand-blue/20"
+                            )}
+                          >
+                            {badgeText}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </Link>
                 );
