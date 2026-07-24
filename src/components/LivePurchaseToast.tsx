@@ -74,7 +74,7 @@ export function LivePurchaseToast() {
   if (isMuted || !currentEvent) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 pointer-events-none font-sans">
+    <div className="fixed bottom-4 left-4 right-16 sm:right-auto sm:bottom-6 sm:left-6 z-40 max-w-sm pointer-events-none font-sans">
       <AnimatePresence>
         {isVisible && (
           <motion.div
