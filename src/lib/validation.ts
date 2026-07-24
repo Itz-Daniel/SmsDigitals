@@ -17,7 +17,16 @@ export const adminSettingsSchema = z.object({
     minPriceUsd: z.coerce.number().nonnegative(),
     multiplier: z.coerce.number().nonnegative(),
   })).optional(),
-}).refine(data => data.profit_margin !== undefined || data.affiliate_percentage !== undefined || data.brand_pricing !== undefined, {
+  rental_min_floor_usd: z.number().nonnegative().optional(),
+  rental_daily_rate_usd: z.number().nonnegative().optional(),
+  rental_margin_percent: z.number().nonnegative().optional(),
+}).refine(data => 
+  data.profit_margin !== undefined || 
+  data.affiliate_percentage !== undefined || 
+  data.brand_pricing !== undefined ||
+  data.rental_min_floor_usd !== undefined ||
+  data.rental_daily_rate_usd !== undefined ||
+  data.rental_margin_percent !== undefined, {
   message: 'No fields to update',
 });
 

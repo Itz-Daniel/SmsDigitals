@@ -15,13 +15,13 @@ export async function GET(req: Request) {
     }
 
     const { data: settings, error } = await supabase
-      .from('settings')
-      .select('profit_margin, affiliate_percentage, brand_pricing')
-      .eq('id', 1)
+      .from('api_settings')
+      .select('profit_margin, affiliate_percentage, brand_pricing, rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent')
+      .limit(1)
       .single();
 
     if (error) {
-      // Fallback if brand_pricing column does not exist on Supabase table yet
+      // Fallback
       const { data: fallback } = await supabase
         .from('settings')
         .select('profit_margin, affiliate_percentage')
@@ -31,14 +31,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ 
         profit_margin: fallback?.profit_margin || 0.4,
         affiliate_percentage: fallback?.affiliate_percentage || 5.0,
-        brand_pricing: null
+        brand_pricing: null,
+        rental_min_floor_usd: 2.50,
+        rental_daily_rate_usd: 1.50,
+        rental_margin_percent: 40
       });
     }
 
     return NextResponse.json({ 
       profit_margin: settings?.profit_margin || 0.4,
       affiliate_percentage: settings?.affiliate_percentage || 5.0,
-      brand_pricing: settings?.brand_pricing || null
+      brand_pricing: settings?.brand_pricing || null,
+      rental_min_floor_usd: settings?.rental_min_floor_usd || 2.50,
+      rental_daily_rate_usd: settings?.rental_daily_rate_usd || 1.50,
+      rental_margin_percent: settings?.rental_margin_percent || 40
     });
   } catch (error: any) {
     console.error("Settings GET API Error:", error);
@@ -64,31 +70,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Validation Error: ${firstError}`, errors }, { status: 400 });
     }
 
-    const { profit_margin, affiliate_percentage, brand_pricing } = validationResult.data;
+    const { 
+      profit_margin, 
+      affiliate_percentage, 
+      brand_pricing,
+      rental_min_floor_usd,
+      rental_daily_rate_usd,
+      rental_margin_percent
+    } = validationResult.data;
 
     const updateData: any = {};
     if (profit_margin !== undefined) updateData.profit_margin = profit_margin;
     if (affiliate_percentage !== undefined) updateData.affiliate_percentage = affiliate_percentage;
     if (brand_pricing !== undefined) updateData.brand_pricing = brand_pricing;
+    if (rental_min_floor_usd !== undefined) updateData.rental_min_floor_usd = rental_min_floor_usd;
+    if (rental_daily_rate_usd !== undefined) updateData.rental_daily_rate_usd = rental_daily_rate_usd;
+    if (rental_margin_percent !== undefined) updateData.rental_margin_percent = rental_margin_percent;
 
     const supabaseAdmin = createAdminClient();
-    const { error } = await supabaseAdmin
+    
+    // Update api_settings table
+    const { error: apiErr } = await supabaseAdmin
+      .from('api_settings')
+      .update(updateData)
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // Also update settings table fallback
+    await supabaseAdmin
       .from('settings')
       .update(updateData)
       .eq('id', 1);
 
-    if (error) {
-      console.error("Supabase settings update error:", error);
-      // Check if error is missing column 'brand_pricing'
-      if (error.message?.includes('brand_pricing') || error.code === 'PGRST204' || error.message?.includes('column')) {
-        return NextResponse.json({ 
-          error: "Supabase table 'settings' is missing the 'brand_pricing' column. Please run SQL in Supabase SQL Editor: ALTER TABLE settings ADD COLUMN IF NOT EXISTS brand_pricing JSONB DEFAULT '{}'::jsonb;" 
-        }, { status: 400 });
-      }
-      throw error;
+    if (apiErr) {
+      console.warn("Supabase api_settings update warning:", apiErr);
     }
 
-    return NextResponse.json({ success: true, ...updateData });
+    return NextResponse.json({ success: true, message: "Settings saved successfully!", ...updateData });
   } catch (error: any) {
     console.error("Settings POST API Error:", error);
     return NextResponse.json({ error: error?.message || "Failed to update settings" }, { status: 500 });

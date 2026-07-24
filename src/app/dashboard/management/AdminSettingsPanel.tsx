@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users, ShieldCheck, CurrencyDollar, Storefront } from "@phosphor-icons/react";
 import { DEFAULT_BRAND_PRICE_RULES, BrandMarginRule } from "@/lib/pricing-engine";
 
@@ -44,6 +44,18 @@ export default function AdminSettingsPanel({
   const [isCreatingVoucher, setIsCreatingVoucher] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+  // Load existing settings on mount
+  useEffect(() => {
+    fetch('/api/admin/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.rental_min_floor_usd) setRentalMinFloorInput(data.rental_min_floor_usd.toString());
+        if (data.rental_daily_rate_usd) setRentalDailyRateInput(data.rental_daily_rate_usd.toString());
+        if (data.rental_margin_percent) setRentalMarginInput(data.rental_margin_percent.toString());
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSaveGlobal = async (updatedBrandPricing?: Record<string, BrandMarginRule>) => {
     setIsSaving(true);
     setMessage(null);
@@ -81,7 +93,7 @@ export default function AdminSettingsPanel({
         throw new Error(data.error || data.message || "Failed to update settings.");
       }
 
-      setMessage({ text: `All Global Settings, Brand Margins & Rental Floor Controls saved successfully!`, type: "success" });
+      setMessage({ text: `🎉 All Global Settings, Long-Term Rental Floor ($${rentalMinFloorInput}) & Margins saved successfully!`, type: "success" });
       setIsModalOpen(false);
     } catch (err: unknown) {
       if (err instanceof Error) {

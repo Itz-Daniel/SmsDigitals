@@ -127,12 +127,12 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                 const isDisabled = item.disabled;
 
                 let badgeCount = item.badge;
-                let badgeStyleClass = "bg-brand-blue/10 text-brand-blue border-brand-blue/20";
+                let badgeStyleClass = "bg-brand-blue/10 text-brand-blue border-brand-blue/20 font-bold";
 
                 if (item.badgeStyle === "disabled") {
                   badgeStyleClass = "bg-slate-500/10 text-slate-400 border-slate-500/20";
                 } else if (item.badgeStyle === "new" || item.badge === "NEW") {
-                  badgeStyleClass = "bg-purple-500/15 text-purple-500 dark:text-purple-400 border-purple-500/30 animate-pulse font-extrabold";
+                  badgeStyleClass = "bg-brand-blue/15 text-brand-blue border-brand-blue/30 font-extrabold shadow-sm";
                 } else if (item.badgeStyle === "support") {
                   if (isAdmin && openTicketsCount > 0) {
                     badgeCount = `${openTicketsCount}`;
