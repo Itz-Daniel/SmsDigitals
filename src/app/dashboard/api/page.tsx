@@ -21,7 +21,8 @@ import {
   Hash,
   ClockCounterClockwise,
   Coins,
-  Eye
+  Eye,
+  PaperPlaneRight
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
@@ -49,11 +50,16 @@ export default function DeveloperApiPage() {
   const [keyNameInput, setKeyNameInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Webhook Forwarder State for Bot Developers
+  const [userWebhookUrl, setUserWebhookUrl] = useState("");
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [webhookMsg, setWebhookMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // 2FA Verification Modal State
   const [is2FaModalOpen, setIs2FaModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: "generate" | "view"; payload?: any } | null>(null);
 
-  // View Key Modal State (Mobile & Desktop Responsive Modal)
+  // View Key Modal State
   const [viewModalData, setViewModalData] = useState<{ isOpen: boolean; name: string; key: string }>({
     isOpen: false,
     name: "",
@@ -112,14 +118,18 @@ export default function DeveloperApiPage() {
   }, []);
 
   useEffect(() => {
-    // Starts 100% empty until user explicitly generates a key
-    const stored = localStorage.getItem("sms_user_api_keys");
-    if (stored) {
+    const storedKeys = localStorage.getItem("sms_user_api_keys");
+    if (storedKeys) {
       try {
-        setApiKeys(JSON.parse(stored));
+        setApiKeys(JSON.parse(storedKeys));
       } catch (e) {
         console.error(e);
       }
+    }
+
+    const storedWebhook = localStorage.getItem("sms_user_webhook_url");
+    if (storedWebhook) {
+      setUserWebhookUrl(storedWebhook);
     }
   }, []);
 
@@ -156,7 +166,6 @@ export default function DeveloperApiPage() {
     setKeyNameInput("");
     setIsGenerating(false);
 
-    // Immediately open view modal for newly generated key!
     setViewModalData({ isOpen: true, name: newKeyObj.name, key: newRawKey });
   };
 
@@ -164,6 +173,36 @@ export default function DeveloperApiPage() {
     const updated = apiKeys.filter(k => k.id !== id);
     setApiKeys(updated);
     localStorage.setItem("sms_user_api_keys", JSON.stringify(updated));
+  };
+
+  const handleSaveWebhook = () => {
+    localStorage.setItem("sms_user_webhook_url", userWebhookUrl.trim());
+    setWebhookMsg({ type: "success", text: "Webhook URL saved successfully!" });
+    setTimeout(() => setWebhookMsg(null), 3000);
+  };
+
+  const handleTestWebhook = async () => {
+    setIsTestingWebhook(true);
+    setWebhookMsg(null);
+
+    try {
+      const res = await fetch("/api/v1/webhook/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: userWebhookUrl.trim() })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setWebhookMsg({ type: "success", text: data.message });
+      } else {
+        setWebhookMsg({ type: "error", text: data.error || "Failed to deliver test webhook." });
+      }
+    } catch (err: any) {
+      setWebhookMsg({ type: "error", text: err.message || "Webhook delivery failed." });
+    } finally {
+      setIsTestingWebhook(false);
+    }
   };
 
   const copyText = (text: string) => {
@@ -424,10 +463,10 @@ print(res.json())`;
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
-              Automated API Documentation & Hub
+              Automated API Documentation & Webhooks
             </h1>
             <p className="text-slate-500 dark:text-white/50 text-sm max-w-xl">
-              Connect your Telegram bots, Python scripts, and automated software to buy virtual numbers, digital accounts, and long-term lines via REST API.
+              Connect your Telegram bots, Python scripts, and automated software to buy virtual numbers, digital accounts, and receive instant SMS Webhooks.
             </p>
           </div>
 
@@ -474,8 +513,10 @@ print(res.json())`;
         {/* MAIN SPLIT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
           
-          {/* LEFT: API KEY GENERATOR & LIST */}
+          {/* LEFT: API KEY GENERATOR & WEBHOOK FORWARDER */}
           <div className="lg:col-span-5 flex flex-col gap-6">
+            
+            {/* 1. API KEYS CARD */}
             <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
               <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -486,7 +527,6 @@ print(res.json())`;
                 </span>
               </div>
 
-              {/* GENERATE NEW KEY FORM (REQUIRES 2FA) */}
               <div className="flex flex-col gap-3">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
                   Key Name / Application Label
@@ -509,7 +549,6 @@ print(res.json())`;
                 </div>
               </div>
 
-              {/* KEYS LIST */}
               <div className="flex flex-col gap-3">
                 {apiKeys.length === 0 ? (
                   <div className="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-white/10 text-center flex flex-col items-center gap-2">
@@ -531,7 +570,6 @@ print(res.json())`;
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {/* REVEAL / VIEW KEY BUTTON (OPENS CLEAN MOBILE & DESKTOP POPUP MODAL) */}
                         <button
                           onClick={() => request2FaVerification("view", { name: item.name, key: item.key })}
                           className="px-3.5 py-2 rounded-xl bg-brand-blue/10 text-brand-blue hover:bg-brand-blue hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-brand-blue/20"
@@ -551,8 +589,56 @@ print(res.json())`;
                   ))
                 )}
               </div>
-
             </div>
+
+            {/* 2. AUTOMATED SMS WEBHOOK FORWARDER CARD */}
+            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
+              <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <PaperPlaneRight size={20} className="text-emerald-500" /> Instant SMS Webhook Forwarder
+                </h2>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  Real-Time Push
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                  Your Webhook Endpoint URL (HTTP POST)
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://mybot.com/api/sms-webhook"
+                    value={userWebhookUrl}
+                    onChange={(e) => setUserWebhookUrl(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:border-brand-blue min-w-0"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveWebhook}
+                      className="px-3.5 py-3 rounded-2xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all shrink-0"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={handleTestWebhook}
+                      disabled={isTestingWebhook || !userWebhookUrl}
+                      className="px-3.5 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+                    >
+                      {isTestingWebhook ? <Spinner size={16} className="animate-spin" /> : "Test Delivery"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {webhookMsg && (
+                <div className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 ${webhookMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'}`}>
+                  <span>{webhookMsg.text}</span>
+                </div>
+              )}
+            </div>
+
           </div>
 
           {/* RIGHT: INTERACTIVE CODE SNIPPETS & DOCS */}

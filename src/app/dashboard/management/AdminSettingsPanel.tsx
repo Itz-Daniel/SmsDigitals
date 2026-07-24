@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X } from "@phosphor-icons/react";
+import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users } from "@phosphor-icons/react";
 import { DEFAULT_BRAND_PRICE_RULES, BrandMarginRule } from "@/lib/pricing-engine";
 
 export default function AdminSettingsPanel({ 
@@ -30,6 +30,14 @@ export default function AdminSettingsPanel({
   const [newBrandKey, setNewBrandKey] = useState("");
   const [newMinPrice, setNewMinPrice] = useState("1.00");
   const [newMultiplier, setNewMultiplier] = useState("2.5");
+
+  // Admin Voucher Creation Form State
+  const [voucherCodeInput, setVoucherCodeInput] = useState("");
+  const [voucherAmountUsd, setVoucherAmountUsd] = useState("2.00");
+  const [voucherMaxUses, setVoucherMaxUses] = useState("50");
+  const [voucherValidDays, setVoucherValidDays] = useState("7");
+  const [isCreatingVoucher, setIsCreatingVoucher] = useState(false);
+  const [voucherMessage, setVoucherMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const handleSaveGlobal = async (updatedBrandPricing?: Record<string, BrandMarginRule>) => {
     setIsSaving(true);
@@ -78,6 +86,39 @@ export default function AdminSettingsPanel({
     }
   };
 
+  const handleCreateVoucherAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!voucherCodeInput.trim()) return;
+
+    setIsCreatingVoucher(true);
+    setVoucherMessage(null);
+
+    try {
+      const res = await fetch('/api/admin/voucher/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: voucherCodeInput.trim(),
+          amountUsd: voucherAmountUsd,
+          maxUses: voucherMaxUses,
+          validDays: voucherValidDays
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setVoucherMessage({ text: data.message, type: "success" });
+        setVoucherCodeInput("");
+      } else {
+        setVoucherMessage({ text: data.error || "Failed to create voucher.", type: "error" });
+      }
+    } catch (err: any) {
+      setVoucherMessage({ text: err.message || "Network error.", type: "error" });
+    } finally {
+      setIsCreatingVoucher(false);
+    }
+  };
+
   const updateBrandRule = (key: string, field: "minPriceUsd" | "multiplier", val: string) => {
     const num = parseFloat(val);
     setBrandPricingMap(prev => ({
@@ -100,154 +141,250 @@ export default function AdminSettingsPanel({
   const handleAddBrandRule = () => {
     if (!newBrandKey.trim()) return;
     const cleanKey = newBrandKey.trim().toLowerCase();
+    const minP = parseFloat(newMinPrice) || 1.0;
+    const mult = parseFloat(newMultiplier) || 2.5;
+
     setBrandPricingMap(prev => ({
       ...prev,
       [cleanKey]: {
-        minPriceUsd: parseFloat(newMinPrice) || 1.00,
-        multiplier: parseFloat(newMultiplier) || 2.0
+        minPriceUsd: minP,
+        multiplier: mult
       }
     }));
+
     setNewBrandKey("");
+    setNewMinPrice("1.00");
+    setNewMultiplier("2.5");
   };
 
   return (
-    <div className="bg-white dark:bg-[#111111] border border-black/5 dark:border-white/5 rounded-[24px] p-6 md:p-8 shadow-sm dark:shadow-none">
-      <div className="flex items-center justify-between gap-3 mb-8 pb-6 border-b border-black/5 dark:border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-brand-blue/10 rounded-2xl flex items-center justify-center text-brand-blue">
-            <SlidersHorizontal size={24} weight="duotone" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Global Configuration</h2>
-            <p className="text-slate-500 dark:text-white/40 text-sm">Adjust pricing margins, brand floors, and affiliate rewards.</p>
+    <div className="w-full flex flex-col gap-6 font-sans">
+      
+      {message && (
+        <div className={`p-4 rounded-2xl border flex items-center gap-3 text-sm font-semibold ${
+          message.type === "success" 
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" 
+            : "bg-red-500/10 border-red-500/20 text-red-400"
+        }`}>
+          {message.type === "success" ? <CheckCircle size={20} weight="fill" /> : <WarningCircle size={20} weight="fill" />}
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* Global Margin Settings Card */}
+      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+        
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
+              <SlidersHorizontal size={20} weight="bold" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Global Pricing Margin & Revenue Controls</h2>
+              <p className="text-xs text-slate-500 dark:text-white/40">Adjust baseline profit margins across all 1,300+ services.</p>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-white text-xs font-bold transition-all flex items-center gap-2"
-        >
-          <Gear size={16} weight="bold" /> Configure Brand Pricing
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+              Default Profit Margin (%)
+            </label>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
+              <input
+                type="number"
+                value={marginInput}
+                onChange={(e) => setMarginInput(e.target.value)}
+                className="w-full bg-transparent outline-none font-mono font-bold text-lg text-slate-900 dark:text-white"
+                placeholder="40"
+              />
+              <span className="text-slate-400 font-bold">%</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+              Affiliate Reward Percentage (%)
+            </label>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
+              <input
+                type="number"
+                value={affiliateInput}
+                onChange={(e) => setAffiliateInput(e.target.value)}
+                className="w-full bg-transparent outline-none font-mono font-bold text-lg text-slate-900 dark:text-white"
+                placeholder="5"
+              />
+              <span className="text-slate-400 font-bold">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-4 border-t border-black/5 dark:border-white/5 gap-4">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 text-xs font-bold hover:bg-purple-500 hover:text-white transition-all flex items-center justify-center gap-2"
+          >
+            <Gear size={18} weight="bold" /> Configure Brand Pricing Rules ({Object.keys(brandPricingMap).length})
+          </button>
+
+          <button
+            onClick={() => handleSaveGlobal()}
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-blue text-white font-bold text-xs hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20"
+          >
+            {isSaving ? <Spinner className="animate-spin" size={18} /> : "Save Pricing Settings"}
+          </button>
+        </div>
+
       </div>
 
-      <div className="max-w-xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
-          <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-white/80">
-            Base Profit Margin (%)
-          </label>
-          <div className="relative">
-            <input 
-              type="number"
-              value={marginInput}
-              onChange={(e) => setMarginInput(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-black border border-black/5 dark:border-white/10 rounded-xl px-4 py-3.5 text-lg font-mono text-slate-900 dark:text-white focus:border-brand-blue focus:ring-1 focus:ring-brand-blue outline-none transition-all shadow-inner dark:shadow-none"
-              placeholder="40"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30 font-bold">%</span>
+      {/* ADMIN GIFT CARD & PROMO VOUCHER CREATOR CARD */}
+      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+        
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+              <Ticket size={20} weight="bold" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Admin Gift Card & Voucher Generator</h2>
+              <p className="text-xs text-slate-500 dark:text-white/40">Set custom user limits and duration expiry for promo vouchers.</p>
+            </div>
           </div>
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20">
+            Admin Creation Panel
+          </span>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-white/80">
-            Affiliate Reward (%)
-          </label>
-          <div className="relative">
-            <input 
-              type="number"
-              value={affiliateInput}
-              onChange={(e) => setAffiliateInput(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-black border border-black/5 dark:border-white/10 rounded-xl px-4 py-3.5 text-lg font-mono text-slate-900 dark:text-white focus:border-brand-blue focus:ring-1 focus:ring-brand-blue outline-none transition-all shadow-inner dark:shadow-none"
-              placeholder="5.0"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30 font-bold">%</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-xl flex flex-col gap-4">
-        <button 
-          onClick={() => handleSaveGlobal()}
-          disabled={isSaving}
-          className="bg-brand-blue text-white px-8 py-3.5 rounded-xl font-bold hover:bg-brand-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 min-w-[140px] justify-center shadow-md dark:shadow-none w-full md:w-auto"
-        >
-          {isSaving ? <Spinner className="animate-spin w-5 h-5" /> : "Deploy Global Settings"}
-        </button>
-
-        {message && (
-          <div className={`p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 ${message.type === 'success' ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-            {message.type === 'success' ? <CheckCircle size={20} weight="fill" className="shrink-0 mt-0.5" /> : <WarningCircle size={20} weight="fill" className="shrink-0 mt-0.5" />}
-            <p className="text-sm font-medium leading-relaxed">{message.text}</p>
+        {voucherMessage && (
+          <div className={`p-4 rounded-2xl border flex items-center gap-3 text-xs font-semibold ${
+            voucherMessage.type === "success" 
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" 
+              : "bg-red-500/10 border-red-500/20 text-red-400"
+          }`}>
+            {voucherMessage.type === "success" ? <CheckCircle size={18} weight="fill" /> : <WarningCircle size={18} weight="fill" />}
+            <span>{voucherMessage.text}</span>
           </div>
         )}
+
+        <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+              Voucher Code
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. VIPSUMMER"
+              value={voucherCodeInput}
+              onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none uppercase"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+              Value Amount ($ USD)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              placeholder="2.00"
+              value={voucherAmountUsd}
+              onChange={(e) => setVoucherAmountUsd(e.target.value)}
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center gap-1">
+              <Users size={14} /> Max User Limit
+            </label>
+            <input
+              type="number"
+              placeholder="50"
+              value={voucherMaxUses}
+              onChange={(e) => setVoucherMaxUses(e.target.value)}
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center gap-1">
+              <Clock size={14} /> Duration (Days)
+            </label>
+            <input
+              type="number"
+              placeholder="7"
+              value={voucherValidDays}
+              onChange={(e) => setVoucherValidDays(e.target.value)}
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={isCreatingVoucher || !voucherCodeInput.trim()}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 disabled:opacity-50"
+            >
+              {isCreatingVoucher ? <Spinner className="animate-spin" size={16} /> : <Ticket size={18} weight="bold" />}
+              Generate Custom Voucher
+            </button>
+          </div>
+
+        </form>
+
       </div>
 
       {/* BRAND PRICING MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-[#111111] border border-black/10 dark:border-white/10 rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] flex flex-col gap-6 shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111] border border-black/10 dark:border-white/15 rounded-3xl p-6 md:p-8 w-full max-w-2xl max-h-[85vh] flex flex-col gap-6 shadow-2xl relative overflow-hidden">
             
             <div className="flex items-center justify-between border-b border-black/5 dark:border-white/10 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Gear className="text-brand-blue" /> Brand Price Floors & Multipliers
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-white/40 mt-1">
-                  Customize minimum price floors ($ USD) and markup multipliers per application brand.
-                </p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Brand Margin Rules</h3>
+                <p className="text-xs text-slate-500 dark:text-white/40">Set custom floor prices and multipliers for high-demand services.</p>
               </div>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 dark:text-white hover:bg-slate-200 transition-colors"
-              >
-                <X size={18} weight="bold" />
+              <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X size={20} />
               </button>
             </div>
 
-            {message && message.type === 'error' && (
-              <div className="p-4 rounded-xl flex items-start gap-3 bg-red-500/10 text-red-500 border border-red-500/20">
-                <WarningCircle size={20} weight="fill" className="shrink-0 mt-0.5" />
-                <p className="text-xs font-medium leading-relaxed">{message.text}</p>
-              </div>
-            )}
-
-            {/* BRAND LIST */}
-            <div className="overflow-y-auto max-h-[400px] flex flex-col gap-3 pr-1 custom-scrollbar">
+            {/* BRAND RULES SCROLLABLE LIST */}
+            <div className="flex flex-col gap-3 overflow-y-auto max-h-[45vh] pr-1 custom-scrollbar">
               {Object.entries(brandPricingMap).map(([key, rule]) => (
-                <div 
-                  key={key}
-                  className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-sm capitalize text-slate-900 dark:text-white min-w-[100px]">
-                      {key}
-                    </span>
-                  </div>
+                <div key={key} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <span className="text-sm font-bold text-slate-900 dark:text-white capitalize w-full sm:w-1/3 truncate">
+                    {key}
+                  </span>
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 dark:text-white/40 font-bold uppercase">Min Floor:</span>
-                      <div className="relative w-24">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-white/40">$</span>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Min Price</span>
+                      <div className="relative">
                         <input
                           type="number"
-                          step="0.10"
+                          step="0.1"
                           value={rule.minPriceUsd}
                           onChange={(e) => updateBrandRule(key, "minPriceUsd", e.target.value)}
-                          className="w-full bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl pl-6 pr-2 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white"
+                          className="w-24 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white"
                         />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 dark:text-white/40">$</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 dark:text-white/40 font-bold uppercase">Markup:</span>
-                      <div className="relative w-20">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Multiplier</span>
+                      <div className="relative">
                         <input
                           type="number"
                           step="0.1"
                           value={rule.multiplier}
                           onChange={(e) => updateBrandRule(key, "multiplier", e.target.value)}
-                          className="w-full bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white"
+                          className="w-20 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 dark:text-white/40">x</span>
                       </div>

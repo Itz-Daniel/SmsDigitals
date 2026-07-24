@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins, Clock, WarningCircle } from "@phosphor-icons/react";
+import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins, Clock, WarningCircle, Ticket } from "@phosphor-icons/react";
 import { usePaystackPayment } from "react-paystack";
 import { createClient } from "@/lib/supabase/client";
 
-type FundMethod = "bank" | "crypto";
+type FundMethod = "bank" | "crypto" | "voucher";
 
 const CRYPTO_COINS = [
   { id: "usdttrc20", name: "USDT (TRC20)", network: "TRON", icon: "₮" },
@@ -41,6 +41,10 @@ export default function FundWalletClient() {
     qrUrl: string;
   } | null>(null);
   const [copiedCryptoAddress, setCopiedCryptoAddress] = useState(false);
+
+  // Voucher State
+  const [voucherCode, setVoucherCode] = useState("");
+  const [isRedeemingVoucher, setIsRedeemingVoucher] = useState(false);
 
   // 45-Minute Countdown & Auto-Stop State
   const [timeLeft, setTimeLeft] = useState<number>(EXPIRE_TIMEOUT_SECONDS);
@@ -178,6 +182,34 @@ export default function FundWalletClient() {
     }
   };
 
+  // Redeem Promo Voucher Code
+  const handleRedeemVoucher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!voucherCode.trim()) return;
+    setIsRedeemingVoucher(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/voucher/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: voucherCode.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message);
+        setVoucherCode("");
+      } else {
+        setError(data.error || "Failed to redeem promo code.");
+      }
+    } catch (err: any) {
+      setError("Network error while redeeming promo code.");
+    } finally {
+      setIsRedeemingVoucher(false);
+    }
+  };
+
   const copyCryptoAddress = () => {
     if (!cryptoOrder) return;
     navigator.clipboard.writeText(cryptoOrder.payAddress);
@@ -207,7 +239,7 @@ export default function FundWalletClient() {
             Fund Your Wallet
           </h1>
           <p className="text-slate-500 dark:text-white/50 text-xs sm:text-sm max-w-sm">
-            Top up instantly via Local Bank Transfer, Card, or Crypto (USDT, BTC, SOL, ETH).
+            Top up instantly via Local Bank Transfer, Card, Crypto, or Gift Card Vouchers.
           </p>
         </div>
 
@@ -227,27 +259,38 @@ export default function FundWalletClient() {
         )}
 
         {/* FUNDING METHOD SELECTOR TABS */}
-        <div className="grid grid-cols-2 gap-3 bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200/80 dark:border-white/10">
+        <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200/80 dark:border-white/10">
           <button
             onClick={() => setActiveMethod("bank")}
-            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-3 px-2 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeMethod === "bank"
                 ? "bg-white dark:bg-white/20 text-slate-900 dark:text-white shadow-md"
                 : "text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
-            <Bank size={18} weight="bold" /> Card & Bank (NGN)
+            <Bank size={16} weight="bold" /> Card & Bank
           </button>
 
           <button
             onClick={() => setActiveMethod("crypto")}
-            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-3 px-2 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeMethod === "crypto"
                 ? "bg-brand-blue text-white shadow-md shadow-brand-blue/20"
                 : "text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
-            <Coins size={18} weight="bold" /> USDT & Crypto (USD)
+            <Coins size={16} weight="bold" /> Crypto (USD)
+          </button>
+
+          <button
+            onClick={() => setActiveMethod("voucher")}
+            className={`py-3 px-2 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeMethod === "voucher"
+                ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
+                : "text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Ticket size={16} weight="bold" /> Promo Code
           </button>
         </div>
 
@@ -465,6 +508,54 @@ export default function FundWalletClient() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* METHOD 3: GIFT CARD / PROMO VOUCHER REDEEMER */}
+        {activeMethod === "voucher" && (
+          <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
+            <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Ticket size={20} className="text-purple-500" /> Gift Card & Promo Code Voucher
+              </h2>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                Instant Credit
+              </span>
+            </div>
+
+            <form onSubmit={handleRedeemVoucher} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                  Enter Gift Card or Voucher Code
+                </label>
+                <div className="group flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 px-4 py-3.5 focus-within:border-purple-500 transition-all">
+                  <Ticket size={20} className="text-purple-500 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="e.g. WELCOME1000 or BONUS5"
+                    value={voucherCode}
+                    onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                    className="w-full bg-transparent outline-none font-mono font-bold text-base text-slate-900 dark:text-white uppercase tracking-wider"
+                  />
+                </div>
+              </div>
+
+              {/* Sample Voucher Suggestions */}
+              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col gap-1 text-xs text-purple-600 dark:text-purple-300">
+                <span className="font-bold flex items-center gap-1">
+                  🎁 Active Test Voucher Codes:
+                </span>
+                <span className="font-mono text-[11px]">WELCOME1000 (₦1,000 credit) • BONUS5 ($5.00 USD credit)</span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isRedeemingVoucher || !voucherCode.trim()}
+                className="w-full py-4 rounded-2xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 disabled:opacity-50"
+              >
+                {isRedeemingVoucher ? <Spinner size={20} className="animate-spin" /> : "Redeem Gift Card Voucher"} <ArrowRight size={16} weight="bold" />
+              </button>
+            </form>
           </div>
         )}
 
