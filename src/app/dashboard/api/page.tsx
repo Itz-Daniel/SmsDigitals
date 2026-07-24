@@ -21,13 +21,13 @@ import {
   Hash,
   ClockCounterClockwise,
   Coins,
-  Eye,
-  EyeSlash
+  Eye
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { TwoFactorVerifyModal } from "@/components/TwoFactorVerifyModal";
+import { ApiKeyViewModal } from "@/components/ApiKeyViewModal";
 
 interface ApiKeyItem {
   id: string;
@@ -46,15 +46,19 @@ export default function DeveloperApiPage() {
   const [activeLang, setActiveLang] = useState<Language>("curl");
   
   const [copiedSnippet, setCopiedSnippet] = useState(false);
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [keyNameInput, setKeyNameInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
 
   // 2FA Verification Modal State
   const [is2FaModalOpen, setIs2FaModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ type: "generate" | "copy" | "reveal"; payload?: any } | null>(null);
-  const [unlockedKeys, setUnlockedKeys] = useState<Record<string, boolean>>({});
+  const [pendingAction, setPendingAction] = useState<{ type: "generate" | "view"; payload?: any } | null>(null);
+
+  // View Key Modal State (Mobile & Desktop Responsive Modal)
+  const [viewModalData, setViewModalData] = useState<{ isOpen: boolean; name: string; key: string }>({
+    isOpen: false,
+    name: "",
+    key: ""
+  });
 
   // Active Customer Wallet Check & Admin Bypass
   const [isFunded, setIsFunded] = useState<boolean | null>(null);
@@ -108,7 +112,7 @@ export default function DeveloperApiPage() {
   }, []);
 
   useEffect(() => {
-    // NO PRE-CREATED MOCK KEYS: Starts 100% empty until user explicitly generates one!
+    // Starts 100% empty until user explicitly generates a key
     const stored = localStorage.getItem("sms_user_api_keys");
     if (stored) {
       try {
@@ -119,7 +123,7 @@ export default function DeveloperApiPage() {
     }
   }, []);
 
-  const request2FaVerification = (type: "generate" | "copy" | "reveal", payload?: any) => {
+  const request2FaVerification = (type: "generate" | "view", payload?: any) => {
     setPendingAction({ type, payload });
     setIs2FaModalOpen(true);
   };
@@ -129,15 +133,9 @@ export default function DeveloperApiPage() {
 
     if (pendingAction.type === "generate") {
       executeGenerateKey();
-    } else if (pendingAction.type === "copy") {
-      const { text, id } = pendingAction.payload;
-      setUnlockedKeys(prev => ({ ...prev, [id]: true }));
-      navigator.clipboard.writeText(text);
-      setCopiedKeyId(id);
-      setTimeout(() => setCopiedKeyId(null), 2000);
-    } else if (pendingAction.type === "reveal") {
-      const { id } = pendingAction.payload;
-      setUnlockedKeys(prev => ({ ...prev, [id]: !prev[id] }));
+    } else if (pendingAction.type === "view") {
+      const { name, key } = pendingAction.payload;
+      setViewModalData({ isOpen: true, name, key });
     }
     setPendingAction(null);
   };
@@ -155,10 +153,11 @@ export default function DeveloperApiPage() {
     const updated = [newKeyObj, ...apiKeys];
     setApiKeys(updated);
     localStorage.setItem("sms_user_api_keys", JSON.stringify(updated));
-    setNewlyCreatedKey(newRawKey);
-    setUnlockedKeys(prev => ({ ...prev, [newKeyObj.id]: true }));
     setKeyNameInput("");
     setIsGenerating(false);
+
+    // Immediately open view modal for newly generated key!
+    setViewModalData({ isOpen: true, name: newKeyObj.name, key: newRawKey });
   };
 
   const handleDeleteKey = (id: string) => {
@@ -167,15 +166,10 @@ export default function DeveloperApiPage() {
     localStorage.setItem("sms_user_api_keys", JSON.stringify(updated));
   };
 
-  const copyText = (text: string, id?: string) => {
+  const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    if (id) {
-      setCopiedKeyId(id);
-      setTimeout(() => setCopiedKeyId(null), 2000);
-    } else {
-      setCopiedSnippet(true);
-      setTimeout(() => setCopiedSnippet(false), 2000);
-    }
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
   };
 
   const sampleApiKey = apiKeys[0]?.key || "sd_live_your_api_key_here";
@@ -441,7 +435,7 @@ print(res.json())`;
             <ShieldCheck size={20} weight="fill" className="animate-pulse" />
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-bold tracking-wider">Security Status</span>
-              <span className="text-xs font-bold">2FA Lock Active</span>
+              <span className="text-xs font-bold">2FA Modal Lock Active</span>
             </div>
           </div>
         </div>
@@ -515,25 +509,7 @@ print(res.json())`;
                 </div>
               </div>
 
-              {/* NEWLY CREATED KEY NOTICE */}
-              {newlyCreatedKey && (
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col gap-2 animate-in fade-in">
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <Check size={16} weight="bold" /> New API Key Generated & 2FA Verified!
-                  </span>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-black border border-emerald-500/30">
-                    <code className="text-xs font-mono font-bold text-slate-900 dark:text-white truncate">{newlyCreatedKey}</code>
-                    <button
-                      onClick={() => copyText(newlyCreatedKey, 'new-key')}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors shrink-0"
-                    >
-                      {copiedKeyId === 'new-key' ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* KEYS LIST (STARTS EMPTY UNTIL USER CREATES ONE) */}
+              {/* KEYS LIST */}
               <div className="flex flex-col gap-3">
                 {apiKeys.length === 0 ? (
                   <div className="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-white/10 text-center flex flex-col items-center gap-2">
@@ -542,60 +518,37 @@ print(res.json())`;
                     <span className="text-[11px] text-slate-400 dark:text-white/40">Enter a label above and click Generate to create your first reseller key.</span>
                   </div>
                 ) : (
-                  apiKeys.map((item) => {
-                    const isUnlocked = unlockedKeys[item.id];
-                    return (
-                      <div
-                        key={item.id}
-                        className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3"
-                      >
-                        <div className="flex flex-col truncate">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{item.name}</span>
-                          <code className="text-[11px] font-mono text-slate-400 dark:text-white/40 truncate">
-                            {isUnlocked ? item.key : "sd_live_••••••••••••••••••••"}
-                          </code>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => {
-                              if (isUnlocked) {
-                                copyText(item.key, item.id);
-                              } else {
-                                request2FaVerification("copy", { text: item.key, id: item.id });
-                              }
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1 shadow-sm border border-slate-200/80 dark:border-transparent"
-                          >
-                            {copiedKeyId === item.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                            {copiedKeyId === item.id ? 'Copied' : 'Copy Key'}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (isUnlocked) {
-                                setUnlockedKeys(prev => ({ ...prev, [item.id]: false }));
-                              } else {
-                                request2FaVerification("reveal", { id: item.id });
-                              }
-                            }}
-                            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:text-white/40 dark:hover:text-white transition-colors"
-                            title={isUnlocked ? "Mask Key" : "Verify 2FA to Unmask"}
-                          >
-                            {isUnlocked ? <EyeSlash size={16} /> : <Eye size={16} />}
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteKey(item.id)}
-                            className="p-1.5 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
-                            title="Revoke Key"
-                          >
-                            <Trash size={16} />
-                          </button>
-                        </div>
+                  apiKeys.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex flex-col truncate">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{item.name}</span>
+                        <code className="text-[11px] font-mono text-slate-400 dark:text-white/40 truncate">
+                          sd_live_••••••••••••••••••••
+                        </code>
                       </div>
-                    );
-                  })
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* REVEAL / VIEW KEY BUTTON (OPENS CLEAN MOBILE & DESKTOP POPUP MODAL) */}
+                        <button
+                          onClick={() => request2FaVerification("view", { name: item.name, key: item.key })}
+                          className="px-3.5 py-2 rounded-xl bg-brand-blue/10 text-brand-blue hover:bg-brand-blue hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-brand-blue/20"
+                        >
+                          <Eye size={16} weight="bold" /> View / Copy
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteKey(item.id)}
+                          className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
+                          title="Revoke Key"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
 
@@ -611,7 +564,6 @@ print(res.json())`;
                   <TerminalWindow size={20} className="text-brand-blue" /> API Interactive Playground
                 </h2>
 
-                {/* ENDPOINT SELECTOR TABS PER CATEGORY */}
                 <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200/80 dark:border-white/5 overflow-x-auto max-w-full">
                   {activeCategory === "numbers" && (
                     <>
@@ -721,6 +673,13 @@ print(res.json())`;
         isOpen={is2FaModalOpen}
         onClose={() => setIs2FaModalOpen(false)}
         onSuccess={handle2FaSuccess}
+      />
+
+      <ApiKeyViewModal
+        isOpen={viewModalData.isOpen}
+        onClose={() => setViewModalData({ isOpen: false, name: "", key: "" })}
+        keyName={viewModalData.name}
+        apiKey={viewModalData.key}
       />
     </div>
   );
