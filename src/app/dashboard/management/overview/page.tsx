@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, CurrencyDollar, Hash, Headset, ArrowUpRight, Swap, UserPlus, CheckCircle, ChartBar, Globe, Lightning } from "@phosphor-icons/react";
+import { Users, CurrencyDollar, Hash, Headset, ArrowUpRight, Swap, UserPlus, CheckCircle, ChartBar, Lightning, ShieldCheck, LockKey, Check, Trash, WarningCircle } from "@phosphor-icons/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 
@@ -11,6 +11,14 @@ interface Stats {
   activeRentals: number;
   totalRentals: number;
   openTickets: number;
+}
+
+interface FlaggedUser {
+  id: string;
+  email: string;
+  account_status: string;
+  flag_reason?: string;
+  flagged_at?: string;
 }
 
 interface RecentUser {
@@ -32,20 +40,55 @@ export default function AdminOverview() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<RecentDeposit[]>([]);
+  const [flaggedUsers, setFlaggedUsers] = useState<FlaggedUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setStats(data.stats);
-          setRecentUsers(data.recent.users);
-          setRecentDeposits(data.recent.deposits);
+    const fetchData = async () => {
+      try {
+        const [statsRes, securityRes] = await Promise.all([
+          fetch('/api/admin/stats').then(res => res.json()),
+          fetch('/api/admin/security-logs').then(res => res.json())
+        ]);
+
+        if (statsRes.success) {
+          setStats(statsRes.stats);
+          setRecentUsers(statsRes.recent.users);
+          setRecentDeposits(statsRes.recent.deposits);
         }
-      })
-      .finally(() => setIsLoading(false));
+
+        if (securityRes.success) {
+          setFlaggedUsers(securityRes.flaggedUsers);
+        }
+      } catch (err) {
+        console.error("Error fetching admin metrics:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
+
+  const handleUpdateUserStatus = async (userId: string, newStatus: "active" | "banned") => {
+    try {
+      const res = await fetch("/api/admin/users/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: userId, newStatus })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(`Account status updated to '${newStatus}'!`);
+        setFlaggedUsers(prev => prev.map(u => u.id === userId ? { ...u, account_status: newStatus } : u));
+        setTimeout(() => setActionMsg(null), 3000);
+      }
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -64,12 +107,18 @@ export default function AdminOverview() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue bg-brand-blue/10 px-3 py-1 rounded-full border border-brand-blue/20">
-            Admin Only Insights
+            Admin Portal & Fraud Monitor
           </span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Admin Intelligence & Reseller Analytics</h1>
-        <p className="text-slate-500 dark:text-white/40 text-sm">Real-time overview of platform volume, OTP delivery rate, and revenue metrics.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Admin Intelligence & Security Center</h1>
+        <p className="text-slate-500 dark:text-white/40 text-sm">Real-time overview of platform volume, fraud alerts, and 1-click account ban controls.</p>
       </div>
+
+      {actionMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold flex items-center gap-2">
+          <CheckCircle size={18} weight="fill" /> {actionMsg}
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -94,18 +143,85 @@ export default function AdminOverview() {
         />
         
         <MetricCard 
-          title="Active Numbers" 
-          value={stats?.activeRentals.toLocaleString() || "0"} 
-          subtitle={`${stats?.totalRentals.toLocaleString()} all time`}
-          icon={<Hash weight="duotone" className="text-purple-500 text-2xl" />} 
+          title="Flagged Accounts" 
+          value={flaggedUsers.length.toString()} 
+          subtitle="Fraud alerts & review requests"
+          icon={<ShieldCheck weight="duotone" className="text-amber-500 text-2xl" />} 
         />
 
       </div>
 
-      {/* ADMIN ANALYTICS BREAKDOWN SECTION */}
+      {/* ADMIN PORTAL FRAUD & SECURITY ACTIVITY CENTER */}
+      <div className="bg-white dark:bg-[#111] border border-amber-500/20 dark:border-amber-500/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-xl relative overflow-hidden">
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <ShieldCheck size={24} weight="bold" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Admin Security Activity & Fraud Review Center</h2>
+              <p className="text-xs text-slate-500 dark:text-white/40">Real-time portal activity feed reporting multi-account voucher abuse and soft-frozen accounts.</p>
+            </div>
+          </div>
+
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            Live Portal Feed + Telegram Dual Report
+          </span>
+        </div>
+
+        {flaggedUsers.length === 0 ? (
+          <div className="p-8 text-center flex flex-col items-center gap-2 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+            <ShieldCheck size={32} className="text-emerald-500" />
+            <span className="text-xs font-bold text-slate-700 dark:text-white">No Suspicious Fraud Alerts</span>
+            <span className="text-[11px] text-slate-400">All user accounts are operating cleanly.</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {flaggedUsers.map(u => (
+              <div key={u.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-xl shrink-0 ${u.account_status === 'banned' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                    {u.account_status === 'banned' ? <LockKey size={20} weight="fill" /> : <WarningCircle size={20} weight="fill" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">{u.email}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold uppercase ${u.account_status === 'banned' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {u.account_status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-white/50 mt-0.5">
+                      {u.flag_reason || "Flagged for security review"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  {u.account_status !== "banned" && (
+                    <button
+                      onClick={() => handleUpdateUserStatus(u.id, "banned")}
+                      className="px-3.5 py-2 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 transition-all flex items-center gap-1 shadow-md shadow-red-500/20"
+                    >
+                      <LockKey size={14} weight="bold" /> Confirm Ban
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleUpdateUserStatus(u.id, "active")}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all flex items-center gap-1 shadow-md shadow-emerald-500/20"
+                  >
+                    <Check size={14} weight="bold" /> Restore Account
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* DEMAND BREAKDOWN SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* TOP DEMAND SERVICES */}
         <div className="lg:col-span-2 bg-white dark:bg-[#111] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 flex flex-col gap-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -134,7 +250,6 @@ export default function AdminOverview() {
           </div>
         </div>
 
-        {/* API DEVELOPER BOT HEALTH */}
         <div className="lg:col-span-1 bg-white dark:bg-[#111] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex flex-col gap-2">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">

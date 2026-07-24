@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi, TextVerifiedApi, SmsManApi, SmspvaApi, ProviderResponse } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { notifyTelegramAdmin } from "@/lib/telegram-admin";
+import { enforceActiveAccount } from "@/lib/fraud-guard";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,10 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // 🛡️ BANNED / FLAGGED ACCOUNT LOCK
+    const accountBlock = await enforceActiveAccount(user.id);
+    if (accountBlock) return accountBlock;
 
     const { serviceId, serviceName = "", country, region, currency = 'USD', isSandbox = false } = await req.json();
 
@@ -60,131 +65,148 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Failed to create sandbox test number." }, { status: 500 });
       }
 
-      // Schedule simulated SMS code arrival after 5 seconds
-      setTimeout(async () => {
-        const mockCode = `${Math.floor(100 + Math.random() * 900)}-${Math.floor(100 + Math.random() * 900)}`;
-        await supabaseAdmin
-          .from('rentals')
-          .update({ status: 'Received', sms_code: mockCode })
-          .eq('id', mockRental.id);
-      }, 5000);
-
       return NextResponse.json({
         success: true,
-        sandbox: true,
-        provider_used: "sandbox-node",
-        order: {
-          order_id: mockOrderId,
-          phone_number: mockPhone,
-          service: serviceId,
-          country: country,
-          cost: 0,
-          currency: currency,
-          expires_at: expiresAt
-        }
+        rental: mockRental,
+        order_id: mockOrderId,
+        phone_number: mockPhone,
+        service: serviceId,
+        cost: 0,
+        currency: currency,
+        expires_at: expiresAt,
+        isSandbox: true,
+        message: "⚡ Sandbox Number Procured (0ms Admin Free Testing)"
       });
     }
 
-    // --- RATE LIMITING (FOR REAL PURCHASES) ---
-    const { data: isAllowed, error: rateLimitError } = await supabase.rpc('check_rate_limit', {
-      p_identifier: user.id,
-      p_endpoint: '/api/rent',
-      p_max_requests: 3,
-      p_window_seconds: 20
-    });
+    // 1. Fetch User Wallet and VIP Tier Discount
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('balance_usd, balance_ngn, lifetime_deposits_usd')
+      .eq('user_id', user.id)
+      .single();
 
-    if (rateLimitError) {
-      console.error("Rate limit check failed:", rateLimitError);
-    } else if (isAllowed === false) {
-      return NextResponse.json({ error: "You are doing that too fast. Please wait 20 seconds." }, { status: 429 });
+    if (!wallet) {
+      return NextResponse.json({ error: "Wallet not found. Please contact support." }, { status: 404 });
     }
 
-    let purchasedNumber: (ProviderResponse & { provider: string }) | null = null;
+    const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
 
-    // --- SEQUENTIAL WATERFALL ROUTING ---
+    // 2. Multi-Provider Fallback Cascade Sequence
     const providers = [
-      { name: 'textverified', api: TextVerifiedApi },
-      { name: '5sim', api: FiveSimApi },
-      { name: 'grizzly', api: GrizzlyApi },
-      { name: 'smsman', api: SmsManApi },
-      { name: 'smspva', api: SmspvaApi },
+      new FiveSimApi(),
+      new GrizzlyApi(),
+      new TextVerifiedApi(),
+      new SmsManApi(),
+      new SmspvaApi()
     ];
 
+    let successResponse: ProviderResponse | null = null;
+    let usedProviderName = "";
+
     for (const provider of providers) {
-      console.log(`Attempting ${provider.name}...`);
       try {
-        const res = await provider.api.buyNumber(country, serviceId, serviceName);
-        purchasedNumber = { ...res, provider: provider.name };
-        console.log(`Success with ${provider.name}!`);
-        break;
-      } catch (e: any) {
-        if (e.name === 'ProviderLowBalanceError') {
-          console.error(`🚨 ALERT: Provider ${provider.name} is OUT OF CREDIT!`);
-          await notifyTelegramAdmin(`🚨 ALERT: Provider [${provider.name.toUpperCase()}] is out of credit/balance! Please refill immediately to avoid service disruption.`);
-        } else {
-          console.error(`${provider.name} failed:`, e.message || e);
+        const res = await provider.rentNumber(country, serviceId);
+        if (res && res.success && res.phoneNumber) {
+          successResponse = res;
+          usedProviderName = provider.name;
+          break;
         }
-        console.log(`Falling back to next provider...`);
+      } catch (e) {
+        console.warn(`Provider ${provider.name} failed for ${country}/${serviceId}, cascading...`);
       }
     }
 
-    if (!purchasedNumber) {
-      return NextResponse.json({ error: "Number out of stock across all providers or invalid service ID. Check provider mappings." }, { status: 404 });
+    if (!successResponse) {
+      await notifyTelegramAdmin(`🚨 Out of Stock: No virtual number available for ${country}/${serviceId}`);
+      return NextResponse.json({ 
+        error: "Temporary Stock Out: All providers are currently out of stock for this line. Please try another country or retry in a few moments." 
+      }, { status: 503 });
     }
 
-    // --- CALCULATE FINAL PRICE ---
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate, brand_pricing').eq('id', 1).single();
-    const exchangeRate = settings?.exchange_rate || 1500;
-    const brandPricing = settings?.brand_pricing || null;
-    
-    // Get User's VIP Discount
-    const { data: wallet } = await supabaseAdmin.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
-    const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
-    
-    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount, serviceName, brandPricing);
+    // 3. Pricing Calculation
+    const wholesaleCostUsd = successResponse.costUsd || 0.50;
+    const finalPriceUsd = calculateFinalRetailPrice(wholesaleCostUsd, discountPercentage, serviceName || serviceId);
 
-    // --- DEDUCT BALANCE & CREATE RENTAL ---
+    // 4. Balance Deduction Check
+    if (currency === 'NGN') {
+      const { data: apiSettings } = await supabaseAdmin.from('api_settings').select('exchange_rate').single();
+      const rate = apiSettings?.exchange_rate || 1500;
+      const finalPriceNgn = finalPriceUsd * rate;
+
+      if ((wallet.balance_ngn || 0) < finalPriceNgn) {
+        return NextResponse.json({ 
+          error: `Insufficient NGN Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${wallet.balance_ngn.toLocaleString(undefined, { maximumFractionDigits: 2 })}.` 
+        }, { status: 402 });
+      }
+
+      // Deduct NGN Balance
+      await supabaseAdmin
+        .from('wallets')
+        .update({ balance_ngn: wallet.balance_ngn - finalPriceNgn })
+        .eq('user_id', user.id);
+    } else {
+      if ((wallet.balance_usd || 0) < finalPriceUsd) {
+        return NextResponse.json({ 
+          error: `Insufficient USD Balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${(wallet.balance_usd || 0).toFixed(2)}.` 
+        }, { status: 402 });
+      }
+
+      // Deduct USD Balance
+      await supabaseAdmin
+        .from('wallets')
+        .update({ balance_usd: wallet.balance_usd - finalPriceUsd })
+        .eq('user_id', user.id);
+    }
+
+    // 5. Record Rental Order in Supabase
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
+    const { data: newRental, error: rentalError } = await supabaseAdmin
+      .from('rentals')
+      .insert({
+        user_id: user.id,
+        order_id: successResponse.orderId,
+        phone_number: successResponse.phoneNumber,
+        service: serviceId,
+        provider: usedProviderName,
+        region: region || country,
+        status: 'Waiting',
+        cost: finalPriceUsd,
+        currency: currency,
+        expires_at: expiresAt
+      })
+      .select()
+      .single();
 
-    const { data: rentData, error: rentError } = await supabaseAdmin.rpc('rent_number', {
-      p_user_id: user.id,
-      p_cost: finalCost,
-      p_currency: currency,
-      p_order_id: purchasedNumber.orderId,
-      p_phone: purchasedNumber.phone,
-      p_service: serviceId,
-      p_provider: purchasedNumber.provider,
-      p_region: region,
-      p_expires_at: expiresAt
-    });
-
-    if (rentError) {
-      console.error("Database rent error:", rentError);
-      if (purchasedNumber.provider === "textverified") await TextVerifiedApi.cancelOrder(purchasedNumber.orderId);
-      if (purchasedNumber.provider === "5sim") await FiveSimApi.cancelOrder(purchasedNumber.orderId);
-      if (purchasedNumber.provider === "grizzly") await GrizzlyApi.cancelOrder(purchasedNumber.orderId);
-      if (purchasedNumber.provider === "smsman") await SmsManApi.cancelOrder(purchasedNumber.orderId);
-      if (purchasedNumber.provider === "smspva") await SmspvaApi.cancelOrder(purchasedNumber.orderId, country, serviceId);
-
-      return NextResponse.json({ error: "Insufficient balance." }, { status: 400 });
+    if (rentalError) {
+      console.error("Failed to insert rental into DB:", rentalError);
     }
+
+    // 6. Record Transaction Ledger
+    await supabaseAdmin.from('transactions').insert({
+      user_id: user.id,
+      type: 'Purchase',
+      amount: finalPriceUsd,
+      currency: currency,
+      status: 'Success',
+      reference: successResponse.orderId,
+      description: `Purchased ${serviceName || serviceId} (${country.toUpperCase()}) line`
+    });
 
     return NextResponse.json({
       success: true,
-      provider_used: purchasedNumber.provider, 
-      order: {
-        order_id: purchasedNumber.orderId,
-        phone_number: purchasedNumber.phone,
-        service: serviceId,
-        country: country,
-        cost: finalCost,
-        currency: currency,
-        expires_at: expiresAt
-      }
+      rental: newRental,
+      order_id: successResponse.orderId,
+      phone_number: successResponse.phoneNumber,
+      service: serviceId,
+      cost: finalPriceUsd,
+      currency: currency,
+      expires_at: expiresAt,
+      message: "Virtual Number Procured Successfully!"
     });
 
-  } catch (error: unknown) {
-    console.error("Rent API Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("Number procurement API error:", err);
+    return NextResponse.json({ error: err.message || "Server Error" }, { status: 500 });
   }
 }

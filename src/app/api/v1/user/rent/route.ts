@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi, TextVerifiedApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { enforceActiveAccount } from "@/lib/fraud-guard";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,41 +35,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User wallet not found." }, { status: 404 });
     }
 
+    // 🛡️ BANNED / FLAGGED ACCOUNT LOCK
+    const accountBlock = await enforceActiveAccount(userId);
+    if (accountBlock) return accountBlock;
+
     const mockOrderId = `ord_${Math.floor(100000 + Math.random() * 900000)}`;
     const mockPhone = `+1 (332) ${Math.floor(100 + Math.random() * 900)}-${Math.floor(1000 + Math.random() * 9000)}`;
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
 
-    // Create rental
-    const { data: rental, error: rentError } = await supabaseAdmin
+    const wholesaleCost = 0.50;
+    const finalCost = calculateFinalRetailPrice(wholesaleCost, 0, service);
+
+    if ((wallet.balance_usd || 0) < finalCost) {
+      return NextResponse.json({
+        error: `Insufficient balance. Required: $${finalCost.toFixed(2)}, Available: $${(wallet.balance_usd || 0).toFixed(2)}.`
+      }, { status: 402 });
+    }
+
+    // Deduct balance
+    await supabaseAdmin
+      .from('wallets')
+      .update({ balance_usd: wallet.balance_usd - finalCost })
+      .eq('user_id', userId);
+
+    // Save rental
+    const { data: rental } = await supabaseAdmin
       .from('rentals')
       .insert({
         user_id: userId,
         order_id: mockOrderId,
         phone_number: mockPhone,
         service: service,
-        provider: 'api-v1-node',
+        provider: 'fivesim-node',
         region: country,
         status: 'Waiting',
-        cost: 1.50,
+        cost: finalCost,
         currency: currency,
         expires_at: expiresAt
       })
       .select()
       .single();
 
-    if (rentError) {
-      console.error("API Rent error:", rentError);
-      return NextResponse.json({ error: "Failed to create number rental via API." }, { status: 500 });
-    }
-
-    // Schedule mock code delivery after 6 seconds for testing
-    setTimeout(async () => {
-      const mockCode = `${Math.floor(100 + Math.random() * 900)}-${Math.floor(100 + Math.random() * 900)}`;
-      await supabaseAdmin
-        .from('rentals')
-        .update({ status: 'Received', sms_code: mockCode })
-        .eq('id', rental.id);
-    }, 6000);
+    // Save transaction
+    await supabaseAdmin.from('transactions').insert({
+      user_id: userId,
+      type: 'Purchase',
+      amount: finalCost,
+      currency: currency,
+      status: 'Success',
+      reference: mockOrderId,
+      description: `Reseller API: Rent ${service} (${country}) line`
+    });
 
     return NextResponse.json({
       success: true,
@@ -76,12 +93,13 @@ export async function POST(req: Request) {
       phone_number: mockPhone,
       service: service,
       country: country,
-      cost: 1.50,
+      cost: finalCost,
       currency: currency,
       expires_at: expiresAt
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("v1 rent endpoint error:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }

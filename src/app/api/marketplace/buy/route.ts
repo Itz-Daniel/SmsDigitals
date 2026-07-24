@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buyUltimateLogsService, getUltimateLogsServices } from "@/lib/providers/ultimatelogs";
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { marketplaceBuySchema, getFieldErrors } from "@/lib/validation";
+import { enforceActiveAccount } from "@/lib/fraud-guard";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,10 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // 🛡️ BANNED / FLAGGED ACCOUNT LOCK
+    const accountBlock = await enforceActiveAccount(user.id);
+    if (accountBlock) return accountBlock;
 
     const body = await req.json();
     const validationResult = marketplaceBuySchema.safeParse(body);
@@ -38,74 +43,87 @@ export async function POST(req: Request) {
     const exchangeRate = settings?.exchange_rate || 1500;
 
     // Convert wholesale price to USD
-    let wholesalePriceUsd = product.price;
-    if (product.currency === 'NGN') {
-      wholesalePriceUsd = product.price / exchangeRate;
+    const wholesalePriceUsd = product.currency === 'USD' 
+      ? product.wholesale_price 
+      : product.wholesale_price / exchangeRate;
+
+    // 2. Fetch User Wallet & Calculate Retail Price with VIP Discounts
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('balance_usd, lifetime_deposits_usd')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!wallet) {
+      return NextResponse.json({ error: "Wallet not found." }, { status: 404 });
     }
 
-    // Get User's VIP Discount
-    const { data: wallet } = await supabase.from('wallets').select('lifetime_deposits_usd').eq('user_id', user.id).single();
-    const userDiscount = wallet?.lifetime_deposits_usd ? calculateUserDiscount(wallet.lifetime_deposits_usd) : 0;
+    const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
+    const finalPriceUsd = calculateFinalRetailPrice(wholesalePriceUsd, discountPercentage, product.name);
 
-    // Recalculate price securely on the server with user's discount
-    const retailPrice = calculateFinalRetailPrice(wholesalePriceUsd, 1, 'USD', userDiscount);
+    if (wallet.balance_usd < finalPriceUsd) {
+      return NextResponse.json({ 
+        error: `Insufficient balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${wallet.balance_usd.toFixed(2)}` 
+      }, { status: 400 });
+    }
 
-    // 2. We use our unified RPC to deduct balance and log order atomically.
-    const { data: orderResult, error: orderError } = await supabase.rpc('buy_digital_good', {
-      p_user_id: user.id,
-      p_provider_api_id: product.id.toString(),
-      p_product_name: product.name || 'Digital Account',
-      p_cost: retailPrice,
-      p_currency: 'USD',
-      p_account_logs: 'Processing Order...' // Placeholder
+    // 3. Purchase Item from Provider
+    const result = await buyUltimateLogsService(product.id.toString());
+
+    if (!result.success || !result.accountData) {
+      return NextResponse.json({ error: result.error || "Failed to purchase digital asset from supplier." }, { status: 500 });
+    }
+
+    // 4. Deduct User Wallet Balance
+    await supabase
+      .from('wallets')
+      .update({ balance_usd: wallet.balance_usd - finalPriceUsd })
+      .eq('user_id', user.id);
+
+    // 5. Store Purchased Item in User Inventory
+    const { data: purchaseItem, error: dbError } = await supabase
+      .from('user_marketplace_purchases')
+      .insert({
+        user_id: user.id,
+        item_id: product.id.toString(),
+        item_name: product.name,
+        category: product.category,
+        account_data: result.accountData,
+        price_paid: finalPriceUsd,
+        currency: 'USD',
+        status: 'Completed',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error("DB Insert Error:", dbError);
+    }
+
+    // Record Transaction
+    await supabase.from('transactions').insert({
+      user_id: user.id,
+      type: 'Purchase',
+      amount: finalPriceUsd,
+      currency: 'USD',
+      status: 'Success',
+      reference: `mkt_${Date.now()}`,
+      description: `Purchased ${product.name} (Marketplace)`
     });
 
-    if (orderError || !orderResult?.success) {
-      console.error("Database order error:", orderError || orderResult?.error);
-      return NextResponse.json({ error: orderResult?.error || "Insufficient balance." }, { status: 400 });
-    }
-
-    const orderId = orderResult.order_id;
-
-    // 3. Purchase from wholesale API live
-    const purchaseResult = await buyUltimateLogsService(product.id, 1);
-
-    if (!purchaseResult.success) {
-      // PURCHASE FAILED! We must refund the user immediately via our refund RPC
-      console.error(`Ultimate Logs API failed for order ${orderId}:`, purchaseResult.error);
-      
-      await supabase.rpc('refund_digital_order', {
-        p_order_id: orderId
-      });
-
-      return NextResponse.json({ error: "Wholesale provider failed to deliver. You have been refunded automatically." }, { status: 502 });
-    }
-
-    // 4. Purchase succeeded! Save the provider's order ID and immediately delivered items.
-    let logs = `Ultimate Logs Order ID: ${purchaseResult.data.order_id}\n\nAccounts Delivered:\n`;
-    
-    if (purchaseResult.data.items && Array.isArray(purchaseResult.data.items)) {
-      purchaseResult.data.items.forEach((item: any, index: number) => {
-        logs += `${index + 1}. ${item.details || 'No details provided'}\n`;
-        if (item.url) logs += `   URL: ${item.url}\n`;
-      });
-    } else {
-      logs += 'Status: Processing.\nCheck your email or contact support if not delivered instantly.';
-    }
-
-    await supabase
-      .from('digital_orders')
-      .update({ account_logs: logs, status: 'completed' })
-      .eq('id', orderId);
-
-    // Success!
     return NextResponse.json({
       success: true,
-      order_id: orderId
+      message: "Purchase successful!",
+      item: purchaseItem || {
+        item_name: product.name,
+        account_data: result.accountData,
+        price_paid: finalPriceUsd
+      }
     });
 
   } catch (error: any) {
-    console.error("Marketplace Buy API Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    console.error("Marketplace buy route error:", error);
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
