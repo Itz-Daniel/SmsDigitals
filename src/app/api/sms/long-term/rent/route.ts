@@ -59,16 +59,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Number out of stock or renting failed. Please try again later." }, { status: 404 });
     }
 
-    // --- CALCULATE DYNAMIC PRO-RATED DURATION PRICE ---
+    // --- CALCULATE DYNAMIC PRO-RATED DURATION PRICE WITH PROFIT FLOOR ---
     const supabaseAdmin = createAdminClient();
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
-    const exchangeRate = settings?.exchange_rate || 1500;
-    
-    const baseDailyCostUsd = 0.35;
-    const discountRate = getDurationDiscount(durationDays);
-    const rawWholesaleTotal = (baseDailyCostUsd * durationDays) * (1 - discountRate);
+    const { data: settings } = await supabaseAdmin
+      .from('api_settings')
+      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
+      .limit(1)
+      .single();
 
-    const finalCost = calculateFinalRetailPrice(rawWholesaleTotal, exchangeRate, currency);
+    const min1DayFloorUsd = settings?.rental_min_floor_usd || 2.50;
+    const dailyBaseRateUsd = settings?.rental_daily_rate_usd || 1.50;
+    const marginPercent = settings?.rental_margin_percent || 40;
+    const exchangeRate = settings?.exchange_rate || 1500;
+
+    const discountRate = getDurationDiscount(durationDays);
+    const rawCalculatedUsd = (dailyBaseRateUsd * durationDays) * (1 - discountRate);
+
+    // 🛡️ ENFORCE PROFIT FLOOR GUARD ($2.50 Minimum for 1-Day Rental)
+    const baseUsdWithFloor = Math.max(min1DayFloorUsd, rawCalculatedUsd);
+    const finalUsd = baseUsdWithFloor * (1 + marginPercent / 100);
+
+    const finalCost = calculateFinalRetailPrice(finalUsd, exchangeRate, currency);
 
     // Dynamic Expiration Timestamp (days * 24 hours)
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();

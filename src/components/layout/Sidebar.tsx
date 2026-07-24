@@ -19,8 +19,8 @@ export const navGroups = [
     items: [
       { name: "Fund Wallet", href: "/dashboard/fund", icon: Wallet },
       { name: "Digital Marketplace", href: "/dashboard/marketplace", icon: Storefront, badge: "NEW" },
-      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash },
-      { name: "Long Term Rentals", href: "/dashboard/sms/long-term", icon: ClockCounterClockwise },
+      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash, badge: "NEW" },
+      { name: "Long Term Rentals", href: "/dashboard/sms/long-term", icon: ClockCounterClockwise, badge: "NEW" },
       { name: "Developer API", href: "/dashboard/api", icon: Code, badge: "API", badgeStyle: "new" },
       { name: "Affiliate Program", href: "/dashboard/affiliates", icon: UsersThree, badge: "EARN" },
       { name: "Virtual Cards", href: "/dashboard/cards", icon: CreditCard, disabled: true, badge: "SOON", badgeStyle: "disabled" },
@@ -83,7 +83,7 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
   };
 
   return (
-    <aside className="w-64 border-r border-black/5 dark:border-white/5 bg-slate-50 dark:bg-base flex flex-col h-[100dvh] sticky top-0 transition-colors duration-500">
+    <aside className="w-64 border-r border-black/5 dark:border-white/5 bg-slate-50 dark:bg-base flex flex-col h-[100dvh] sticky top-0 transition-colors duration-500 font-sans">
       {/* Logo Area */}
       <div className="h-20 flex items-center px-8 border-b border-black/5 dark:border-white/5">
         <Link href="/dashboard" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
@@ -98,110 +98,107 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
           {avatarUrl ? (
             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            initials
+            <span>{initials}</span>
           )}
         </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium truncate w-32 text-slate-900 dark:text-white">{email.split('@')[0]}</span>
-          <span className="text-[11px] text-slate-500 dark:text-white/40 truncate w-32">{email}</span>
+        <div className="flex flex-col truncate">
+          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{email}</span>
+          <span className="text-[10px] text-slate-500 dark:text-white/40 font-mono">Standard VIP Tier</span>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* Nav Groups */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {navGroups.map((group) => {
-          const filteredItems = group.items.filter(item => {
-            if ((item.name === "Admin Support" || item.name === "Admin Overview" || item.name === "Global Settings") && !isAdmin) return false;
-            return true;
-          });
-
-          if (filteredItems.length === 0) return null;
+          // Hide MANAGEMENT group if user is not admin
+          if (group.title === "MANAGEMENT" && !isAdmin) {
+            return null;
+          }
 
           return (
-            <div key={group.title}>
-              <h3 className="px-4 text-[10px] font-mono tracking-widest text-slate-400 dark:text-white/30 mb-3 uppercase">
+            <div key={group.title} className="flex flex-col gap-1.5">
+              <span className="px-4 text-[10px] font-bold tracking-wider text-slate-400 dark:text-white/30 uppercase font-mono">
                 {group.title}
-              </h3>
-              <div className="space-y-1">
-                {filteredItems.map((item) => {
-                  const isActive = pathname === item.href;
-                  const Icon = item.icon;
-                  if ((item as any).disabled) {
-                    return (
-                      <div
-                        key={item.name}
-                        className="flex items-center justify-between px-4 py-2.5 rounded-lg text-sm transition-all duration-200 cursor-not-allowed opacity-60 text-slate-500 dark:text-white/40"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon weight="regular" className="text-lg text-slate-400 dark:text-white/30" />
-                          {item.name}
-                        </div>
-                        {item.badge && (
-                          <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-slate-500 dark:text-white/50">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
+              </span>
 
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isDisabled = item.disabled;
+
+                let badgeCount = item.badge;
+                let badgeStyleClass = "bg-brand-blue/10 text-brand-blue border-brand-blue/20";
+
+                if (item.badgeStyle === "disabled") {
+                  badgeStyleClass = "bg-slate-500/10 text-slate-400 border-slate-500/20";
+                } else if (item.badgeStyle === "new" || item.badge === "NEW") {
+                  badgeStyleClass = "bg-purple-500/15 text-purple-500 dark:text-purple-400 border-purple-500/30 animate-pulse font-extrabold";
+                } else if (item.badgeStyle === "support") {
+                  if (isAdmin && openTicketsCount > 0) {
+                    badgeCount = `${openTicketsCount}`;
+                    badgeStyleClass = "bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold";
+                  } else if (!isAdmin && hasUnreadReply) {
+                    badgeCount = "1 NEW";
+                    badgeStyleClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold animate-pulse";
+                  }
+                }
+
+                if (isDisabled) {
                   return (
-                    <Link
+                    <div
                       key={item.name}
-                      href={item.href}
-                      className={clsx(
-                        "flex items-center justify-between px-4 py-2.5 rounded-lg text-sm transition-all duration-200 group",
-                        isActive
-                          ? "bg-brand-blue/10 text-brand-blue font-medium"
-                          : "text-slate-600 hover:bg-black/5 hover:text-slate-900 dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white"
-                      )}
+                      className="flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 dark:text-white/30 cursor-not-allowed opacity-60"
                     >
                       <div className="flex items-center gap-3">
-                        <Icon
-                          weight={isActive ? "fill" : "regular"}
-                          className={clsx("text-lg", isActive ? "text-brand-blue" : "text-slate-400 group-hover:text-slate-700 dark:text-white/40 dark:group-hover:text-white/80")}
-                        />
-                        {item.name}
+                        <Icon size={18} />
+                        <span>{item.name}</span>
                       </div>
-                      {item.name === "Admin Support" && openTicketsCount > 0 ? (
-                        <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)] animate-pulse">
-                          {openTicketsCount}
-                        </span>
-                      ) : item.name === "Support Tickets" && hasUnreadReply ? (
-                        <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-brand-blue text-white shadow-[0_0_10px_rgba(34,197,94,0.3)] animate-pulse">
-                          NEW REPLY
-                        </span>
-                      ) : item.badge && (
-                        <span className={clsx(
-                          "text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded",
-                          (item as { badgeStyle?: string }).badgeStyle === "support"
-                            ? "bg-slate-900 dark:bg-white text-white dark:text-black border border-slate-900 dark:border-white/20"
-                            : "bg-brand-blue/20 text-brand-blue"
-                        )}>
-                          {item.badge}
+                      {item.badge && (
+                        <span className={clsx("text-[9px] px-2 py-0.5 rounded-full border", badgeStyleClass)}>
+                          {badgeCount}
                         </span>
                       )}
-                    </Link>
+                    </div>
                   );
-                })}
-              </div>
+                }
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={clsx(
+                      "flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all group",
+                      isActive
+                        ? "bg-brand-blue text-white shadow-sm shadow-brand-blue/20"
+                        : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={18} className={clsx(isActive ? "text-white" : "text-slate-500 dark:text-white/40 group-hover:text-slate-900 dark:group-hover:text-white")} />
+                      <span>{item.name}</span>
+                    </div>
+
+                    {item.badge && (
+                      <span className={clsx("text-[9px] px-2 py-0.5 rounded-full border", badgeStyleClass)}>
+                        {badgeCount}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           );
         })}
-      </nav>
+      </div>
 
-      {/* Footer Nav */}
-      <div className="p-4 pb-12 border-t border-black/5 dark:border-white/5 space-y-1">
-        <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-black/5 hover:text-slate-900 dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white transition-colors">
-          <Gear className="text-lg text-slate-400 dark:text-white/40" />
-          Profile Settings
-        </Link>
+      {/* Footer / Logout */}
+      <div className="p-4 border-t border-black/5 dark:border-white/5">
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-danger/80 hover:bg-danger/10 hover:text-danger transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
         >
-          <SignOut className="text-lg" />
-          Logout
+          <SignOut size={18} />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
