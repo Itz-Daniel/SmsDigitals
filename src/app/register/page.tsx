@@ -440,17 +440,13 @@ export default function RegisterPage() {
               </div>
 
               {/* Bot Protection */}
-              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY &&
-                process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY !==
-                  "your_turnstile_site_key_here" && (
-                  <div className="flex justify-center mt-1">
-                    <Turnstile
-                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      options={{ theme: "dark" }}
-                    />
-                  </div>
-                )}
+              <div className="flex justify-center mt-1">
+                <Turnstile
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  options={{ theme: "dark" }}
+                />
+              </div>
 
               {/* Submit */}
               <button
