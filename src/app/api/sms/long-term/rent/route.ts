@@ -3,8 +3,17 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SmspvaApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { enforceActiveAccount } from "@/lib/fraud-guard";
 
 export const dynamic = 'force-dynamic';
+
+function getDurationDiscount(days: number): number {
+  if (days >= 60) return 0.30;
+  if (days >= 30) return 0.20;
+  if (days >= 14) return 0.10;
+  if (days >= 7)  return 0.05;
+  return 0;
+}
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +23,10 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // 🛡️ BANNED / FLAGGED ACCOUNT LOCK
+    const accountBlock = await enforceActiveAccount(user.id);
+    if (accountBlock) return accountBlock;
 
     // --- RATE LIMITING ---
     const { data: isAllowed, error: rateLimitError } = await supabase.rpc('check_rate_limit', {
@@ -29,31 +42,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You are doing that too fast. Please wait 20 seconds." }, { status: 429 });
     }
 
-    const { serviceId, serviceName = "", country, currency = 'USD', autoRenew = false } = await req.json();
+    const { serviceId, serviceName = "", country, days = 30, currency = 'USD', autoRenew = false } = await req.json();
 
     if (!serviceId || !country) {
       return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
     }
 
+    const durationDays = Math.max(1, Math.min(365, parseInt(days) || 30));
     let purchasedNumber;
 
     try {
-      // 1-month rentals exclusively via SMSPVA rent api for auto-renew support
+      // Long-term rentals via SMSPVA rent api for auto-renew support
       purchasedNumber = await SmspvaApi.rentNumber(country, serviceId, serviceName);
     } catch (e: any) {
       console.error(`SMSPVA rent failed:`, e.message || e);
       return NextResponse.json({ error: "Number out of stock or renting failed. Please try again later." }, { status: 404 });
     }
 
-    // --- CALCULATE FINAL PRICE ---
+    // --- CALCULATE DYNAMIC PRO-RATED DURATION PRICE ---
     const supabaseAdmin = createAdminClient();
     const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
     
-    const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency);
+    const baseDailyCostUsd = 0.35;
+    const discountRate = getDurationDiscount(durationDays);
+    const rawWholesaleTotal = (baseDailyCostUsd * durationDays) * (1 - discountRate);
 
-    // --- DEDUCT BALANCE & CREATE RENTAL ---
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // Expires in 30 days
+    const finalCost = calculateFinalRetailPrice(rawWholesaleTotal, exchangeRate, currency);
+
+    // Dynamic Expiration Timestamp (days * 24 hours)
+    const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: rentData, error: rentError } = await supabaseAdmin.rpc('buy_long_term_rental', {
       p_user_id: user.id,
@@ -70,10 +88,20 @@ export async function POST(req: Request) {
 
     if (rentError || (rentData && !rentData.success)) {
       console.error("Database rent error:", rentError || rentData?.error);
-      // Cancel the order so provider refunds us since our DB deduction failed
       await SmspvaApi.cancelOrder(purchasedNumber.orderId, country, serviceId);
       return NextResponse.json({ error: rentData?.error || "Insufficient balance or transaction failed." }, { status: 400 });
     }
+
+    // Record Transaction
+    await supabaseAdmin.from('transactions').insert({
+      user_id: user.id,
+      type: 'Purchase',
+      amount: finalCost,
+      currency: currency,
+      status: 'Success',
+      reference: purchasedNumber.orderId,
+      description: `Rented ${serviceName || serviceId} (${country.toUpperCase()}) line for ${durationDays} Days`
+    });
 
     // Success!
     return NextResponse.json({
@@ -83,6 +111,7 @@ export async function POST(req: Request) {
         phone_number: purchasedNumber.phone,
         service: serviceName || serviceId,
         country: country,
+        duration_days: durationDays,
         cost: finalCost,
         currency: currency,
         expires_at: expiresAt
