@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
-import { PurchaseConfirmationModal } from "@/components/PurchaseConfirmationModal";
 import { useCurrency } from "@/components/CurrencyContext";
+import { SandboxToggle, useSandboxMode } from "@/components/SandboxToggle";
 
 interface Rental {
   id: string;
@@ -31,9 +31,9 @@ const POPULAR_QUICK_SERVICES = [
 ];
 
 export default function USPurchasePage() {
-  const region = "us"; // Hardcoded to USA Only
-  
+  const region = "us";
   const { currency } = useCurrency();
+  const { isSandbox } = useSandboxMode();
 
   const [selectedService, setSelectedService] = useState(SERVICES[0].id);
   const [selectedServiceName, setSelectedServiceName] = useState(SERVICES[0].name);
@@ -41,7 +41,6 @@ export default function USPurchasePage() {
   const [isAvailable, setIsAvailable] = useState<boolean>(true);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
   
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -131,20 +130,29 @@ export default function USPurchasePage() {
     setIsPurchasing(true);
     setError(null);
     try {
-      const res = await fetch('/api/checkout', {
+      const endpoint = isSandbox ? '/api/rent' : '/api/checkout';
+      const bodyPayload = isSandbox ? {
+        country: 'usa',
+        serviceId: selectedService,
+        serviceName: selectedServiceName,
+        region: 'usa',
+        currency: currency,
+        isSandbox: true
+      } : {
+        country: 'usa',
+        service: selectedService,
+        serviceName: selectedServiceName,
+        currency: currency
+      };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          country: 'usa',
-          service: selectedService,
-          serviceName: selectedServiceName,
-          currency: currency
-        })
+        body: JSON.stringify(bodyPayload)
       });
 
       const data = await res.json();
       if (data.success) {
-        setIsModalOpen(false);
         fetchRentals();
       } else {
         setError(data.error || "Purchase failed. Check your wallet balance.");
@@ -170,11 +178,11 @@ export default function USPurchasePage() {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-blue/10 blur-[150px] rounded-full pointer-events-none"></div>
 
         {/* TOP COMMAND HEADER BAR */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#111111] p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#111111] p-6 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm relative z-10">
           <div className="flex flex-col gap-1">
             <Link 
               href="/dashboard/sms"
-              className="w-fit text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-1.5 mb-1"
+              className="w-fit text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-1.5 mb-1"
             >
               ← Back to Server Selection
             </Link>
@@ -189,26 +197,30 @@ export default function USPurchasePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 px-4 py-2 rounded-2xl border border-black/5 dark:border-white/5">
-            <Radio size={18} className="text-brand-blue animate-pulse" />
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-white/40 font-bold">Routing</span>
-              <span className="text-xs font-bold text-slate-900 dark:text-white">Real SIM Networks</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <SandboxToggle />
+
+            <div className="flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-white/5">
+              <Radio size={18} className="text-brand-blue animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-white/40 font-bold">Routing</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">Real SIM Networks</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* MAIN SPLIT GRID (Control Hub Left + Live Monitor Right) */}
+        {/* MAIN SPLIT GRID */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10"
         >
-          {/* LEFT COLUMN: ORDER CONTROL CARD (5 Cols on LG) */}
+          {/* LEFT COLUMN: ORDER CONTROL CARD */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-black/5 dark:border-white/10 shadow-xl flex flex-col gap-6 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6 relative overflow-hidden">
               
-              <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <AppWindow size={20} className="text-brand-blue" /> Deploy Virtual Number
                 </h2>
@@ -219,7 +231,7 @@ export default function USPurchasePage() {
 
               {/* QUICK SERVICE SELECTION TAGS */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Popular Services
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -238,7 +250,7 @@ export default function USPurchasePage() {
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                           isSelected
                             ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
-                            : "bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10"
+                            : "bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10"
                         }`}
                       >
                         {s.name}
@@ -250,13 +262,13 @@ export default function USPurchasePage() {
 
               {/* FULL SERVICE DROPDOWN SELECTOR */}
               <div className="flex flex-col gap-2 relative">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Select Target Application
                 </label>
                 <div className="relative z-20">
                   <button 
                     onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center shadow-sm"
+                    className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center shadow-sm"
                   >
                     <span className="truncate pr-4 font-bold text-sm">{selectedServiceName}</span>
                     <CaretDown weight="bold" className={`transition-transform duration-300 text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
@@ -274,10 +286,10 @@ export default function USPurchasePage() {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 10, scale: 0.98 }}
                           transition={{ duration: 0.2 }}
-                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0D1322] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[350px]"
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0D1322] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[350px]"
                         >
                           <div className="p-3 border-b border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
-                            <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-2 border border-slate-200 dark:border-white/10">
+                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/40 rounded-xl px-3 py-2 border border-slate-200/80 dark:border-white/10">
                               <MagnifyingGlass className="text-slate-400 dark:text-white/40 flex-shrink-0" />
                               <input 
                                 type="text"
@@ -316,9 +328,9 @@ export default function USPurchasePage() {
               </div>
 
               {/* LIVE PRICING & STOCK BOX */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-wider block mb-0.5">Live Unit Price</span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block mb-0.5">Live Unit Price</span>
                   {isFetchingPrice ? (
                     <span className="text-sm font-bold text-brand-blue animate-pulse">Calculating...</span>
                   ) : !isAvailable || livePrice === null ? (
@@ -327,25 +339,32 @@ export default function USPurchasePage() {
                     </span>
                   ) : (
                     <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-                      {currency === 'USD' ? '$' : '₦'}
-                      {livePrice?.toLocaleString()}
+                      {isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
                     </span>
                   )}
                 </div>
 
-                {isAvailable && livePrice !== null && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    In Stock
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {isSandbox ? "Sandbox Ready" : "In Stock"}
+                </span>
               </div>
 
-              {/* ORDER ACTION BUTTON */}
+              {/* ERROR ALERT BANNER */}
+              {error && (
+                <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <WarningCircle size={18} weight="fill" className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* ORDER ACTION BUTTON (DIRECT 1-CLICK INSTANT PURCHASE) */}
               <button 
-                onClick={() => setIsModalOpen(true)}
-                disabled={isPurchasing || isFetchingPrice || !isAvailable || livePrice === null}
-                className="w-full bg-brand-blue text-white hover:bg-blue-600 rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-base transition-all shadow-lg shadow-brand-blue/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                onClick={handlePurchase}
+                disabled={isPurchasing || (isFetchingPrice && !isSandbox)}
+                className={`w-full text-white rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-base transition-all shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isSandbox ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/20" : "bg-brand-blue hover:bg-blue-600 shadow-brand-blue/20"
+                }`}
               >
                 {isPurchasing ? (
                   <>
@@ -353,16 +372,16 @@ export default function USPurchasePage() {
                   </>
                 ) : (
                   <>
-                    Deploy USA Number <ArrowRight weight="bold" />
+                    {isSandbox ? "🧪 Deploy Test USA Number (Free)" : "Deploy USA Number"} <ArrowRight weight="bold" />
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: LIVE VERIFICATION MONITOR (7 Cols on LG) */}
+          {/* RIGHT COLUMN: LIVE VERIFICATION MONITOR */}
           <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 Live Verification Monitor
               </h2>
@@ -402,7 +421,7 @@ export default function USPurchasePage() {
                               {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
                             </h4>
                             <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase tracking-widest font-semibold">
-                              USA Dedicated
+                              USA Dedicated {rental.order_id.startsWith('sandbox-') && '• 🧪 Test Mode'}
                             </span>
                           </div>
                         </div>
@@ -413,14 +432,14 @@ export default function USPurchasePage() {
                       </div>
 
                       {/* Phone Number Bar with Copy Button */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
                         <div className="flex flex-col">
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 dark:text-white/40">Virtual Phone Number</span>
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-white/40">Virtual Phone Number</span>
                           <span className="text-lg font-mono font-bold tracking-wider text-slate-900 dark:text-white">{rental.phone_number}</span>
                         </div>
                         <button
                           onClick={() => copyToClipboard(rental.phone_number, `phone-${rental.id}`)}
-                          className="px-3 py-2 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                          className="px-3 py-2 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm border border-slate-200/80 dark:border-transparent"
                         >
                           {copiedId === `phone-${rental.id}` ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                           {copiedId === `phone-${rental.id}` ? 'Copied!' : 'Copy'}
@@ -428,7 +447,7 @@ export default function USPurchasePage() {
                       </div>
 
                       {/* SMS Code Display Area */}
-                      <div className={`p-4 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-100/70 dark:bg-black/40 border-slate-200 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20 shadow-lg' : 'bg-red-500/5 border-red-500/10'}`}>
+                      <div className={`p-4 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-100/70 dark:bg-black/40 border-slate-200/80 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20 shadow-lg' : 'bg-red-500/5 border-red-500/10'}`}>
                         {rental.status === 'Waiting' ? (
                           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
                             <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
@@ -445,7 +464,7 @@ export default function USPurchasePage() {
                           <div className="flex items-center justify-between w-full">
                             <div>
                               <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-black/60 font-bold block">SMS Verification Code</span>
-                              <span className="text-3xl font-mono font-black tracking-[0.2em] text-slate-900 dark:text-white dark:text-slate-900">
+                              <span className="text-3xl font-mono font-black tracking-[0.2em] text-white dark:text-slate-900">
                                 {rental.sms_code}
                               </span>
                             </div>
@@ -469,17 +488,6 @@ export default function USPurchasePage() {
           </div>
         </motion.div>
       </div>
-
-      <PurchaseConfirmationModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onConfirm={handlePurchase}
-        isProcessing={isPurchasing}
-        countryName="USA"
-        serviceName={selectedServiceName}
-        cost={currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
-        error={error}
-      />
     </div>
   );
 }

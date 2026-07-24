@@ -1,24 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse, ProviderLowBalanceError } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, TextVerifiedApi, SmsManApi, SmspvaApi, ProviderResponse } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
-
-async function notifyTelegramAdmin(message: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
-
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: message })
-    });
-  } catch (e) {
-    console.error("Failed to send Telegram alert", e);
-  }
-}
+import { notifyTelegramAdmin } from "@/lib/telegram-admin";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +16,68 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // --- RATE LIMITING ---
-    // Max 3 requests per 20 seconds per user
+    const { serviceId, serviceName = "", country, region, currency = 'USD', isSandbox = false } = await req.json();
+
+    if (!serviceId || !country) {
+      return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
+    }
+
+    const supabaseAdmin = createAdminClient();
+
+    // --- SANDBOX DEMO MODE (100% FREE TESTING) ---
+    if (isSandbox) {
+      const mockOrderId = `sandbox-${Date.now()}`;
+      const mockPhone = `+1 (332) ${Math.floor(100 + Math.random() * 900)}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
+
+      const { data: mockRental, error: mockError } = await supabaseAdmin
+        .from('rentals')
+        .insert({
+          user_id: user.id,
+          order_id: mockOrderId,
+          phone_number: mockPhone,
+          service: serviceId,
+          provider: 'sandbox-node',
+          region: region || 'usa',
+          status: 'Waiting',
+          cost: 0,
+          currency: currency,
+          expires_at: expiresAt
+        })
+        .select()
+        .single();
+
+      if (mockError) {
+        console.error("Sandbox rental creation error:", mockError);
+        return NextResponse.json({ error: "Failed to create sandbox test number." }, { status: 500 });
+      }
+
+      // Schedule simulated SMS code arrival after 5 seconds
+      setTimeout(async () => {
+        const mockCode = `${Math.floor(100 + Math.random() * 900)}-${Math.floor(100 + Math.random() * 900)}`;
+        await supabaseAdmin
+          .from('rentals')
+          .update({ status: 'Received', sms_code: mockCode })
+          .eq('id', mockRental.id);
+      }, 5000);
+
+      return NextResponse.json({
+        success: true,
+        sandbox: true,
+        provider_used: "sandbox-node",
+        order: {
+          order_id: mockOrderId,
+          phone_number: mockPhone,
+          service: serviceId,
+          country: country,
+          cost: 0,
+          currency: currency,
+          expires_at: expiresAt
+        }
+      });
+    }
+
+    // --- RATE LIMITING (FOR REAL PURCHASES) ---
     const { data: isAllowed, error: rateLimitError } = await supabase.rpc('check_rate_limit', {
       p_identifier: user.id,
       p_endpoint: '/api/rent',
@@ -46,16 +91,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You are doing that too fast. Please wait 20 seconds." }, { status: 429 });
     }
 
-    const { serviceId, serviceName = "", country, region, currency = 'USD' } = await req.json();
-
-    if (!serviceId || !country) {
-      return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
-    }
-
     let purchasedNumber: (ProviderResponse & { provider: string }) | null = null;
 
     // --- SEQUENTIAL WATERFALL ROUTING ---
-    // Priority: TextVerified -> 5Sim -> Grizzly -> SMS-Man -> SMSPVA
     const providers = [
       { name: 'textverified', api: TextVerifiedApi },
       { name: '5sim', api: FiveSimApi },
@@ -70,7 +108,7 @@ export async function POST(req: Request) {
         const res = await provider.api.buyNumber(country, serviceId, serviceName);
         purchasedNumber = { ...res, provider: provider.name };
         console.log(`Success with ${provider.name}!`);
-        break; // Stop waterfall if successful
+        break;
       } catch (e: any) {
         if (e.name === 'ProviderLowBalanceError') {
           console.error(`🚨 ALERT: Provider ${provider.name} is OUT OF CREDIT!`);
@@ -87,7 +125,6 @@ export async function POST(req: Request) {
     }
 
     // --- CALCULATE FINAL PRICE ---
-    const supabaseAdmin = createAdminClient();
     const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate, brand_pricing').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
     const brandPricing = settings?.brand_pricing || null;
@@ -99,7 +136,7 @@ export async function POST(req: Request) {
     const finalCost = calculateFinalRetailPrice(purchasedNumber.cost, exchangeRate, currency, userDiscount, serviceName, brandPricing);
 
     // --- DEDUCT BALANCE & CREATE RENTAL ---
-    const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // Expires in 15 minutes
+    const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
 
     const { data: rentData, error: rentError } = await supabaseAdmin.rpc('rent_number', {
       p_user_id: user.id,
@@ -107,7 +144,7 @@ export async function POST(req: Request) {
       p_currency: currency,
       p_order_id: purchasedNumber.orderId,
       p_phone: purchasedNumber.phone,
-      p_service: serviceId, // Storing service ID. Ideally map it to a name
+      p_service: serviceId,
       p_provider: purchasedNumber.provider,
       p_region: region,
       p_expires_at: expiresAt
@@ -115,7 +152,6 @@ export async function POST(req: Request) {
 
     if (rentError) {
       console.error("Database rent error:", rentError);
-      // Trigger "Cancel Order" on the provider so you get refunded.
       if (purchasedNumber.provider === "textverified") await TextVerifiedApi.cancelOrder(purchasedNumber.orderId);
       if (purchasedNumber.provider === "5sim") await FiveSimApi.cancelOrder(purchasedNumber.orderId);
       if (purchasedNumber.provider === "grizzly") await GrizzlyApi.cancelOrder(purchasedNumber.orderId);
@@ -125,7 +161,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Insufficient balance." }, { status: 400 });
     }
 
-    // Success!
     return NextResponse.json({
       success: true,
       provider_used: purchasedNumber.provider, 
