@@ -123,9 +123,12 @@ export default function DashboardPage() {
 
         {/* Hero Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-10 flex flex-col justify-between gap-6 relative overflow-hidden shadow-xl dark:shadow-none">
+          
+          {/* Main Wallet Balance Card */}
+          <div className="lg:col-span-2 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-10 flex flex-col justify-between gap-6 relative overflow-hidden shadow-xl dark:shadow-none group">
             
-            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-blue/5 rounded-full blur-3xl pointer-events-none"></div>
+            {/* Ambient Hover Glow */}
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/10 via-purple-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl pointer-events-none"></div>
 
             {/* Header / Currency Switcher */}
             <div className="flex items-center justify-between relative z-10 flex-wrap gap-2">
@@ -158,7 +161,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance Display (Mobile Responsive Scaling) */}
+            {/* Balance Display */}
             <div className="relative z-10 flex flex-col">
               <AnimatePresence mode="wait">
                 {currency === 'NGN' ? (
@@ -221,7 +224,7 @@ export default function DashboardPage() {
                   >
                     <button
                       onClick={() => setIsConvertModalOpen(true)}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-brand-blue text-white text-sm font-bold tracking-wide hover:bg-blue-600 transition-all shadow-lg shadow-brand-blue/20"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-brand-blue text-white text-sm font-bold tracking-wide hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-brand-blue/20"
                     >
                       <ArrowsLeftRight weight="bold" className="text-lg" />
                       Convert to USD
@@ -230,7 +233,7 @@ export default function DashboardPage() {
                 )}
               </AnimatePresence>
 
-              <Link href="/dashboard/transactions" className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:bg-slate-200 dark:hover:bg-white/10 transition-all">
+              <Link href="/dashboard/transactions" className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:bg-slate-200 dark:hover:bg-white/10 active:scale-95 transition-all">
                 <ClockCounterClockwise weight="bold" className="text-lg" />
                 History
               </Link>
@@ -240,8 +243,8 @@ export default function DashboardPage() {
           </div>
 
           {/* VIP Status Card */}
-          <div className="lg:col-span-1 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-xl dark:shadow-none transition-colors">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 dark:bg-yellow-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div className="lg:col-span-1 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-xl dark:shadow-none transition-colors group">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 dark:bg-yellow-500/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
             
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -303,87 +306,133 @@ export default function DashboardPage() {
           <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Quick Services & Marketplace</h3>
         </div>
 
-        {/* Mobile Responsive Bento Grid */}
+        {/* Tactile Motion Bento Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
 
           {/* Action 1: Virtual Numbers (Focal Card) */}
-          <Link href="/dashboard/sms" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 sm:row-span-2 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/40 hover:bg-slate-50 dark:hover:bg-surface/60 transition-all p-6 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-lg dark:shadow-none">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-3xl group-hover:bg-brand-blue/10 transition-colors"></div>
-            <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue mb-6 sm:mb-8">
-              <Hash className="text-2xl" weight="duotone" />
-            </div>
-            <div>
-              <h4 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">Virtual Phone Numbers</h4>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">Get non-VoIP lines for instant WhatsApp, Telegram & 1,300+ app verifications.</p>
-            </div>
-          </Link>
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 sm:row-span-2"
+          >
+            <Link href="/dashboard/sms" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/40 hover:bg-slate-50 dark:hover:bg-surface/60 transition-all p-6 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-lg dark:shadow-none">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-brand-blue/10 rounded-full blur-3xl group-hover:bg-brand-blue/20 transition-all duration-500"></div>
+              <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue mb-6 sm:mb-8 group-hover:scale-110 transition-transform">
+                <Hash className="text-2xl" weight="duotone" />
+              </div>
+              <div>
+                <h4 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">Virtual Phone Numbers</h4>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">Get non-VoIP lines for instant WhatsApp, Telegram & 1,300+ app verifications.</p>
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Action 2: Digital Marketplace (Featured Storefront Card) */}
-          <Link href="/dashboard/marketplace" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 rounded-3xl border border-brand-blue/30 dark:border-brand-blue/40 bg-gradient-to-br from-brand-blue/10 via-purple-500/5 to-transparent hover:from-brand-blue/20 hover:to-purple-500/10 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-md">
-            <div className="w-11 h-11 rounded-2xl bg-brand-blue text-white flex items-center justify-center shadow-md shadow-brand-blue/20 group-hover:scale-105 transition-transform shrink-0">
-              <Storefront className="text-2xl" weight="duotone" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between gap-1">
-                <span className="truncate">Digital Marketplace</span>
-                <span className="text-[9px] bg-brand-blue text-white px-2 py-0.5 rounded-full uppercase font-extrabold tracking-wider shrink-0">HOT</span>
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-white/50 truncate">Buy Aged Social & Ad Accounts</p>
-            </div>
-          </Link>
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
+          >
+            <Link href="/dashboard/marketplace" className="h-full w-full rounded-3xl border border-brand-blue/40 dark:border-brand-blue/50 bg-gradient-to-br from-brand-blue/15 via-purple-500/10 to-transparent hover:from-brand-blue/25 hover:to-purple-500/20 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-md relative overflow-hidden">
+              <div className="absolute inset-0 bg-brand-blue/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
+              <div className="w-11 h-11 rounded-2xl bg-brand-blue text-white flex items-center justify-center shadow-md shadow-brand-blue/30 group-hover:scale-110 transition-transform shrink-0 relative z-10">
+                <Storefront className="text-2xl" weight="duotone" />
+              </div>
+              <div className="flex-1 min-w-0 relative z-10">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between gap-1">
+                  <span className="truncate">Digital Marketplace</span>
+                  <span className="text-[9px] bg-brand-blue text-white px-2 py-0.5 rounded-full uppercase font-extrabold tracking-wider shrink-0 shadow-sm animate-pulse">HOT</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-white/60 truncate">Buy Aged Social & Ad Accounts</p>
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Action 3: Long-Term Rentals */}
-          <Link href="/dashboard/sms/long-term" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none">
-            <div className="w-11 h-11 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-colors shrink-0">
-              <ClockCounterClockwise className="text-2xl" weight="duotone" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">Long-Term Rentals</h4>
-              <p className="text-xs text-slate-500 dark:text-white/40 truncate">30-365 Day Dedicated Lines</p>
-            </div>
-          </Link>
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
+          >
+            <Link href="/dashboard/sms/long-term" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
+              <div className="absolute inset-0 bg-brand-blue/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
+              <div className="w-11 h-11 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
+                <ClockCounterClockwise className="text-2xl" weight="duotone" />
+              </div>
+              <div className="flex-1 min-w-0 relative z-10">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">Long-Term Rentals</h4>
+                <p className="text-xs text-slate-500 dark:text-white/40 truncate">30-365 Day Dedicated Lines</p>
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Action 4: Reseller Developer API */}
-          <Link href="/dashboard/api" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none">
-            <div className="w-11 h-11 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shrink-0">
-              <Code className="text-2xl" weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span className="truncate">Developer API</span>
-                <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">cURL</span>
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-white/40 truncate">Automated Reseller REST API</p>
-            </div>
-          </Link>
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
+          >
+            <Link href="/dashboard/api" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
+              <div className="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
+                <Code className="text-2xl" weight="bold" />
+              </div>
+              <div className="flex-1 min-w-0 relative z-10">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span className="truncate">Developer API</span>
+                  <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">cURL</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-white/40 truncate">Automated Reseller REST API</p>
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Action 5: Affiliate Program */}
-          <Link href="/dashboard/affiliates" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
-              <Gift className="text-2xl" weight="duotone" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span className="truncate">Affiliate Program</span>
-                <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">EARN</span>
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-white/40 truncate">Earn rewards for referrals</p>
-            </div>
-          </Link>
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
+          >
+            <Link href="/dashboard/affiliates" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
+              <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
+                <Gift className="text-2xl" weight="duotone" />
+              </div>
+              <div className="flex-1 min-w-0 relative z-10">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span className="truncate">Affiliate Program</span>
+                  <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">EARN</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-white/40 truncate">Earn rewards for referrals</p>
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Action 6: Support / Help */}
-          <Link href="/dashboard/support" className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 rounded-3xl border border-slate-200/80 dark:border-white/5 bg-gradient-to-r from-slate-100 to-white dark:from-surface dark:to-base hover:from-slate-200 hover:to-slate-100 dark:hover:from-surface-hover dark:hover:to-surface transition-all p-5 flex items-center justify-between group cursor-pointer shadow-sm dark:shadow-none">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                <Lifebuoy className="text-2xl" weight="duotone" />
+          <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
+          >
+            <Link href="/dashboard/support" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-gradient-to-r from-slate-100 to-white dark:from-surface dark:to-base hover:from-slate-200 hover:to-slate-100 dark:hover:from-surface-hover dark:hover:to-surface transition-all p-5 flex items-center justify-between group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform">
+                  <Lifebuoy className="text-2xl" weight="duotone" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Need Help?</h4>
+                  <p className="text-xs text-slate-500 dark:text-white/40">24/7 dedicated support</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Need Help?</h4>
-                <p className="text-xs text-slate-500 dark:text-white/40">24/7 dedicated support</p>
-              </div>
-            </div>
-            <CaretRight className="text-slate-400 dark:text-white/20 group-hover:text-slate-600 dark:group-hover:text-white/60 transition-colors shrink-0" />
-          </Link>
+              <CaretRight className="text-slate-400 dark:text-white/20 group-hover:text-slate-600 dark:group-hover:text-white/60 transition-colors shrink-0 relative z-10" />
+            </Link>
+          </motion.div>
 
         </div>
       </motion.section>
