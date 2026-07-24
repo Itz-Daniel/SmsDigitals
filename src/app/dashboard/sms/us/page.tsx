@@ -130,25 +130,17 @@ export default function USPurchasePage() {
     setIsPurchasing(true);
     setError(null);
     try {
-      const endpoint = isSandbox ? '/api/rent' : '/api/checkout';
-      const bodyPayload = isSandbox ? {
-        country: 'usa',
-        serviceId: selectedService,
-        serviceName: selectedServiceName,
-        region: 'usa',
-        currency: currency,
-        isSandbox: true
-      } : {
-        country: 'usa',
-        service: selectedService,
-        serviceName: selectedServiceName,
-        currency: currency
-      };
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/rent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload)
+        body: JSON.stringify({
+          country: 'usa',
+          serviceId: selectedService,
+          serviceName: selectedServiceName,
+          region: 'usa',
+          currency: currency,
+          isSandbox: isSandbox
+        })
       });
 
       const data = await res.json();

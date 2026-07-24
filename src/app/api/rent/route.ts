@@ -24,8 +24,16 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // --- SANDBOX DEMO MODE (100% FREE TESTING) ---
+    // --- SANDBOX DEMO MODE (ADMIN ONLY FOR FREE TESTING) ---
     if (isSandbox) {
+      const isAdmin = user.user_metadata?.role === 'admin' || 
+                      user.app_metadata?.role === 'admin' || 
+                      user.email?.toLowerCase().includes('admin');
+
+      if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Sandbox Mode is restricted to Admin accounts." }, { status: 403 });
+      }
+
       const mockOrderId = `sandbox-${Date.now()}`;
       const mockPhone = `+1 (332) ${Math.floor(100 + Math.random() * 900)}-${Math.floor(1000 + Math.random() * 9000)}`;
       const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();

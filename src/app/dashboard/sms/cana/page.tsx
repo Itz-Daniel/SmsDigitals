@@ -135,14 +135,16 @@ export default function CanaPurchasePage() {
     setIsPurchasing(true);
     setError(null);
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch('/api/rent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           country: 'canada',
-          service: selectedService,
+          serviceId: selectedService,
           serviceName: selectedServiceName,
-          currency: currency
+          region: 'canada',
+          currency: currency,
+          isSandbox: isSandbox
         })
       });
 

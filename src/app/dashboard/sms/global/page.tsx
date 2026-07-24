@@ -133,14 +133,16 @@ export default function GlobalPurchasePage() {
     setIsPurchasing(true);
     setError(null);
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch('/api/rent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           country: globalCountry,
-          service: selectedService,
+          serviceId: selectedService,
           serviceName: selectedServiceName,
-          currency: currency
+          region: 'global',
+          currency: currency,
+          isSandbox: isSandbox
         })
       });
 
