@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const checkoutSchema = z.object({
   amount: z.number().positive('Amount must be positive').min(1, 'Amount must be at least 1'),
   currency: z.enum(['USD', 'NGN'], { message: 'Currency must be USD or NGN' }),
-  type: z.enum(['stripe', 'paystack'], { message: 'Payment type must be stripe or paystack' }),
+  type: z.enum(['stripe', 'paystack', 'nowpayments', 'crypto'], { message: 'Payment type must be stripe, paystack, or crypto' }),
 });
 
 export const marketplaceBuySchema = z.object({
