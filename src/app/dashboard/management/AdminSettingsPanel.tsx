@@ -7,11 +7,17 @@ import { DEFAULT_BRAND_PRICE_RULES, BrandMarginRule } from "@/lib/pricing-engine
 export default function AdminSettingsPanel({ 
   initialMargin, 
   initialAffiliatePercentage,
-  initialBrandPricing 
+  initialBrandPricing,
+  initialRentalMinFloor = 0.80,
+  initialRentalDailyRate = 0.50,
+  initialRentalMargin = 30
 }: { 
   initialMargin: number, 
   initialAffiliatePercentage?: number,
-  initialBrandPricing?: Record<string, BrandMarginRule> | null
+  initialBrandPricing?: Record<string, BrandMarginRule> | null,
+  initialRentalMinFloor?: number,
+  initialRentalDailyRate?: number,
+  initialRentalMargin?: number
 }) {
   // Convert 0.40 format to 40 for UI
   const [marginInput, setMarginInput] = useState<string>((initialMargin * 100).toString());
@@ -20,9 +26,9 @@ export default function AdminSettingsPanel({
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Long-Term Rental Profit Margin & Floor Controls
-  const [rentalMinFloorInput, setRentalMinFloorInput] = useState<string>("2.50");
-  const [rentalDailyRateInput, setRentalDailyRateInput] = useState<string>("1.50");
-  const [rentalMarginInput, setRentalMarginInput] = useState<string>("40");
+  const [rentalMinFloorInput, setRentalMinFloorInput] = useState<string>(initialRentalMinFloor.toString());
+  const [rentalDailyRateInput, setRentalDailyRateInput] = useState<string>(initialRentalDailyRate.toString());
+  const [rentalMarginInput, setRentalMarginInput] = useState<string>(initialRentalMargin.toString());
 
   // Brand Pricing Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,17 +50,12 @@ export default function AdminSettingsPanel({
   const [isCreatingVoucher, setIsCreatingVoucher] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  // Load existing settings on mount
+  // Sync props to state if props update from server
   useEffect(() => {
-    fetch('/api/admin/settings')
-      .then(res => res.json())
-      .then(data => {
-        if (data.rental_min_floor_usd) setRentalMinFloorInput(data.rental_min_floor_usd.toString());
-        if (data.rental_daily_rate_usd) setRentalDailyRateInput(data.rental_daily_rate_usd.toString());
-        if (data.rental_margin_percent) setRentalMarginInput(data.rental_margin_percent.toString());
-      })
-      .catch(() => {});
-  }, []);
+    if (initialRentalMinFloor) setRentalMinFloorInput(initialRentalMinFloor.toString());
+    if (initialRentalDailyRate) setRentalDailyRateInput(initialRentalDailyRate.toString());
+    if (initialRentalMargin) setRentalMarginInput(initialRentalMargin.toString());
+  }, [initialRentalMinFloor, initialRentalDailyRate, initialRentalMargin]);
 
   const handleSaveGlobal = async (updatedBrandPricing?: Record<string, BrandMarginRule>) => {
     setIsSaving(true);
@@ -81,9 +82,9 @@ export default function AdminSettingsPanel({
           profit_margin: databaseMargin,
           affiliate_percentage: parsedAffiliate,
           brand_pricing: targetBrandPricing,
-          rental_min_floor_usd: parseFloat(rentalMinFloorInput) || 2.50,
-          rental_daily_rate_usd: parseFloat(rentalDailyRateInput) || 1.50,
-          rental_margin_percent: parseFloat(rentalMarginInput) || 40
+          rental_min_floor_usd: parseFloat(rentalMinFloorInput) || 0.80,
+          rental_daily_rate_usd: parseFloat(rentalDailyRateInput) || 0.50,
+          rental_margin_percent: parseFloat(rentalMarginInput) || 30
         })
       });
 
@@ -93,7 +94,7 @@ export default function AdminSettingsPanel({
         throw new Error(data.error || data.message || "Failed to update settings.");
       }
 
-      setMessage({ text: `🎉 All Global Settings, Long-Term Rental Floor ($${rentalMinFloorInput}) & Margins saved successfully!`, type: "success" });
+      setMessage({ text: `🎉 All Global Settings & Rental Floor ($${rentalMinFloorInput}) saved & persisted!`, type: "success" });
       setIsModalOpen(false);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -192,7 +193,7 @@ export default function AdminSettingsPanel({
       )}
 
       {/* 1. Global Margin Settings Card */}
-      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
         
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
@@ -242,7 +243,7 @@ export default function AdminSettingsPanel({
       </div>
 
       {/* 2. LONG-TERM RENTAL PROFIT MARGIN & PRICING FLOOR CARD */}
-      <div className="bg-white dark:bg-[#111] border border-brand-blue/20 dark:border-brand-blue/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+      <div className="bg-white dark:bg-[#111] border border-brand-blue/20 dark:border-brand-blue/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
@@ -250,12 +251,12 @@ export default function AdminSettingsPanel({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Long-Term Rental Profit Margin & Floor Controls</h2>
-              <p className="text-xs text-slate-500 dark:text-white/40">Set minimum floor prices for 1-day rentals to prevent undercutting short-term activations.</p>
+              <p className="text-xs text-slate-500 dark:text-white/40">Set minimum floor prices for 1-day rentals to keep pricing fair and highly profitable.</p>
             </div>
           </div>
 
           <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
-            Profit-Protection Active
+            Fair Pricing Active
           </span>
         </div>
 
@@ -265,7 +266,7 @@ export default function AdminSettingsPanel({
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Minimum 1-Day Floor ($)
-              <span className="text-[10px] text-emerald-500 font-extrabold">~₦3,750 NGN</span>
+              <span className="text-[10px] text-emerald-500 font-extrabold">~₦1,200 NGN</span>
             </label>
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
               <span className="text-slate-400 font-bold">$</span>
@@ -275,16 +276,17 @@ export default function AdminSettingsPanel({
                 value={rentalMinFloorInput}
                 onChange={(e) => setRentalMinFloorInput(e.target.value)}
                 className="w-full bg-transparent outline-none font-mono font-bold text-base text-slate-900 dark:text-white"
-                placeholder="2.50"
+                placeholder="0.80"
               />
             </div>
-            <span className="text-[11px] text-slate-400">Guarantees 1-day rentals never undercut single OTP activations.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Fair minimum cost for a full 24-hour rental line.</span>
           </div>
 
           {/* Daily Base Rate ($) */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Base Daily Rate ($)
+              <span className="text-[10px] text-brand-blue font-extrabold">~₦750 NGN/day</span>
             </label>
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
               <span className="text-slate-400 font-bold">$</span>
@@ -294,10 +296,10 @@ export default function AdminSettingsPanel({
                 value={rentalDailyRateInput}
                 onChange={(e) => setRentalDailyRateInput(e.target.value)}
                 className="w-full bg-transparent outline-none font-mono font-bold text-base text-slate-900 dark:text-white"
-                placeholder="1.50"
+                placeholder="0.50"
               />
             </div>
-            <span className="text-[11px] text-slate-400">Baseline rate per day before duration bulk discounts.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Rate per day before bulk duration discounts.</span>
           </div>
 
           {/* Profit Margin (%) */}
@@ -311,11 +313,11 @@ export default function AdminSettingsPanel({
                 value={rentalMarginInput}
                 onChange={(e) => setRentalMarginInput(e.target.value)}
                 className="w-full bg-transparent outline-none font-mono font-bold text-base text-slate-900 dark:text-white"
-                placeholder="40"
+                placeholder="30"
               />
               <span className="text-slate-400 font-bold">%</span>
             </div>
-            <span className="text-[11px] text-slate-400">Business profit markup applied on long-term lines.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Profit markup on long-term lines.</span>
           </div>
 
         </div>
@@ -330,7 +332,7 @@ export default function AdminSettingsPanel({
       </div>
 
       {/* 3. BRAND-SPECIFIC SERVICE PRICING RULES CARD */}
-      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
@@ -362,7 +364,7 @@ export default function AdminSettingsPanel({
       </div>
 
       {/* 4. ADMIN VOUCHER & GIFT CARD GENERATOR CARD */}
-      <div className="bg-white dark:bg-[#111] border border-purple-500/20 dark:border-purple-500/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+      <div className="bg-white dark:bg-[#111] border border-purple-500/20 dark:border-purple-500/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">

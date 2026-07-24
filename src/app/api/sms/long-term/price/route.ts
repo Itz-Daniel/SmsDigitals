@@ -23,24 +23,31 @@ export async function POST(req: Request) {
     const durationDays = Math.max(1, Math.min(365, parseInt(days) || 30));
     const supabaseAdmin = createAdminClient();
 
-    // Fetch Admin Pricing Controls & Minimum Floor Settings
+    // Fetch Admin Pricing Controls & Minimum Floor Settings (checking settings then api_settings)
     const { data: settings } = await supabaseAdmin
+      .from('settings')
+      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
+      .eq('id', 1)
+      .single();
+
+    const { data: apiSettings } = await supabaseAdmin
       .from('api_settings')
       .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
       .limit(1)
       .single();
 
-    const min1DayFloorUsd = settings?.rental_min_floor_usd || 2.50; // Default $2.50 (~₦3,750 NGN) to prevent undercutting single activations
-    const dailyBaseRateUsd = settings?.rental_daily_rate_usd || 1.50;
-    const marginPercent = settings?.rental_margin_percent || 40;
-    const exchangeRate = settings?.exchange_rate || 1500;
+    // Realistic Defaults: $0.80 floor (~₦1,200 NGN) for 1-day rental, $0.50 base daily rate, 30% margin
+    const min1DayFloorUsd = settings?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? 0.80;
+    const dailyBaseRateUsd = settings?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? 0.50;
+    const marginPercent = settings?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? 30;
+    const exchangeRate = settings?.exchange_rate ?? apiSettings?.exchange_rate ?? 1500;
 
     const discountRate = getDurationDiscount(durationDays);
 
     // Calculate raw total before floor guard
     const rawCalculatedUsd = (dailyBaseRateUsd * durationDays) * (1 - discountRate);
 
-    // 🛡️ ENFORCE PROFIT FLOOR GUARD: 1-Day Rental can NEVER be cheaper than min1DayFloorUsd ($2.50)
+    // 🛡️ ENFORCE PROFIT FLOOR GUARD: 1-Day Rental Floor ($0.80 USD = ~₦1,200 NGN)
     const baseUsdWithFloor = Math.max(min1DayFloorUsd, rawCalculatedUsd);
 
     // Apply Admin Profit Margin

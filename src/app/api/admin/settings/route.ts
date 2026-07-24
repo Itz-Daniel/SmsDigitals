@@ -14,37 +14,25 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: settings, error } = await supabase
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('profit_margin, affiliate_percentage, brand_pricing, rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent')
+      .eq('id', 1)
+      .single();
+
+    const { data: apiSettings } = await supabase
       .from('api_settings')
       .select('profit_margin, affiliate_percentage, brand_pricing, rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent')
       .limit(1)
       .single();
 
-    if (error) {
-      // Fallback
-      const { data: fallback } = await supabase
-        .from('settings')
-        .select('profit_margin, affiliate_percentage')
-        .eq('id', 1)
-        .single();
-
-      return NextResponse.json({ 
-        profit_margin: fallback?.profit_margin || 0.4,
-        affiliate_percentage: fallback?.affiliate_percentage || 5.0,
-        brand_pricing: null,
-        rental_min_floor_usd: 2.50,
-        rental_daily_rate_usd: 1.50,
-        rental_margin_percent: 40
-      });
-    }
-
     return NextResponse.json({ 
-      profit_margin: settings?.profit_margin || 0.4,
-      affiliate_percentage: settings?.affiliate_percentage || 5.0,
-      brand_pricing: settings?.brand_pricing || null,
-      rental_min_floor_usd: settings?.rental_min_floor_usd || 2.50,
-      rental_daily_rate_usd: settings?.rental_daily_rate_usd || 1.50,
-      rental_margin_percent: settings?.rental_margin_percent || 40
+      profit_margin: settings?.profit_margin ?? apiSettings?.profit_margin ?? 0.4,
+      affiliate_percentage: settings?.affiliate_percentage ?? apiSettings?.affiliate_percentage ?? 5.0,
+      brand_pricing: settings?.brand_pricing ?? apiSettings?.brand_pricing ?? null,
+      rental_min_floor_usd: settings?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? 0.80,
+      rental_daily_rate_usd: settings?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? 0.50,
+      rental_margin_percent: settings?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? 30
     });
   } catch (error: any) {
     console.error("Settings GET API Error:", error);
@@ -79,7 +67,7 @@ export async function POST(req: Request) {
       rental_margin_percent
     } = validationResult.data;
 
-    const updateData: any = {};
+    const updateData: any = { id: 1 };
     if (profit_margin !== undefined) updateData.profit_margin = profit_margin;
     if (affiliate_percentage !== undefined) updateData.affiliate_percentage = affiliate_percentage;
     if (brand_pricing !== undefined) updateData.brand_pricing = brand_pricing;
@@ -89,23 +77,28 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createAdminClient();
     
-    // Update api_settings table
-    const { error: apiErr } = await supabaseAdmin
-      .from('api_settings')
-      .update(updateData)
-      .neq('id', '00000000-0000-0000-0000-000000000000');
-
-    // Also update settings table fallback
-    await supabaseAdmin
+    // Upsert into settings table with id = 1
+    const { error: settingsErr } = await supabaseAdmin
       .from('settings')
-      .update(updateData)
-      .eq('id', 1);
+      .upsert(updateData, { onConflict: 'id' });
 
-    if (apiErr) {
-      console.warn("Supabase api_settings update warning:", apiErr);
+    // Also upsert into api_settings table fallback
+    await supabaseAdmin
+      .from('api_settings')
+      .upsert({ ...updateData, id: '00000000-0000-0000-0000-000000000001' }, { onConflict: 'id' })
+      .catch(() => {});
+
+    if (settingsErr) {
+      console.error("Supabase settings update error:", settingsErr);
+      if (settingsErr.message?.includes('column') || settingsErr.code === 'PGRST204') {
+        return NextResponse.json({ 
+          error: "Supabase table is missing required columns. Please run SQL in Supabase SQL Editor: ALTER TABLE settings ADD COLUMN IF NOT EXISTS rental_min_floor_usd NUMERIC DEFAULT 0.80, ADD COLUMN IF NOT EXISTS rental_daily_rate_usd NUMERIC DEFAULT 0.50, ADD COLUMN IF NOT EXISTS rental_margin_percent NUMERIC DEFAULT 30;" 
+        }, { status: 400 });
+      }
+      throw settingsErr;
     }
 
-    return NextResponse.json({ success: true, message: "Settings saved successfully!", ...updateData });
+    return NextResponse.json({ success: true, message: "Settings saved and persisted successfully!", ...updateData });
   } catch (error: any) {
     console.error("Settings POST API Error:", error);
     return NextResponse.json({ error: error?.message || "Failed to update settings" }, { status: 500 });

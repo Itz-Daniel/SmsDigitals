@@ -72,9 +72,6 @@ export default function LongTermRentalsPage() {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
 
-  // Extend Rental Modal State
-  const [extendingRental, setExtendingRental] = useState<LongTermRental | null>(null);
-
   const supabase = createClient();
 
   useEffect(() => {
@@ -103,7 +100,7 @@ export default function LongTermRentalsPage() {
         })
       });
       const data = await res.json();
-      if (data.success && data.cost) {
+      if (data.success && data.cost !== undefined) {
         setPrice(data.cost);
         setDiscountPercent(data.discountPercentage || 0);
       } else {
@@ -184,34 +181,34 @@ export default function LongTermRentalsPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 space-y-8 pb-32 font-sans">
+    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 space-y-8 pb-32 font-sans transition-colors">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900 dark:bg-[#111] p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+      {/* Header Banner - Responsive Dark & Light Mode Theme */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900 dark:bg-[#111] p-6 md:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden border border-black/5 dark:border-white/10">
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-blue/20 blur-[100px] rounded-full pointer-events-none"></div>
         <div className="relative z-10">
-          <div className="w-fit rounded-full px-3 py-1 bg-brand-blue/20 border border-brand-blue/30 text-brand-blue text-[10px] font-extrabold uppercase tracking-widest mb-3">
+          <div className="w-fit rounded-full px-3 py-1 bg-brand-blue/20 border border-brand-blue/30 text-brand-blue dark:text-cyan-400 text-[10px] font-extrabold uppercase tracking-widest mb-3">
             Flexible Duration Rentals (1 - 365 Days)
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 flex items-center gap-3">
-            <ClockCounterClockwise size={36} className="text-brand-blue" weight="duotone" />
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2 flex items-center gap-3">
+            <ClockCounterClockwise size={36} className="text-brand-blue dark:text-cyan-400" weight="duotone" />
             Dedicated SMS Rentals
           </h1>
-          <p className="text-slate-400 max-w-xl text-sm">
+          <p className="text-slate-300 dark:text-slate-400 max-w-xl text-xs md:text-sm leading-relaxed">
             Rent dedicated lines for 1 day, 7 days, 30 days, or custom durations. Keep your numbers for WhatsApp, Telegram, or Discord as long as you need.
           </p>
         </div>
         <button
           onClick={() => { setIsRenting(true); setRentStatus('idle'); }}
-          className="relative z-10 bg-brand-blue hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-[0_4px_12px_rgba(0,112,243,0.3)] transition-all active:scale-95 text-sm"
+          className="relative z-10 bg-brand-blue hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-[0_4px_12px_rgba(0,112,243,0.3)] transition-all active:scale-95 text-sm shrink-0"
         >
           <Plus size={20} weight="bold" />
           Rent New Number
         </button>
       </div>
 
-      {/* Active Rentals Table */}
-      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden">
+      {/* Active Rentals Table - Responsive Dark & Light Mode Theme */}
+      <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden transition-colors">
         <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Your Active Dedicated Rentals</h2>
         
         {isLoading ? (
@@ -219,7 +216,7 @@ export default function LongTermRentalsPage() {
             <Spinner size={40} className="animate-spin text-brand-blue" />
           </div>
         ) : rentals.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 flex flex-col items-center">
+          <div className="py-16 text-center text-slate-500 dark:text-white/40 flex flex-col items-center">
             <Phone size={48} className="opacity-20 mb-4" />
             <p className="text-sm font-medium">You don't have any active rented numbers yet.</p>
           </div>
@@ -227,7 +224,7 @@ export default function LongTermRentalsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left whitespace-nowrap">
               <thead>
-                <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-bold">
+                <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-white/40 text-xs uppercase tracking-wider font-bold">
                   <th className="pb-4 px-4">Service & Number</th>
                   <th className="pb-4 px-4">Expires In</th>
                   <th className="pb-4 px-4 text-center">Status</th>
@@ -244,7 +241,7 @@ export default function LongTermRentalsPage() {
                       <td className="py-4 px-4">
                         <div className="flex flex-col">
                           <span className="font-mono font-bold text-slate-900 dark:text-white text-base">{rental.phone_number}</span>
-                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{rental.service} • {rental.country}</span>
+                          <span className="text-xs text-slate-500 dark:text-white/50 font-bold uppercase tracking-wider">{rental.service} • {rental.country}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -259,9 +256,9 @@ export default function LongTermRentalsPage() {
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
-                          rental.status === 'Active' ? 'bg-brand-blue/10 text-brand-blue' :
-                          rental.status === 'Expired' ? 'bg-red-500/10 text-red-500' :
-                          'bg-slate-500/10 text-slate-500'
+                          rental.status === 'Active' ? 'bg-brand-blue/10 text-brand-blue dark:text-cyan-400 border border-brand-blue/20' :
+                          rental.status === 'Expired' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                          'bg-slate-500/10 text-slate-500 dark:text-white/40'
                         }`}>
                           {rental.status}
                         </span>
@@ -299,13 +296,13 @@ export default function LongTermRentalsPage() {
           >
             <motion.div 
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl relative border border-black/5 dark:border-white/10 max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col gap-6"
+              className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl relative border border-black/10 dark:border-white/15 max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col gap-6 font-sans text-slate-900 dark:text-white"
             >
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <ClockCounterClockwise size={24} className="text-brand-blue" /> Select Rental Duration
                 </h2>
-                <button onClick={() => setIsRenting(false)} className="text-slate-400 hover:text-white text-xs font-bold">
+                <button onClick={() => setIsRenting(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">
                   ✕ Close
                 </button>
               </div>
@@ -318,12 +315,12 @@ export default function LongTermRentalsPage() {
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Select Service</label>
                     <div className="relative">
                       <select 
-                        className="w-full appearance-none bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
+                        className="w-full appearance-none bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
                         value={selectedService.id}
                         onChange={e => setSelectedService(COMMON_SERVICES.find(s => s.id === e.target.value) || COMMON_SERVICES[0])}
                       >
                         {COMMON_SERVICES.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                          <option key={s.id} value={s.id} className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">{s.name}</option>
                         ))}
                       </select>
                       <CaretDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
@@ -335,12 +332,12 @@ export default function LongTermRentalsPage() {
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Select Country</label>
                     <div className="relative">
                       <select 
-                        className="w-full appearance-none bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
+                        className="w-full appearance-none bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
                         value={selectedCountry.id}
                         onChange={e => setSelectedCountry(COMMON_COUNTRIES.find(s => s.id === e.target.value) || COMMON_COUNTRIES[0])}
                       >
                         {COMMON_COUNTRIES.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
+                          <option key={c.id} value={c.id} className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">{c.name}</option>
                         ))}
                       </select>
                       <CaretDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
@@ -352,8 +349,8 @@ export default function LongTermRentalsPage() {
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
                       Rental Duration Choice
                       {discountPercent > 0 && (
-                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                          <Tag size={12} weight="fill" /> {discountPercent}% Bulk Discount Applied
+                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                          <Tag size={12} weight="fill" /> {discountPercent}% Bulk Discount
                         </span>
                       )}
                     </label>
@@ -371,7 +368,7 @@ export default function LongTermRentalsPage() {
                           className={`p-3 rounded-2xl border text-left flex flex-col gap-0.5 transition-all ${
                             !isCustomDays && selectedDays === preset.days
                               ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
-                              : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
+                              : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
                           }`}
                         >
                           <span className="text-xs font-extrabold">{preset.label}</span>
@@ -392,7 +389,7 @@ export default function LongTermRentalsPage() {
                         className={`px-4 py-3 rounded-2xl border text-xs font-bold transition-all shrink-0 ${
                           isCustomDays
                             ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
-                            : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-white"
+                            : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                         }`}
                       >
                         Custom Days:
@@ -437,10 +434,10 @@ export default function LongTermRentalsPage() {
                   )}
 
                   {/* Price Summary */}
-                  <div className="bg-brand-blue/10 p-4 rounded-2xl border border-brand-blue/20 flex justify-between items-center">
+                  <div className="bg-brand-blue/10 dark:bg-brand-blue/15 p-4 rounded-2xl border border-brand-blue/20 flex justify-between items-center">
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-700 dark:text-white/80">Total Duration Cost</span>
-                      <span className="text-[10px] text-slate-400 font-semibold">{activeDays} Days Dedicated Access</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">Total Duration Cost</span>
+                      <span className="text-[10px] text-slate-500 dark:text-white/50 font-semibold">{activeDays} Days Dedicated Access</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {isPriceLoading ? (
@@ -458,7 +455,7 @@ export default function LongTermRentalsPage() {
                   <div className="flex gap-3 pt-2">
                     <button 
                       onClick={() => setIsRenting(false)}
-                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
                     >
                       Cancel
                     </button>
