@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Hash, Spinner, Copy, CheckCircle, WarningCircle, Clock } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { SERVICES } from "@/lib/data/sms-data";
 
 interface Rental {
   id: string;
@@ -16,6 +17,29 @@ interface Rental {
   currency: string;
   created_at: string;
 }
+
+const getServiceName = (serviceCode: string) => {
+  if (!serviceCode) return "Virtual Number";
+  const found = SERVICES.find(s => s.id === serviceCode.toLowerCase() || s.name.toLowerCase() === serviceCode.toLowerCase());
+  if (found) return found.name;
+  
+  const CODE_MAP: Record<string, string> = {
+    wa: "WhatsApp",
+    tg: "Telegram",
+    lf: "TikTok",
+    go: "Google / Gmail / YouTube",
+    oi: "Tinder",
+    ig: "Instagram",
+    fb: "Facebook",
+    nf: "Netflix",
+    am: "Amazon",
+    tw: "Twitter / X",
+    ub: "Uber",
+    pp: "PayPal"
+  };
+
+  return CODE_MAP[serviceCode.toLowerCase()] || serviceCode.toUpperCase();
+};
 
 export default function HistoryPage() {
   const [rentals, setRentals] = useState<Rental[]>([]);
@@ -42,7 +66,6 @@ export default function HistoryPage() {
 
       if (!isMounted) return;
 
-      // Create a uniquely named channel to avoid conflicts during React StrictMode re-mounts
       channel = supabase.channel(`realtime_rentals_${user.id}_${Date.now()}`);
       
       channel.on(
@@ -153,7 +176,7 @@ export default function HistoryPage() {
                         {/* Service & Date */}
                         <td className="p-6">
                           <div className="flex flex-col gap-1">
-                            <span className="font-semibold text-slate-900 dark:text-white/90">{rental.service}</span>
+                            <span className="font-semibold text-slate-900 dark:text-white/90">{getServiceName(rental.service)}</span>
                             <span className="text-xs text-slate-500 dark:text-white/40">{formatDate(rental.created_at)}</span>
                           </div>
                         </td>

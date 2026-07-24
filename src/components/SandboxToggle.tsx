@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Flask, Crown } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 
+const SANDBOX_EVENT_KEY = "sms_sandbox_changed";
+
 export function useSandboxMode() {
   const [isSandbox, setIsSandbox] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -22,15 +24,26 @@ export function useSandboxMode() {
 
     checkAdmin();
 
-    const stored = localStorage.getItem("sms_sandbox_mode");
-    if (stored === "true") {
-      setIsSandbox(true);
-    }
+    const syncState = () => {
+      const stored = localStorage.getItem("sms_sandbox_mode");
+      setIsSandbox(stored === "true");
+    };
+
+    syncState();
+
+    window.addEventListener(SANDBOX_EVENT_KEY, syncState);
+    window.addEventListener("storage", syncState);
+
+    return () => {
+      window.removeEventListener(SANDBOX_EVENT_KEY, syncState);
+      window.removeEventListener("storage", syncState);
+    };
   }, []);
 
   const toggleSandbox = (val: boolean) => {
     setIsSandbox(val);
     localStorage.setItem("sms_sandbox_mode", val ? "true" : "false");
+    window.dispatchEvent(new Event(SANDBOX_EVENT_KEY));
   };
 
   // Regular users can NEVER use sandbox mode (force false)

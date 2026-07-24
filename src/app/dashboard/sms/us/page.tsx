@@ -9,6 +9,7 @@ import { SERVICES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { useCurrency } from "@/components/CurrencyContext";
 import { SandboxToggle, useSandboxMode } from "@/components/SandboxToggle";
+import { PurchaseSuccessModal } from "@/components/PurchaseSuccessModal";
 
 interface Rental {
   id: string;
@@ -48,6 +49,21 @@ export default function USPurchasePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [rentals, setRentals] = useState<Rental[]>([]);
+
+  // Purchase Success Modal State
+  const [successModalData, setSuccessModalData] = useState<{
+    isOpen: boolean;
+    serviceName: string;
+    phoneNumber: string;
+    cost: string;
+    orderId: string;
+  }>({
+    isOpen: false,
+    serviceName: "",
+    phoneNumber: "",
+    cost: "",
+    orderId: ""
+  });
 
   const fetchRentals = async () => {
     try {
@@ -144,7 +160,31 @@ export default function USPurchasePage() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.order) {
+        // INSTANT STATE UPDATE (0ms delay)
+        const newRentalItem: Rental = {
+          id: data.order.order_id || `rent_${Date.now()}`,
+          order_id: data.order.order_id,
+          phone_number: data.order.phone_number,
+          service: selectedService,
+          status: 'Waiting',
+          sms_code: null,
+          cost: data.order.cost || livePrice || 0,
+          currency: currency,
+          created_at: new Date().toISOString()
+        };
+
+        setRentals(prev => [newRentalItem, ...prev]);
+
+        // POP OPEN PURCHASE SUCCESS MODAL
+        setSuccessModalData({
+          isOpen: true,
+          serviceName: selectedServiceName,
+          phoneNumber: data.order.phone_number,
+          cost: isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${data.order.cost || livePrice}` : `₦${(data.order.cost || livePrice)?.toLocaleString()}`,
+          orderId: data.order.order_id
+        });
+
         fetchRentals();
       } else {
         setError(data.error || "Purchase failed. Check your wallet balance.");
@@ -350,7 +390,7 @@ export default function USPurchasePage() {
                 </div>
               )}
 
-              {/* ORDER ACTION BUTTON (DIRECT 1-CLICK INSTANT PURCHASE) */}
+              {/* ORDER ACTION BUTTON */}
               <button 
                 onClick={handlePurchase}
                 disabled={isPurchasing || (isFetchingPrice && !isSandbox)}
@@ -480,6 +520,16 @@ export default function USPurchasePage() {
           </div>
         </motion.div>
       </div>
+
+      <PurchaseSuccessModal
+        isOpen={successModalData.isOpen}
+        onClose={() => setSuccessModalData(prev => ({ ...prev, isOpen: false }))}
+        serviceName={successModalData.serviceName}
+        phoneNumber={successModalData.phoneNumber}
+        cost={successModalData.cost}
+        orderId={successModalData.orderId}
+        countryFlag="🇺🇸"
+      />
     </div>
   );
 }

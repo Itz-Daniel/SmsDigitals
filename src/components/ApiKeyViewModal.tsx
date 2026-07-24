@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Key, Copy, Check, X, ShieldWarning, LockKey } from "@phosphor-icons/react";
+import { Key, Copy, Check, X, ShieldWarning } from "@phosphor-icons/react";
 
 interface ApiKeyViewModalProps {
   isOpen: boolean;
@@ -34,7 +34,7 @@ export function ApiKeyViewModal({
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="w-full max-w-lg bg-white dark:bg-[#0D1322] border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative flex flex-col gap-6 text-slate-900 dark:text-white"
+          className="w-full max-w-lg bg-white dark:bg-[#0D1322] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative flex flex-col gap-6 text-slate-900 dark:text-white"
         >
           {/* Close Button */}
           <button
@@ -59,11 +59,11 @@ export function ApiKeyViewModal({
 
           {/* Key Box */}
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
               Your Secret API Key
             </label>
-            <div className="p-4 rounded-2xl bg-slate-900 dark:bg-black border border-slate-800 dark:border-white/15 flex items-center justify-between gap-3 shadow-inner">
-              <code className="text-xs sm:text-sm font-mono font-bold text-emerald-400 break-all leading-relaxed select-all">
+            <div className="p-4 rounded-2xl bg-slate-100 dark:bg-black border border-slate-200/80 dark:border-white/15 flex items-center justify-between gap-3 shadow-inner">
+              <code className="text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-emerald-400 break-all leading-relaxed select-all">
                 {apiKey}
               </code>
             </div>
