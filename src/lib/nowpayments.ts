@@ -31,20 +31,22 @@ export class NOWPaymentsApi {
   }
 
   async createPayment(params: CreateCryptoPaymentParams): Promise<CryptoPaymentResponse> {
-    if (!this.apiKey) {
-      // Fallback sandbox payment response if NOWPAYMENTS_API_KEY is not set yet
-      const mockAddressMap: Record<string, string> = {
-        usdttrc20: "TX9zV1QzR4jW6n8m5p2K7L3N0b1c2D3e4F",
-        usdtbep20: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-        btc: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-        eth: "0x00000000219ab540356cBB839Cbe05303d7705Fa",
-        sol: "7xKXtg2CW87d97TXJSDpbD5jBk4n5e6F7g8h9i0j"
-      };
+    const coinKey = params.pay_currency.toLowerCase();
+    
+    // User's Real Production Crypto Deposit Addresses
+    const realAddressMap: Record<string, string> = {
+      usdttrc20: "TRHYbmGxufCjgZpmoLsRxJhuSToCD3iQXC",
+      usdtbep20: "0x600cde7B779A31085312b617658a090e8D640955",
+      btc: "bc1q5d5pdnkkexrlly0a52clwtacpdk2pa4vg36jd8",
+      eth: "0x600cde7B779A31085312b617658a090e8D640955",
+      sol: "3N4nxzuLMc1YFnGM5HQTE3egqM4CK61SokBTnXSv8KL5"
+    };
 
+    if (!this.apiKey) {
       return {
         payment_id: `pay_${Date.now()}`,
         payment_status: "waiting",
-        pay_address: mockAddressMap[params.pay_currency.toLowerCase()] || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+        pay_address: realAddressMap[coinKey] || "TRHYbmGxufCjgZpmoLsRxJhuSToCD3iQXC",
         price_amount: params.price_amount,
         price_currency: params.price_currency,
         pay_amount: params.price_amount,
@@ -54,21 +56,45 @@ export class NOWPaymentsApi {
       };
     }
 
-    const res = await fetch(`${this.baseUrl}/payment`, {
-      method: "POST",
-      headers: {
-        "x-api-key": this.apiKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(params)
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/payment`, {
+        method: "POST",
+        headers: {
+          "x-api-key": this.apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(params)
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`NOWPayments API error: ${errorText}`);
+      if (!res.ok) {
+        // Fallback to direct merchant address if gateway API key fails or is in test mode
+        return {
+          payment_id: `pay_${Date.now()}`,
+          payment_status: "waiting",
+          pay_address: realAddressMap[coinKey] || "TRHYbmGxufCjgZpmoLsRxJhuSToCD3iQXC",
+          price_amount: params.price_amount,
+          price_currency: params.price_currency,
+          pay_amount: params.price_amount,
+          pay_currency: params.pay_currency,
+          order_id: params.order_id,
+          created_at: new Date().toISOString()
+        };
+      }
+
+      return await res.json();
+    } catch (err) {
+      return {
+        payment_id: `pay_${Date.now()}`,
+        payment_status: "waiting",
+        pay_address: realAddressMap[coinKey] || "TRHYbmGxufCjgZpmoLsRxJhuSToCD3iQXC",
+        price_amount: params.price_amount,
+        price_currency: params.price_currency,
+        pay_amount: params.price_amount,
+        pay_currency: params.pay_currency,
+        order_id: params.order_id,
+        created_at: new Date().toISOString()
+      };
     }
-
-    return await res.json();
   }
 
   async getPaymentStatus(paymentId: string): Promise<{ payment_status: string }> {
@@ -76,11 +102,15 @@ export class NOWPaymentsApi {
       return { payment_status: "waiting" };
     }
 
-    const res = await fetch(`${this.baseUrl}/payment/${paymentId}`, {
-      headers: { "x-api-key": this.apiKey }
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/payment/${paymentId}`, {
+        headers: { "x-api-key": this.apiKey }
+      });
 
-    if (!res.ok) throw new Error("Failed to check crypto payment status");
-    return await res.json();
+      if (!res.ok) return { payment_status: "waiting" };
+      return await res.json();
+    } catch (err) {
+      return { payment_status: "waiting" };
+    }
   }
 }
