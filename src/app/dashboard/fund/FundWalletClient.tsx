@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins } from "@phosphor-icons/react";
+import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins, Clock, WarningCircle } from "@phosphor-icons/react";
 import { usePaystackPayment } from "react-paystack";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,8 @@ const CRYPTO_COINS = [
   { id: "eth", name: "Ethereum", network: "ERC20", icon: "Ξ" },
   { id: "sol", name: "Solana", network: "SOL", icon: "◎" },
 ];
+
+const EXPIRE_TIMEOUT_SECONDS = 45 * 60; // 45 Minutes (2700 Seconds)
 
 export default function FundWalletClient() {
   const [activeMethod, setActiveMethod] = useState<FundMethod>("bank");
@@ -40,6 +42,10 @@ export default function FundWalletClient() {
   } | null>(null);
   const [copiedCryptoAddress, setCopiedCryptoAddress] = useState(false);
 
+  // 45-Minute Countdown & Auto-Stop State
+  const [timeLeft, setTimeLeft] = useState<number>(EXPIRE_TIMEOUT_SECONDS);
+  const [isOrderExpired, setIsOrderExpired] = useState<boolean>(false);
+
   const supabase = createClient();
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
 
@@ -55,6 +61,30 @@ export default function FundWalletClient() {
     };
     fetchUser();
   }, []);
+
+  // 45-Minute Countdown Timer Hook
+  useEffect(() => {
+    if (!cryptoOrder || isOrderExpired) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsOrderExpired(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cryptoOrder, isOrderExpired]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Paystack NGN Card & Bank Payment Config
   const paystackConfig = {
@@ -109,12 +139,14 @@ export default function FundWalletClient() {
     initializePaystack({ onSuccess: handlePaystackSuccess, onClose: () => {} });
   };
 
-  // Generate Crypto Deposit Order
+  // Generate Crypto Deposit Order with 45-minute limit
   const handleGenerateCryptoOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGeneratingCrypto(true);
     setError(null);
     setCryptoOrder(null);
+    setIsOrderExpired(false);
+    setTimeLeft(EXPIRE_TIMEOUT_SECONDS);
 
     try {
       const res = await fetch("/api/checkout/crypto", {
@@ -282,7 +314,7 @@ export default function FundWalletClient() {
                 <CurrencyBtc size={20} className="text-amber-500" /> Automated Crypto Deposit
               </h2>
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
-                USDT • BTC • SOL
+                45m Timeout Protection
               </span>
             </div>
 
@@ -354,55 +386,81 @@ export default function FundWalletClient() {
               </button>
             </form>
 
-            {/* GENERATED CRYPTO ORDER DISPLAY & QR CODE */}
+            {/* GENERATED CRYPTO ORDER DISPLAY & QR CODE WITH 45-MINUTE COUNTDOWN */}
             {cryptoOrder && (
               <div className="p-6 rounded-3xl bg-slate-900 dark:bg-black border border-slate-800 dark:border-white/15 flex flex-col gap-6 text-white shadow-2xl animate-in fade-in">
                 
-                <div className="flex items-center justify-between border-b border-slate-800 dark:border-white/10 pb-4">
+                <div className="flex items-center justify-between border-b border-slate-800 dark:border-white/10 pb-4 flex-wrap gap-2">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1">
                       <ShieldCheck size={14} weight="fill" /> Deposit Order Active
                     </span>
                     <span className="text-xs font-mono text-slate-400">Order ID: {cryptoOrder.orderId}</span>
                   </div>
-                  <span className="text-sm font-extrabold text-emerald-400 font-mono">
-                    ${cryptoOrder.priceAmountUsd} USD
-                  </span>
+
+                  {/* 45-MINUTE COUNTDOWN BADGE */}
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-extrabold border ${
+                    isOrderExpired
+                      ? "bg-red-500/20 text-red-400 border-red-500/30"
+                      : "bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse"
+                  }`}>
+                    <Clock size={16} weight="bold" />
+                    <span>{isOrderExpired ? "EXPIRED (45m)" : `Expires in ${formatTimer(timeLeft)}`}</span>
+                  </div>
                 </div>
 
-                {/* QR CODE & ADDRESS SPLIT */}
-                <div className="flex flex-col sm:flex-row items-center gap-6">
-                  {/* QR Code Box */}
-                  <div className="w-36 h-36 p-2 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-lg">
-                    <img src={cryptoOrder.qrUrl} alt="Deposit QR Code" className="w-full h-full object-contain" />
-                  </div>
-
-                  {/* Address Box */}
-                  <div className="flex flex-col gap-2 w-full">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Send Exact Amount to Address
-                    </span>
-                    <div className="p-3.5 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-between gap-3">
-                      <code className="text-xs font-mono text-emerald-400 font-bold break-all leading-relaxed">
-                        {cryptoOrder.payAddress}
-                      </code>
+                {isOrderExpired ? (
+                  /* EXPIRED STATE (SERVER AUTO-STOPPED TO AVOID OVERLOAD) */
+                  <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 flex flex-col items-center text-center gap-3">
+                    <WarningCircle size={36} className="text-red-400" weight="fill" />
+                    <div className="flex flex-col gap-1">
+                      <h4 className="font-bold text-sm text-red-400">Deposit Window Expired (45m Limit)</h4>
+                      <p className="text-xs text-slate-300 max-w-sm">
+                        To protect server resources, automatic monitoring for this order has stopped. Click below to generate a fresh address if you still wish to deposit.
+                      </p>
                     </div>
-
                     <button
-                      onClick={copyCryptoAddress}
-                      className="w-full mt-1 py-3 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                      onClick={handleGenerateCryptoOrder}
+                      className="mt-2 px-6 py-3 rounded-xl bg-brand-blue text-white font-bold text-xs hover:bg-blue-600 transition-all shadow-md shadow-brand-blue/20"
                     >
-                      {copiedCryptoAddress ? <Check size={16} weight="bold" /> : <Copy size={16} weight="bold" />}
-                      {copiedCryptoAddress ? "Address Copied!" : "Copy Deposit Address"}
+                      Generate Fresh Crypto Address
                     </button>
                   </div>
-                </div>
+                ) : (
+                  /* ACTIVE UNEXPIRED STATE */
+                  <>
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                      <div className="w-36 h-36 p-2 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-lg">
+                        <img src={cryptoOrder.qrUrl} alt="Deposit QR Code" className="w-full h-full object-contain" />
+                      </div>
 
-                <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center">
-                  <span className="text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
-                    <Spinner size={14} className="animate-spin text-emerald-400" /> Waiting for network confirmations... Balance credits automatically.
-                  </span>
-                </div>
+                      <div className="flex flex-col gap-2 w-full">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Send Exact Amount to Address
+                        </span>
+                        <div className="p-3.5 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-between gap-3">
+                          <code className="text-xs font-mono text-emerald-400 font-bold break-all leading-relaxed">
+                            {cryptoOrder.payAddress}
+                          </code>
+                        </div>
+
+                        <button
+                          onClick={copyCryptoAddress}
+                          className="w-full mt-1 py-3 rounded-xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                        >
+                          {copiedCryptoAddress ? <Check size={16} weight="bold" /> : <Copy size={16} weight="bold" />}
+                          {copiedCryptoAddress ? "Address Copied!" : "Copy Deposit Address"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center">
+                      <span className="text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
+                        <Spinner size={14} className="animate-spin text-emerald-400" /> Active monitoring for 45 mins. Balance credits automatically upon network confirmation.
+                      </span>
+                    </div>
+                  </>
+                )}
 
               </div>
             )}
