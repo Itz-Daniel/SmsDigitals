@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins, Clock, WarningCircle, Ticket } from "@phosphor-icons/react";
 import { usePaystackPayment } from "react-paystack";
 import { createClient } from "@/lib/supabase/client";
+import { getDeviceFingerprint } from "@/lib/fingerprint";
 
 type FundMethod = "bank" | "crypto" | "voucher";
 
@@ -182,7 +183,7 @@ export default function FundWalletClient() {
     }
   };
 
-  // Redeem Promo Voucher Code
+  // Redeem Promo Voucher Code with 3-Layer Anti-Abuse Protection
   const handleRedeemVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!voucherCode.trim()) return;
@@ -191,10 +192,14 @@ export default function FundWalletClient() {
     setSuccess(null);
 
     try {
+      const fp = getDeviceFingerprint();
       const res = await fetch("/api/voucher/redeem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: voucherCode.trim() })
+        body: JSON.stringify({
+          code: voucherCode.trim(),
+          deviceFingerprint: fp
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -518,8 +523,8 @@ export default function FundWalletClient() {
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Ticket size={20} className="text-purple-500" /> Gift Card & Promo Code Voucher
               </h2>
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20">
-                Instant Credit
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20 flex items-center gap-1">
+                <ShieldCheck size={14} weight="fill" /> Anti-Spam Guard Active
               </span>
             </div>
 
@@ -540,12 +545,12 @@ export default function FundWalletClient() {
                 </div>
               </div>
 
-              {/* Sample Voucher Suggestions */}
+              {/* Anti-Abuse Notice */}
               <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col gap-1 text-xs text-purple-600 dark:text-purple-300">
                 <span className="font-bold flex items-center gap-1">
-                  🎁 Active Test Voucher Codes:
+                  🔒 Anti-Abuse Security:
                 </span>
-                <span className="font-mono text-[11px]">WELCOME1000 (₦1,000 credit) • BONUS5 ($5.00 USD credit)</span>
+                <span className="text-[11px] opacity-80">Each promo voucher can only be claimed <strong>once per user, IP address, and physical device</strong>.</span>
               </div>
 
               <button

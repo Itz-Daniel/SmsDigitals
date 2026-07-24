@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowDownLeft, ArrowUpRight, Swap, Spinner, Receipt, WarningCircle, CheckCircle, Clock } from "@phosphor-icons/react";
+import { ArrowDownLeft, ArrowUpRight, Swap, Spinner, Receipt, WarningCircle, CheckCircle, Clock, Ticket } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Transaction {
@@ -12,6 +12,7 @@ interface Transaction {
   currency: string;
   status: string;
   reference: string;
+  description?: string;
   created_at: string;
 }
 
@@ -25,13 +26,27 @@ export default function TransactionsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [txRes, walletTxRes] = await Promise.all([
+        supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
+      ]);
 
-      if (data) setTransactions(data);
+      const merged = [...(txRes.data || []), ...(walletTxRes.data || [])];
+      
+      // Deduplicate by reference/id
+      const uniqueMap = new Map();
+      merged.forEach(item => {
+        const key = item.reference || item.id;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, item);
+        }
+      });
+
+      const sorted = Array.from(uniqueMap.values()).sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setTransactions(sorted);
       setLoading(false);
     };
 
@@ -44,6 +59,14 @@ export default function TransactionsPage() {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: 'numeric', minute: '2-digit'
     }).format(d);
+  };
+
+  const isVoucherTx = (tx: Transaction) => {
+    return (
+      tx.type?.toLowerCase().includes("voucher") || 
+      tx.reference?.toLowerCase().startsWith("voucher_") ||
+      tx.description?.toLowerCase().includes("voucher")
+    );
   };
 
   return (
@@ -64,7 +87,7 @@ export default function TransactionsPage() {
           <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-500 dark:from-white dark:to-white/40">
             Transactions.
           </h1>
-          <p className="text-slate-500 dark:text-white/40 text-sm max-w-md">Complete history of your wallet funding, number purchases, and automatic refunds.</p>
+          <p className="text-slate-500 dark:text-white/40 text-sm max-w-md">Complete history of your wallet funding, number purchases, promo vouchers, and automatic refunds.</p>
         </div>
 
         {/* Double-Bezel Table Container */}
@@ -99,63 +122,76 @@ export default function TransactionsPage() {
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((tx, idx) => (
-                      <motion.tr 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.05, duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-                        key={tx.id} 
-                        className="border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
-                      >
-                        {/* ID / Reference */}
-                        <td className="p-6">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-mono text-sm text-slate-600 dark:text-white/80">TXN-{tx.id.split('-')[0].toUpperCase()}</span>
-                          </div>
-                        </td>
-
-                        {/* Type */}
-                        <td className="p-6">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              tx.type === 'Funding' ? 'bg-[#10B981]/10 text-[#10B981]' : 
-                              tx.type === 'Refund' ? 'bg-brand-blue/10 text-brand-blue' : 
-                              'bg-red-500/10 text-red-500'
-                            }`}>
-                              {tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" /> : <ArrowUpRight weight="bold" />}
+                    transactions.map((tx, idx) => {
+                      const isVoucher = isVoucherTx(tx);
+                      return (
+                        <motion.tr 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05, duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+                          key={tx.id || tx.reference} 
+                          className="border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+                        >
+                          {/* ID / Reference */}
+                          <td className="p-6">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-mono text-sm text-slate-600 dark:text-white/80">
+                                {tx.reference || `TXN-${tx.id.split('-')[0].toUpperCase()}`}
+                              </span>
+                              {tx.description && (
+                                <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                                  {tx.description}
+                                </span>
+                              )}
                             </div>
-                            <span className="font-medium text-slate-900 dark:text-white/90">{tx.type}</span>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Date */}
-                        <td className="p-6 text-sm text-slate-500 dark:text-white/50">
-                          {formatDate(tx.created_at)}
-                        </td>
+                          {/* Type */}
+                          <td className="p-6">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                isVoucher ? 'bg-purple-500/15 text-purple-500' :
+                                tx.type === 'Funding' ? 'bg-[#10B981]/10 text-[#10B981]' : 
+                                tx.type === 'Refund' ? 'bg-brand-blue/10 text-brand-blue' : 
+                                'bg-red-500/10 text-red-500'
+                              }`}>
+                                {isVoucher ? <Ticket weight="fill" /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" /> : <ArrowUpRight weight="bold" />}
+                              </div>
+                              <span className={`font-medium ${isVoucher ? 'text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-900 dark:text-white/90'}`}>
+                                {isVoucher ? "Created with Voucher" : tx.type}
+                              </span>
+                            </div>
+                          </td>
 
-                        {/* Status */}
-                        <td className="p-6">
-                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
-                            tx.status === 'Success' ? 'bg-[#10B981]/10 text-[#10B981]' :
-                            tx.status === 'Failed' ? 'bg-red-500/10 text-red-400' :
-                            'bg-orange-500/10 text-orange-400'
-                          }`}>
-                            {tx.status === 'Success' ? <CheckCircle weight="fill" /> : tx.status === 'Failed' ? <WarningCircle weight="fill" /> : <Clock weight="fill" />}
-                            {tx.status}
-                          </div>
-                        </td>
+                          {/* Date */}
+                          <td className="p-6 text-sm text-slate-500 dark:text-white/50">
+                            {formatDate(tx.created_at)}
+                          </td>
 
-                        {/* Amount */}
-                        <td className="p-6 text-right">
-                          <span className={`font-mono text-base font-semibold ${
-                            tx.type === 'Funding' || tx.type === 'Refund' ? 'text-[#10B981]' : 'text-slate-900 dark:text-white'
-                          }`}>
-                            {tx.type === 'Funding' || tx.type === 'Refund' ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
-                          </span>
-                        </td>
+                          {/* Status */}
+                          <td className="p-6">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
+                              tx.status === 'Success' || tx.status === 'Completed' ? 'bg-[#10B981]/10 text-[#10B981]' :
+                              tx.status === 'Failed' ? 'bg-red-500/10 text-red-400' :
+                              'bg-orange-500/10 text-orange-400'
+                            }`}>
+                              {tx.status === 'Success' || tx.status === 'Completed' ? <CheckCircle weight="fill" /> : tx.status === 'Failed' ? <WarningCircle weight="fill" /> : <Clock weight="fill" />}
+                              {tx.status}
+                            </div>
+                          </td>
 
-                      </motion.tr>
-                    ))
+                          {/* Amount */}
+                          <td className="p-6 text-right">
+                            <span className={`font-mono text-base font-semibold ${
+                              isVoucher ? 'text-purple-500' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-[#10B981]' : 'text-slate-900 dark:text-white'
+                            }`}>
+                              +{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                            </span>
+                          </td>
+
+                        </motion.tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
