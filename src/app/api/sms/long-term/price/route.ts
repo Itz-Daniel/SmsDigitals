@@ -4,11 +4,13 @@ import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 
 export const dynamic = 'force-dynamic';
 
+// Bulk Volume Discount Curve for Long-Term Rentals
 function getDurationDiscount(days: number): number {
-  if (days >= 60) return 0.30;
-  if (days >= 30) return 0.20;
-  if (days >= 14) return 0.10;
-  if (days >= 7)  return 0.05;
+  if (days >= 60) return 0.70; // 70% Bulk Discount -> ~$9.00 USD (~₦13,500 NGN) for 60 days
+  if (days >= 30) return 0.65; // 65% Bulk Discount -> ~$5.25 USD (~₦7,875 NGN) for 30 days
+  if (days >= 14) return 0.50; // 50% Bulk Discount -> ~$3.50 USD (~₦5,250 NGN) for 14 days
+  if (days >= 7)  return 0.40; // 40% Bulk Discount -> ~$2.10 USD (~₦3,150 NGN) for 7 days
+  if (days >= 3)  return 0.15; // 15% Bulk Discount -> ~$1.27 USD (~₦1,900 NGN) for 3 days
   return 0;
 }
 
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
     const durationDays = Math.max(1, Math.min(365, parseInt(days) || 30));
     const supabaseAdmin = createAdminClient();
 
-    // Fetch Admin Pricing Controls & Minimum Floor Settings (checking settings then api_settings)
+    // Fetch Admin Pricing Controls & Minimum Floor Settings
     const { data: settings } = await supabaseAdmin
       .from('settings')
       .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
