@@ -29,29 +29,51 @@ export async function POST(req: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (parseInt(validDays) || 7));
 
-    // Upsert into Supabase Vouchers Table
-    const { error: dbErr } = await supabaseAdmin
+    const voucherData = {
+      code: cleanCode,
+      amount_usd: parseFloat(amountUsd || "0"),
+      amount_ngn: parseFloat(amountNgn || "0"),
+      max_uses: parseInt(maxUses || "100"),
+      used_count: 0,
+      is_used: false,
+      expires_at: expiresAt.toISOString(),
+      created_at: new Date().toISOString()
+    };
+
+    // Check if voucher with code already exists
+    const { data: existing } = await supabaseAdmin
       .from("vouchers")
-      .upsert({
-        code: cleanCode,
-        amount_usd: parseFloat(amountUsd || "0"),
-        amount_ngn: parseFloat(amountNgn || "0"),
-        max_uses: parseInt(maxUses || "100"),
-        used_count: 0,
-        is_used: false,
-        expires_at: expiresAt.toISOString(),
-        created_at: new Date().toISOString()
-      }, { onConflict: "code" });
+      .select("id")
+      .eq("code", cleanCode)
+      .maybeSingle();
+
+    let dbErr;
+    if (existing) {
+      const { error } = await supabaseAdmin
+        .from("vouchers")
+        .update(voucherData)
+        .eq("id", existing.id);
+      dbErr = error;
+    } else {
+      const { error } = await supabaseAdmin
+        .from("vouchers")
+        .insert(voucherData);
+      dbErr = error;
+    }
 
     if (dbErr) {
-      console.warn("Supabase voucher table insert warning (will fallback to active promo memory):", dbErr);
+      console.error("Supabase voucher table error:", dbErr);
+      return NextResponse.json({ 
+        error: "Database Error: Could not save voucher to Supabase 'vouchers' table. Please run the SQL in Supabase SQL Editor: CREATE TABLE IF NOT EXISTS vouchers (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, code TEXT NOT NULL UNIQUE, amount_usd NUMERIC DEFAULT 0, amount_ngn NUMERIC DEFAULT 0, max_uses INTEGER DEFAULT 1, used_count INTEGER DEFAULT 0, is_used BOOLEAN DEFAULT FALSE, expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());" 
+      }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
-      message: `🎟️ Voucher ${cleanCode} created successfully! Valid for ${validDays || 7} days (Expires ${expiresAt.toLocaleDateString()}) with a ${maxUses || 100} user limit.`
+      message: `🎟️ Voucher ${cleanCode} created & saved to database! Valid for ${validDays || 7} days with a ${maxUses || 100} user limit.`
     });
   } catch (err: any) {
+    console.error("Voucher create error:", err);
     return NextResponse.json({ error: err.message || "Failed to create voucher." }, { status: 500 });
   }
 }

@@ -1,8 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users, ShieldCheck, CurrencyDollar, Storefront } from "@phosphor-icons/react";
+import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users, ShieldCheck, CurrencyDollar, Storefront, Copy, Check } from "@phosphor-icons/react";
 import { DEFAULT_BRAND_PRICE_RULES, BrandMarginRule } from "@/lib/pricing-engine";
+
+interface VoucherRecord {
+  id: string;
+  code: string;
+  amount_usd: number;
+  amount_ngn: number;
+  used_count: number;
+  max_uses: number;
+  is_used: boolean;
+  expires_at?: string;
+  created_at: string;
+}
 
 export default function AdminSettingsPanel({ 
   initialMargin, 
@@ -42,13 +54,38 @@ export default function AdminSettingsPanel({
   const [newMinPrice, setNewMinPrice] = useState("1.00");
   const [newMultiplier, setNewMultiplier] = useState("2.5");
 
-  // Admin Voucher Creation Form State
+  // Admin Voucher Creation & History State
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
   const [voucherAmountUsd, setVoucherAmountUsd] = useState("2.00");
   const [voucherMaxUses, setVoucherMaxUses] = useState("50");
   const [voucherValidDays, setVoucherValidDays] = useState("7");
   const [isCreatingVoucher, setIsCreatingVoucher] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const [vouchersList, setVouchersList] = useState<VoucherRecord[]>([]);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
+  const [deletingVoucherId, setDeletingVoucherId] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Load existing settings & vouchers on mount
+  useEffect(() => {
+    fetchVouchersHistory();
+  }, []);
+
+  const fetchVouchersHistory = async () => {
+    setIsLoadingVouchers(true);
+    try {
+      const res = await fetch("/api/admin/voucher/list");
+      const data = await res.json();
+      if (data.success && data.vouchers) {
+        setVouchersList(data.vouchers);
+      }
+    } catch (err) {
+      console.error("Failed to load vouchers list:", err);
+    } finally {
+      setIsLoadingVouchers(false);
+    }
+  };
 
   // Sync props to state if props update from server
   useEffect(() => {
@@ -130,6 +167,7 @@ export default function AdminSettingsPanel({
       if (data.success) {
         setVoucherMessage({ text: data.message, type: "success" });
         setVoucherCodeInput("");
+        fetchVouchersHistory();
       } else {
         setVoucherMessage({ text: data.error || "Failed to create voucher.", type: "error" });
       }
@@ -138,6 +176,35 @@ export default function AdminSettingsPanel({
     } finally {
       setIsCreatingVoucher(false);
     }
+  };
+
+  const handleDeleteVoucher = async (id: string, code: string) => {
+    if (!confirm(`Are you sure you want to revoke and delete voucher code "${code}"?`)) return;
+    setDeletingVoucherId(id);
+
+    try {
+      const res = await fetch('/api/admin/voucher/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voucherId: id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchVouchersHistory();
+      } else {
+        alert(data.error || "Failed to delete voucher.");
+      }
+    } catch (err) {
+      alert("Network error while deleting voucher.");
+    } finally {
+      setDeletingVoucherId(null);
+    }
+  };
+
+  const copyVoucherCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const updateBrandRule = (key: string, field: "minPriceUsd" | "multiplier", val: string) => {
@@ -363,18 +430,22 @@ export default function AdminSettingsPanel({
         </div>
       </div>
 
-      {/* 4. ADMIN VOUCHER & GIFT CARD GENERATOR CARD */}
-      <div className="bg-white dark:bg-[#111] border border-purple-500/20 dark:border-purple-500/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
+      {/* 4. ADMIN VOUCHER & GIFT CARD GENERATOR & HISTORY CENTER CARD */}
+      <div className="bg-white dark:bg-[#111] border border-brand-blue/20 dark:border-brand-blue/30 rounded-3xl p-6 md:p-8 flex flex-col gap-8 shadow-sm transition-colors">
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
               <Ticket size={22} weight="bold" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Gift Card & Voucher Generator</h2>
-              <p className="text-xs text-slate-500 dark:text-white/40">Generate promotional voucher codes with user limits and expiration durations.</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Gift Card & Voucher Management Center</h2>
+              <p className="text-xs text-slate-500 dark:text-white/40">Create promotional gift cards and track live redemption records.</p>
             </div>
           </div>
+
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+            {vouchersList.length} Total Vouchers Created
+          </span>
         </div>
 
         {voucherMessage && (
@@ -388,6 +459,7 @@ export default function AdminSettingsPanel({
           </div>
         )}
 
+        {/* Voucher Generator Form */}
         <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Voucher Code</label>
@@ -434,16 +506,127 @@ export default function AdminSettingsPanel({
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-4 mt-2">
+          <div className="sm:col-span-2 lg:col-span-4 mt-1">
             <button
               type="submit"
               disabled={isCreatingVoucher || !voucherCodeInput.trim()}
-              className="w-full py-4 rounded-2xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 disabled:opacity-50"
+              className="w-full py-4 rounded-2xl bg-brand-blue text-white font-bold text-sm hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 disabled:opacity-50"
             >
               {isCreatingVoucher ? <Spinner size={20} className="animate-spin" /> : "Create & Authorize Promo Voucher"}
             </button>
           </div>
         </form>
+
+        {/* LIVE VOUCHERS HISTORY TABLE */}
+        <div className="flex flex-col gap-4 border-t border-slate-200/80 dark:border-white/5 pt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Created Vouchers & Redemption Ledger</h3>
+            <button
+              onClick={fetchVouchersHistory}
+              className="text-xs text-brand-blue hover:underline font-bold flex items-center gap-1"
+            >
+              Refresh Table
+            </button>
+          </div>
+
+          {isLoadingVouchers ? (
+            <div className="py-12 text-center flex justify-center">
+              <Spinner size={24} className="animate-spin text-brand-blue" />
+            </div>
+          ) : vouchersList.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 dark:text-white/40 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/80 dark:border-white/5 text-xs font-medium">
+              No promo voucher codes have been generated yet. Use the form above to generate your first gift card code.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-wider font-bold">
+                    <th className="pb-3 px-3">Voucher Code</th>
+                    <th className="pb-3 px-3">Value ($)</th>
+                    <th className="pb-3 px-3">Usage Progress</th>
+                    <th className="pb-3 px-3 text-center">Status</th>
+                    <th className="pb-3 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vouchersList.map((v) => {
+                    const usedCount = v.used_count || 0;
+                    const maxUses = v.max_uses || 1;
+                    const isDepleted = v.is_used || usedCount >= maxUses;
+                    const isExpired = v.expires_at && new Date(v.expires_at) < new Date();
+                    const percentUsed = Math.min(100, Math.round((usedCount / maxUses) * 100));
+
+                    return (
+                      <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        {/* Code + Copy Button */}
+                        <td className="py-3.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-extrabold text-sm text-slate-900 dark:text-white bg-slate-100 dark:bg-black px-2.5 py-1 rounded-xl border border-slate-200 dark:border-white/10">
+                              {v.code}
+                            </span>
+                            <button
+                              onClick={() => copyVoucherCode(v.code)}
+                              className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                              title="Copy Code"
+                            >
+                              {copiedCode === v.code ? <Check className="text-emerald-500" size={14} weight="bold" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Value */}
+                        <td className="py-3.5 px-3 font-mono font-bold text-xs text-brand-blue">
+                          ${(v.amount_usd || 0).toFixed(2)} USD
+                        </td>
+
+                        {/* Usage Progress Bar */}
+                        <td className="py-3.5 px-3">
+                          <div className="flex flex-col gap-1 w-36">
+                            <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-500 dark:text-white/50">
+                              <span>{usedCount} / {maxUses} claimed</span>
+                              <span>{percentUsed}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all ${isDepleted ? 'bg-amber-500' : 'bg-brand-blue'}`} 
+                                style={{ width: `${percentUsed}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-3.5 px-3 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                            isDepleted ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                            'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                          }`}>
+                            {isExpired ? 'Expired' : isDepleted ? 'Fully Redeemed' : 'Active'}
+                          </span>
+                        </td>
+
+                        {/* Delete / Revoke Action */}
+                        <td className="py-3.5 px-3 text-right">
+                          <button
+                            onClick={() => handleDeleteVoucher(v.id, v.code)}
+                            disabled={deletingVoucherId === v.id}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            title="Revoke & Delete Voucher"
+                          >
+                            {deletingVoucherId === v.id ? <Spinner size={16} className="animate-spin" /> : <Trash size={16} />}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* BRAND PRICING MODAL */}
