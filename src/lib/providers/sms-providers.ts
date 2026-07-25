@@ -397,14 +397,22 @@ export const SmspvaApi = {
     return { status: 'Waiting', code: null };
   },
 
-  async cancelOrder(orderId: string, country: string, serviceId: string): Promise<boolean> {
-    const apiKey = process.env.SMSPVA_API_KEY;
-    if (!apiKey) return false;
+  async cancelOrder(orderId: string, country: string = "us", serviceId: string = "wa"): Promise<boolean> {
+    try {
+      const apiKey = process.env.SMSPVA_API_KEY;
+      if (!apiKey) return false;
 
-    const url = `https://smspva.com/priemnik.php?metod=denial&country=${country}&service=${serviceId}&id=${orderId}&apikey=${apiKey}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.response === '1';
+      const mappedCountry = mapCountryToProvider(country, 'smspva');
+      const mappedService = mapServiceToProvider(serviceId, 'smspva');
+
+      const url = `https://smspva.com/priemnik.php?metod=denial&country=${mappedCountry}&service=${mappedService}&id=${orderId}&apikey=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.response === '1';
+    } catch (_e) {
+      return false;
+    }
   }
 };
 

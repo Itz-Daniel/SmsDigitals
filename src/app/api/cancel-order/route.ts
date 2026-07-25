@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, SmspvaApi, SmsManApi, TextVerifiedApi } from "@/lib/providers/sms-providers";
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized. Please log in first." }, { status: 401 });
     }
 
     const { rental_id } = await req.json();
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing rental_id parameter." }, { status: 400 });
     }
 
-    // 1. Fetch Rental
+    // 1. Fetch Rental Record
     const { data: rental, error: fetchError } = await supabase
       .from('rentals')
       .select('*')
@@ -27,11 +27,11 @@ export async function POST(req: Request) {
       .single();
 
     if (fetchError || !rental) {
-      return NextResponse.json({ error: "Rental not found." }, { status: 404 });
+      return NextResponse.json({ error: "Rental order not found." }, { status: 404 });
     }
 
     if (rental.status !== 'Waiting') {
-      return NextResponse.json({ error: "Cannot cancel an order that is not waiting." }, { status: 400 });
+      return NextResponse.json({ error: `Cannot cancel an order that is currently in '${rental.status}' status.` }, { status: 400 });
     }
 
     // 2. Validate time elapsed
@@ -39,12 +39,16 @@ export async function POST(req: Request) {
     const now = Date.now();
     const elapsedSeconds = (now - createdAt) / 1000;
 
-    if (elapsedSeconds < 150) {
-      return NextResponse.json({ error: "Cannot cancel order before 2 minutes and 30 seconds." }, { status: 403 });
+    // Allow manual cancellation after 2 minutes (120s), or auto-cancellation after 20 minutes (1200s)
+    if (elapsedSeconds < 120) {
+      const waitSeconds = Math.ceil(120 - elapsedSeconds);
+      return NextResponse.json({ 
+        error: `🚫 Provider Policy: Please wait ${waitSeconds} more seconds before cancelling this order.` 
+      }, { status: 403 });
     }
 
-    // 3. Hit Provider API to Cancel
-    console.log(`[${rental.provider}] Telling provider to cancel order ${rental.order_id}...`);
+    // 3. Attempt Provider Denial / Cancellation API
+    console.log(`[${rental.provider}] Cancelling order ${rental.order_id} (Country: ${rental.country}, Service: ${rental.service})...`);
     
     let cancelledOnProvider = false;
     try {
@@ -53,31 +57,54 @@ export async function POST(req: Request) {
       } else if (rental.provider === "grizzly") {
         cancelledOnProvider = await GrizzlyApi.cancelOrder(rental.order_id);
       } else if (rental.provider === "smspva") {
-        // Fallback country to "1" since it wasn't saved in DB, may need adjustment
-        cancelledOnProvider = await SmspvaApi.cancelOrder(rental.order_id, "1", rental.service);
+        cancelledOnProvider = await SmspvaApi.cancelOrder(
+          rental.order_id, 
+          rental.country || "us", 
+          rental.service || "wa"
+        );
+      } else if (rental.provider === "smsman") {
+        cancelledOnProvider = await SmsManApi.cancelOrder(rental.order_id);
+      } else if (rental.provider === "textverified") {
+        cancelledOnProvider = await TextVerifiedApi.cancelOrder(rental.order_id);
       }
     } catch (apiError) {
-      console.error(`Provider Cancellation Error [${rental.provider}]:`, apiError);
-      // We will still proceed to refund the user locally even if the provider throws an error, 
-      // since the timer has expired.
+      console.error(`Provider Cancellation Warning [${rental.provider}]:`, apiError);
+      // We still proceed to refund the user locally so their money is never trapped
     }
 
-    // 4. Refund Wallet & Mark Cancelled
+    // 4. GUARANTEED LOCAL WALLET REFUND & STATUS UPDATE
     const supabaseAdmin = createAdminClient();
+    const finalStatus = elapsedSeconds >= 1200 ? 'Expired' : 'Cancelled';
+
     const { error: refundError } = await supabaseAdmin.rpc('refund_number', {
       p_rental_id: rental.id,
-      p_status: 'Cancelled'
+      p_status: finalStatus
     });
 
     if (refundError) {
       console.error("Refund error during cancellation:", refundError);
-      return NextResponse.json({ error: "Failed to process refund." }, { status: 500 });
+      return NextResponse.json({ error: "Failed to process wallet refund. Please contact support." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, status: 'Cancelled' });
+    // Record Refund Transaction Ledger
+    await supabaseAdmin.from('transactions').insert({
+      user_id: user.id,
+      type: 'Refund',
+      amount: rental.cost,
+      currency: rental.currency || 'USD',
+      status: 'Success',
+      reference: `refund_${rental.order_id}`,
+      description: `Refunded ${rental.service || 'SMS'} number order (${rental.phone_number})`
+    });
 
-  } catch (error: unknown) {
+    return NextResponse.json({ 
+      success: true, 
+      status: finalStatus,
+      message: `🎉 Order cancelled successfully! ${rental.currency === 'USD' ? '$' : '₦'}${rental.cost} refunded to your wallet.`
+    });
+
+  } catch (error: any) {
     console.error("Cancel Order API Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to cancel order." }, { status: 500 });
   }
 }
