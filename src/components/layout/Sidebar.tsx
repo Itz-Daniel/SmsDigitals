@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { House, Swap, Wallet, Hash, CreditCard, ClockCounterClockwise, Gear, SignOut, Headset, ChartLineUp, Storefront, UsersThree, Code } from "@phosphor-icons/react";
+import { House, Swap, Wallet, Hash, CreditCard, ClockCounterClockwise, Gear, SignOut, Headset, ChartLineUp, Storefront, UsersThree, Code, User } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,8 +36,9 @@ export const navGroups = [
     ],
   },
   {
-    title: "SUPPORT",
+    title: "ACCOUNT & SUPPORT",
     items: [
+      { name: "Profile Settings", href: "/dashboard/settings", icon: Gear },
       { name: "Support Tickets", href: "/dashboard/support", icon: Headset, badge: "24/7", badgeStyle: "support" },
     ],
   },
@@ -52,7 +53,6 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
 
   useEffect(() => {
     if (isAdmin) {
-      // Fetch if they are admin
       fetch('/api/admin/support')
         .then(res => res.json())
         .then(data => {
@@ -63,7 +63,6 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
         })
         .catch(() => {});
     } else {
-      // Fetch if they are normal user
       fetch('/api/support')
         .then(res => res.json())
         .then(data => {
@@ -92,9 +91,12 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
         </Link>
       </div>
 
-      {/* User Profile Mini */}
-      <div className="p-6 border-b border-black/5 dark:border-white/5 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-white dark:bg-surface border border-black/5 dark:border-white/10 flex items-center justify-center text-sm font-medium text-brand-blue uppercase overflow-hidden shrink-0 shadow-sm dark:shadow-none">
+      {/* User Profile Mini (Clickable to /dashboard/settings) */}
+      <Link 
+        href="/dashboard/settings"
+        className="p-5 border-b border-black/5 dark:border-white/5 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+      >
+        <div className="w-10 h-10 rounded-full bg-white dark:bg-surface border border-black/5 dark:border-white/10 flex items-center justify-center text-sm font-medium text-brand-blue uppercase overflow-hidden shrink-0 shadow-sm group-hover:border-brand-blue/40 transition-colors">
           {avatarUrl ? (
             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -102,10 +104,12 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
           )}
         </div>
         <div className="flex flex-col truncate">
-          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{email}</span>
-          <span className="text-[10px] text-slate-500 dark:text-white/40 font-mono">Standard VIP Tier</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate group-hover:text-brand-blue transition-colors">{email}</span>
+          <span className="text-[10px] text-slate-500 dark:text-white/40 font-mono flex items-center gap-1">
+            <Gear size={10} className="text-brand-blue" /> Profile Settings
+          </span>
         </div>
-      </div>
+      </Link>
 
       {/* Nav Groups */}
       <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -124,7 +128,7 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                const isDisabled = item.disabled;
+                const isDisabled = (item as any).disabled;
 
                 let badgeText = item.badge;
 

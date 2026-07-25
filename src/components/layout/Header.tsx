@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Headset, List, X, SignOut, Gear, Sun, Moon } from "@phosphor-icons/react";
+import { Headset, List, X, SignOut, Gear, Sun, Moon, User } from "@phosphor-icons/react";
 import { NotificationBell } from "./NotificationBell";
 import { navGroups } from "./Sidebar";
 import clsx from "clsx";
@@ -13,14 +13,25 @@ import { createClient } from "@/lib/supabase/client";
 
 export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: string | null; isAdmin?: boolean; email?: string }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
 
-  // Handle hydration mismatch
+  const avatarRef = useRef<HTMLDivElement>(null);
+
+  // Handle hydration mismatch & outside click
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
+        setIsAvatarMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -74,26 +85,63 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
             <Headset size={20} />
           </Link>
           
-          {/* Avatar (Hidden on small mobile) */}
+          {/* Avatar & Dropdown Menu (Desktop & Tablet) */}
           <div className="hidden sm:block w-px h-6 bg-black/10 dark:bg-white/10 mx-2 shrink-0"></div>
-          <div className="hidden sm:flex w-10 h-10 rounded-full bg-brand-blue/10 border border-black/10 dark:border-white/10 items-center justify-center text-sm font-medium text-brand-blue cursor-pointer hover:bg-brand-blue/15 transition-colors shrink-0 overflow-hidden shadow-sm dark:shadow-none relative">
-            <img 
-              src={avatarUrl || `https://api.dicebear.com/7.x/beam/svg?seed=${encodeURIComponent(email || 'user')}`} 
-              alt="" 
-              className="w-full h-full object-cover relative z-10" 
-              onError={(e) => {
-                // If DiceBear fails, fallback to a clean typographic gradient avatar
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-tr from-brand-blue to-cyan-400 flex items-center justify-center text-white font-bold text-xs uppercase z-0">
-              {(email || 'U').charAt(0)}
-            </div>
+          
+          <div className="relative" ref={avatarRef}>
+            <button 
+              onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+              className="hidden sm:flex w-10 h-10 rounded-full bg-brand-blue/10 border border-black/10 dark:border-white/10 items-center justify-center text-sm font-medium text-brand-blue cursor-pointer hover:bg-brand-blue/15 transition-colors shrink-0 overflow-hidden shadow-sm dark:shadow-none relative"
+            >
+              <img 
+                src={avatarUrl || `https://api.dicebear.com/7.x/beam/svg?seed=${encodeURIComponent(email || 'user')}`} 
+                alt="" 
+                className="w-full h-full object-cover relative z-10" 
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-tr from-brand-blue to-cyan-400 flex items-center justify-center text-white font-bold text-xs uppercase z-0">
+                {(email || 'U').charAt(0)}
+              </div>
+            </button>
+
+            {/* Desktop Avatar Dropdown */}
+            {isAvatarMenuOpen && (
+              <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-[#111111] rounded-2xl shadow-2xl border border-black/10 dark:border-white/15 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="p-3 border-b border-black/5 dark:border-white/5 flex flex-col">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{email}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">Account Settings</span>
+                </div>
+
+                <div className="py-1">
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={() => setIsAvatarMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <Gear size={16} className="text-brand-blue" />
+                    <span>Profile Settings</span>
+                  </Link>
+                </div>
+
+                <div className="border-t border-black/5 dark:border-white/5 pt-1">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors text-left"
+                  >
+                    <SignOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
         </div>
       </header>
 
-      {/* Mobile Drawer (Only mounts if opened, and stays hidden on xl just in case) */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
@@ -161,7 +209,7 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
                               {item.badge && (
                                 <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-slate-500 dark:text-white/50">
                                   {item.badge}
-                               </span>
+                                </span>
                               )}
                             </div>
                           );
