@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden: Admin access required." }, { status: 403 });
     }
 
-    const { code, amountUsd, amountNgn, maxUses, validDays } = await req.json();
+    const { code, amountUsd, amountNgn, maxUses, validDays, targetAudience = "all" } = await req.json();
 
     if (!code || typeof code !== "string") {
       return NextResponse.json({ error: "Please provide a valid voucher code." }, { status: 400 });
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       max_uses: parseInt(maxUses || "100"),
       used_count: 0,
       is_used: false,
+      target_audience: targetAudience || "all",
       expires_at: expiresAt.toISOString(),
       created_at: new Date().toISOString()
     };
@@ -64,13 +65,19 @@ export async function POST(req: Request) {
     if (dbErr) {
       console.error("Supabase voucher table error:", dbErr);
       return NextResponse.json({ 
-        error: "Database Error: Could not save voucher to Supabase 'vouchers' table. Please run the SQL in Supabase SQL Editor: CREATE TABLE IF NOT EXISTS vouchers (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, code TEXT NOT NULL UNIQUE, amount_usd NUMERIC DEFAULT 0, amount_ngn NUMERIC DEFAULT 0, max_uses INTEGER DEFAULT 1, used_count INTEGER DEFAULT 0, is_used BOOLEAN DEFAULT FALSE, expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());" 
+        error: "Database Error: Could not save voucher to Supabase 'vouchers' table. Please run the SQL in Supabase SQL Editor: ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS target_audience TEXT DEFAULT 'all';" 
       }, { status: 400 });
     }
 
+    const audienceLabel = targetAudience === "new_users" 
+      ? "New Users Only (<= 7 days)" 
+      : targetAudience === "existing_users" 
+      ? "Existing Members Only (> 7 days)" 
+      : "All Platform Members";
+
     return NextResponse.json({
       success: true,
-      message: `🎟️ Voucher ${cleanCode} created & saved to database! Valid for ${validDays || 7} days with a ${maxUses || 100} user limit.`
+      message: `🎟️ Voucher ${cleanCode} created for ${audienceLabel}! Valid for ${validDays || 7} days with a ${maxUses || 100} user limit.`
     });
   } catch (err: any) {
     console.error("Voucher create error:", err);

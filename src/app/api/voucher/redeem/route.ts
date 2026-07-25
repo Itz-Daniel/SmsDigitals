@@ -35,9 +35,10 @@ export async function POST(req: Request) {
 
     const fingerprint = deviceFingerprint || "unknown_device";
 
-    // 🛡️ RULE 4: ACCOUNT AGE & DEPOSIT GUARD (24 Hours or 1 Deposit)
+    // Calculate User Account Age in Days & Hours
     const userCreatedAt = new Date(user.created_at || Date.now());
     const accountAgeHours = (Date.now() - userCreatedAt.getTime()) / (1000 * 60 * 60);
+    const accountAgeDays = accountAgeHours / 24;
 
     const { data: userWallet } = await supabaseAdmin
       .from("wallets")
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
 
     const lifetimeDeposits = userWallet?.lifetime_deposits_usd || 0;
 
+    // 🛡️ RULE 4: ACCOUNT AGE & DEPOSIT GUARD (24 Hours or 1 Deposit)
     if (accountAgeHours < 24 && lifetimeDeposits <= 0) {
       return NextResponse.json({
         error: "🚫 Anti-Abuse Protection: Accounts under 24 hours old must have made at least 1 deposit before claiming promo vouchers."
@@ -105,7 +107,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🛡️ STRICT DATABASE VOUCHER VALIDATION (NO TESTING CODES ALLOWED)
+    // 🛡️ STRICT DATABASE VOUCHER VALIDATION
     const { data: dbVoucher } = await supabaseAdmin
       .from("vouchers")
       .select("*")
@@ -114,6 +116,21 @@ export async function POST(req: Request) {
 
     if (!dbVoucher) {
       return NextResponse.json({ error: "Invalid or expired gift card voucher code." }, { status: 400 });
+    }
+
+    // 🛡️ TARGET AUDIENCE ENFORCEMENT (New Users vs Existing Members vs All)
+    const targetAudience = dbVoucher.target_audience || "all";
+
+    if (targetAudience === "new_users" && accountAgeDays > 7) {
+      return NextResponse.json({
+        error: "🚫 Eligibility Notice: This promo voucher is reserved exclusively for new registered accounts (created within the last 7 days)."
+      }, { status: 400 });
+    }
+
+    if (targetAudience === "existing_users" && accountAgeDays <= 7) {
+      return NextResponse.json({
+        error: "🚫 Eligibility Notice: This promo voucher is reserved for existing platform members."
+      }, { status: 400 });
     }
 
     // 🛡️ STRICT MAX USES ENFORCEMENT

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users, ShieldCheck, CurrencyDollar, Storefront, Copy, Check } from "@phosphor-icons/react";
+import { SlidersHorizontal, CheckCircle, WarningCircle, Spinner, Gear, Plus, Trash, X, Ticket, Clock, Users, ShieldCheck, CurrencyDollar, Storefront, Copy, Check, UserPlus } from "@phosphor-icons/react";
 import { DEFAULT_BRAND_PRICE_RULES, BrandMarginRule } from "@/lib/pricing-engine";
 
 interface VoucherRecord {
@@ -9,9 +9,10 @@ interface VoucherRecord {
   code: string;
   amount_usd: number;
   amount_ngn: number;
-  used_count: number;
   max_uses: number;
+  used_count: number;
   is_used: boolean;
+  target_audience?: "all" | "new_users" | "existing_users";
   expires_at?: string;
   created_at: string;
 }
@@ -54,11 +55,12 @@ export default function AdminSettingsPanel({
   const [newMinPrice, setNewMinPrice] = useState("1.00");
   const [newMultiplier, setNewMultiplier] = useState("2.5");
 
-  // Admin Voucher Creation & History State
+  // Admin Voucher Creation & Target Audience State
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
   const [voucherAmountUsd, setVoucherAmountUsd] = useState("2.00");
   const [voucherMaxUses, setVoucherMaxUses] = useState("50");
   const [voucherValidDays, setVoucherValidDays] = useState("7");
+  const [voucherTargetAudience, setVoucherTargetAudience] = useState<"all" | "new_users" | "existing_users">("all");
   const [isCreatingVoucher, setIsCreatingVoucher] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -159,7 +161,8 @@ export default function AdminSettingsPanel({
           code: voucherCodeInput.trim(),
           amountUsd: voucherAmountUsd,
           maxUses: voucherMaxUses,
-          validDays: voucherValidDays
+          validDays: voucherValidDays,
+          targetAudience: voucherTargetAudience
         })
       });
 
@@ -329,7 +332,6 @@ export default function AdminSettingsPanel({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          {/* 1-Day Minimum Rental Floor ($) */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Minimum 1-Day Floor ($)
@@ -349,7 +351,6 @@ export default function AdminSettingsPanel({
             <span className="text-[11px] text-slate-500 dark:text-white/40">Fair minimum cost for a full 24-hour rental line.</span>
           </div>
 
-          {/* Daily Base Rate ($) */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Base Daily Rate ($)
@@ -369,7 +370,6 @@ export default function AdminSettingsPanel({
             <span className="text-[11px] text-slate-500 dark:text-white/40">Rate per day before bulk duration discounts.</span>
           </div>
 
-          {/* Profit Margin (%) */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
               Rental Profit Margin (%)
@@ -439,7 +439,7 @@ export default function AdminSettingsPanel({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Gift Card & Voucher Management Center</h2>
-              <p className="text-xs text-slate-500 dark:text-white/40">Create promotional gift cards and track live redemption records.</p>
+              <p className="text-xs text-slate-500 dark:text-white/40">Create promotional gift cards, target new/existing users, and track live redemption records.</p>
             </div>
           </div>
 
@@ -460,7 +460,7 @@ export default function AdminSettingsPanel({
         )}
 
         {/* Voucher Generator Form */}
-        <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Voucher Code</label>
             <input
@@ -485,6 +485,19 @@ export default function AdminSettingsPanel({
           </div>
 
           <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Target Audience</label>
+            <select
+              value={voucherTargetAudience}
+              onChange={(e) => setVoucherTargetAudience(e.target.value as any)}
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 font-bold text-xs text-slate-900 dark:text-white outline-none"
+            >
+              <option value="all" className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">🌐 All Members (Everyone)</option>
+              <option value="new_users" className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">✨ New Registered Users Only (≤ 7 Days)</option>
+              <option value="existing_users" className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">👑 Existing Members Only (&gt; 7 Days)</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">User Limit (Max Uses)</label>
             <input
               type="number"
@@ -506,13 +519,13 @@ export default function AdminSettingsPanel({
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-4 mt-1">
+          <div className="sm:col-span-2 lg:col-span-5 mt-1">
             <button
               type="submit"
               disabled={isCreatingVoucher || !voucherCodeInput.trim()}
               className="w-full py-4 rounded-2xl bg-brand-blue text-white font-bold text-sm hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 disabled:opacity-50"
             >
-              {isCreatingVoucher ? <Spinner size={20} className="animate-spin" /> : "Create & Authorize Promo Voucher"}
+              {isCreatingVoucher ? <Spinner size={20} className="animate-spin" /> : "Create & Authorize Targeted Promo Voucher"}
             </button>
           </div>
         </form>
@@ -544,6 +557,7 @@ export default function AdminSettingsPanel({
                   <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-wider font-bold">
                     <th className="pb-3 px-3">Voucher Code</th>
                     <th className="pb-3 px-3">Value ($)</th>
+                    <th className="pb-3 px-3">Target Audience</th>
                     <th className="pb-3 px-3">Usage Progress</th>
                     <th className="pb-3 px-3 text-center">Status</th>
                     <th className="pb-3 px-3 text-right">Actions</th>
@@ -556,6 +570,7 @@ export default function AdminSettingsPanel({
                     const isDepleted = v.is_used || usedCount >= maxUses;
                     const isExpired = v.expires_at && new Date(v.expires_at) < new Date();
                     const percentUsed = Math.min(100, Math.round((usedCount / maxUses) * 100));
+                    const audience = v.target_audience || "all";
 
                     return (
                       <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
@@ -580,9 +595,25 @@ export default function AdminSettingsPanel({
                           ${(v.amount_usd || 0).toFixed(2)} USD
                         </td>
 
+                        {/* Target Audience Badge */}
+                        <td className="py-3.5 px-3">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 w-fit ${
+                            audience === 'new_users' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                            audience === 'existing_users' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
+                            'bg-brand-blue/10 text-brand-blue border-brand-blue/20'
+                          }`}>
+                            {audience === 'new_users' ? <UserPlus size={12} weight="fill" /> :
+                             audience === 'existing_users' ? <Users size={12} weight="fill" /> :
+                             <Users size={12} />}
+                            {audience === 'new_users' ? 'New Users (≤ 7d)' :
+                             audience === 'existing_users' ? 'Existing (> 7d)' :
+                             'All Members'}
+                          </span>
+                        </td>
+
                         {/* Usage Progress Bar */}
                         <td className="py-3.5 px-3">
-                          <div className="flex flex-col gap-1 w-36">
+                          <div className="flex flex-col gap-1 w-32">
                             <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-500 dark:text-white/50">
                               <span>{usedCount} / {maxUses} claimed</span>
                               <span>{percentUsed}%</span>
