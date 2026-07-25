@@ -1,37 +1,44 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, CheckCircle, Warning, Spinner, CurrencyBtc, Copy, Check, QrCode, ArrowRight, ShieldCheck, Bank, Coins, Clock, WarningCircle, Ticket } from "@phosphor-icons/react";
 import { usePaystackPayment } from "react-paystack";
+import { CreditCard, Bank, Coins, ArrowRight, CheckCircle, Warning, Spinner, Copy, Check, Ticket, Clock, WarningCircle, ShieldCheck, CurrencyBtc } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
+import { useCurrency } from "@/components/CurrencyContext";
 
-type FundMethod = "bank" | "crypto" | "voucher";
+const EXPIRE_TIMEOUT_SECONDS = 45 * 60; // 45 Minutes
 
 const CRYPTO_COINS = [
-  { id: "usdttrc20", name: "USDT (TRC20)", network: "TRON", icon: "₮" },
-  { id: "usdtbep20", name: "USDT (BEP20)", network: "BSC", icon: "₮" },
-  { id: "btc", name: "Bitcoin", network: "BTC", icon: "₿" },
+  { id: "usdttrc20", name: "USDT", network: "TRC20 (Tron)", icon: "₮" },
+  { id: "usdtbep20", name: "USDT", network: "BEP20 (BSC)", icon: "₮" },
+  { id: "btc", name: "Bitcoin", network: "BTC Mainnet", icon: "₿" },
   { id: "eth", name: "Ethereum", network: "ERC20", icon: "Ξ" },
-  { id: "sol", name: "Solana", network: "SOL", icon: "◎" },
+  { id: "sol", name: "Solana", network: "SOL Network", icon: "◎" },
 ];
 
-const EXPIRE_TIMEOUT_SECONDS = 45 * 60; // 45 Minutes (2700 Seconds)
-
-export default function FundWalletClient() {
-  const [activeMethod, setActiveMethod] = useState<FundMethod>("bank");
-  const [email, setEmail] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+export default function FundWalletClient({
+  userEmail,
+  publicKey,
+  initialTxRef,
+}: {
+  userEmail: string;
+  publicKey: string;
+  initialTxRef?: string;
+}) {
+  const { currency } = useCurrency(); // User's active currency preference (USD or NGN)
+  const [activeMethod, setActiveMethod] = useState<"bank" | "crypto" | "voucher">("bank");
+  const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Bank / Paystack State
-  const [ngnAmount, setNgnAmount] = useState<string>("");
+  // Card / Local Bank State (Paystack)
+  const [ngnAmount, setNgnAmount] = useState("");
 
-  // Crypto Gateway State
-  const [usdAmount, setUsdAmount] = useState<string>("25");
-  const [selectedCoin, setSelectedCoin] = useState<string>("usdttrc20");
+  // Crypto Gateway State (45m Timer)
+  const [selectedCoin, setSelectedCoin] = useState("usdttrc20");
+  const [usdAmount, setUsdAmount] = useState("25");
   const [isGeneratingCrypto, setIsGeneratingCrypto] = useState(false);
   const [cryptoOrder, setCryptoOrder] = useState<{
     orderId: string;
@@ -42,32 +49,16 @@ export default function FundWalletClient() {
     qrUrl: string;
   } | null>(null);
   const [copiedCryptoAddress, setCopiedCryptoAddress] = useState(false);
+  
+  // 45-Minute Live Countdown Timer State
+  const [timeLeft, setTimeLeft] = useState(EXPIRE_TIMEOUT_SECONDS);
+  const [isOrderExpired, setIsOrderExpired] = useState(false);
 
-  // Voucher State
+  // Voucher Code Redeemer State
   const [voucherCode, setVoucherCode] = useState("");
   const [isRedeemingVoucher, setIsRedeemingVoucher] = useState(false);
 
-  // 45-Minute Countdown & Auto-Stop State
-  const [timeLeft, setTimeLeft] = useState<number>(EXPIRE_TIMEOUT_SECONDS);
-  const [isOrderExpired, setIsOrderExpired] = useState<boolean>(false);
-
-  const supabase = createClient();
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && user.email) {
-        setEmail(user.email);
-      } else {
-        setError("Could not retrieve user details. Please log in again.");
-      }
-      setLoading(false);
-    };
-    fetchUser();
-  }, []);
-
-  // 45-Minute Countdown Timer Hook
+  // Handle 45-Minute Timer Countdown & Auto-Stop
   useEffect(() => {
     if (!cryptoOrder || isOrderExpired) return;
 
@@ -85,17 +76,37 @@ export default function FundWalletClient() {
     return () => clearInterval(timer);
   }, [cryptoOrder, isOrderExpired]);
 
+  // Server Polling for Payment Confirmation (Stops automatically when expired)
+  useEffect(() => {
+    if (!cryptoOrder || isOrderExpired) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/checkout/crypto?orderId=${cryptoOrder.orderId}`);
+        const data = await res.json();
+        if (data.status === "finished" || data.status === "confirmed") {
+          setSuccess(`🎉 Deposit Confirmed! Credited $${cryptoOrder.priceAmountUsd} USD to your wallet.`);
+          setCryptoOrder(null);
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        // Silent catch during polling
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [cryptoOrder, isOrderExpired]);
+
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Paystack NGN Card & Bank Payment Config
   const paystackConfig = {
-    reference: (new Date()).getTime().toString(),
-    email: email,
-    amount: parseInt(ngnAmount || "0") * 100,
+    reference: initialTxRef || "SMS_" + Math.floor(Math.random() * 1000000000 + 1),
+    email: userEmail,
+    amount: parseInt(ngnAmount || "0") * 100, // Paystack requires amount in Kobo
     publicKey: publicKey,
   };
 
@@ -183,7 +194,7 @@ export default function FundWalletClient() {
     }
   };
 
-  // Redeem Promo Voucher Code with 3-Layer Anti-Abuse Protection
+  // Redeem Promo Voucher Code in User's Selected Currency Preference
   const handleRedeemVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!voucherCode.trim()) return;
@@ -198,7 +209,8 @@ export default function FundWalletClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: voucherCode.trim(),
-          deviceFingerprint: fp
+          deviceFingerprint: fp,
+          currencyPreference: currency // Pass user's active currency (USD or NGN)
         })
       });
       const data = await res.json();
@@ -291,7 +303,7 @@ export default function FundWalletClient() {
             onClick={() => setActiveMethod("voucher")}
             className={`py-3 px-2 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeMethod === "voucher"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
+                ? "bg-brand-blue text-white shadow-md shadow-brand-blue/20"
                 : "text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
@@ -458,7 +470,7 @@ export default function FundWalletClient() {
                 </div>
 
                 {isOrderExpired ? (
-                  /* EXPIRED STATE (SERVER AUTO-STOPPED TO AVOID OVERLOAD) */
+                  /* EXPIRED STATE */
                   <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 flex flex-col items-center text-center gap-3">
                     <WarningCircle size={36} className="text-red-400" weight="fill" />
                     <div className="flex flex-col gap-1">
@@ -521,9 +533,9 @@ export default function FundWalletClient() {
           <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Ticket size={20} className="text-purple-500" /> Gift Card & Promo Code Voucher
+                <Ticket size={20} className="text-brand-blue" /> Gift Card & Promo Code Voucher
               </h2>
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20 flex items-center gap-1">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20 flex items-center gap-1">
                 <ShieldCheck size={14} weight="fill" /> Anti-Spam Guard Active
               </span>
             </div>
@@ -533,11 +545,11 @@ export default function FundWalletClient() {
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
                   Enter Gift Card or Voucher Code
                 </label>
-                <div className="group flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 px-4 py-3.5 focus-within:border-purple-500 transition-all">
-                  <Ticket size={20} className="text-purple-500 shrink-0" />
+                <div className="group flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 px-4 py-3.5 focus-within:border-brand-blue transition-all">
+                  <Ticket size={20} className="text-brand-blue shrink-0" />
                   <input
                     type="text"
-                    placeholder="e.g. WELCOME1000 or BONUS5"
+                    placeholder="e.g. GIFT2026 or PROMO50"
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                     className="w-full bg-transparent outline-none font-mono font-bold text-base text-slate-900 dark:text-white uppercase tracking-wider"
@@ -546,7 +558,7 @@ export default function FundWalletClient() {
               </div>
 
               {/* Anti-Abuse Notice */}
-              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex flex-col gap-1 text-xs text-purple-600 dark:text-purple-300">
+              <div className="p-3.5 rounded-2xl bg-brand-blue/10 border border-brand-blue/20 flex flex-col gap-1 text-xs text-brand-blue dark:text-cyan-400">
                 <span className="font-bold flex items-center gap-1">
                   🔒 Anti-Abuse Security:
                 </span>
@@ -556,7 +568,7 @@ export default function FundWalletClient() {
               <button
                 type="submit"
                 disabled={isRedeemingVoucher || !voucherCode.trim()}
-                className="w-full py-4 rounded-2xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 disabled:opacity-50"
+                className="w-full py-4 rounded-2xl bg-brand-blue text-white font-bold text-sm hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 disabled:opacity-50"
               >
                 {isRedeemingVoucher ? <Spinner size={20} className="animate-spin" /> : "Redeem Gift Card Voucher"} <ArrowRight size={16} weight="bold" />
               </button>

@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: statusCheck.reason }, { status: 403 });
     }
 
-    const { code, deviceFingerprint } = await req.json();
+    const { code, deviceFingerprint, currencyPreference = "USD" } = await req.json();
 
     if (!code || typeof code !== "string") {
       return NextResponse.json({ error: "Please enter a valid gift card or promo code." }, { status: 400 });
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     const fingerprint = deviceFingerprint || "unknown_device";
 
-    // 🛡️ RULE 4 (COMBINED A+C): ACCOUNT AGE & ACTIVITY GUARD (24 Hours or 1 Deposit)
+    // 🛡️ RULE 4: ACCOUNT AGE & DEPOSIT GUARD (24 Hours or 1 Deposit)
     const userCreatedAt = new Date(user.created_at || Date.now());
     const accountAgeHours = (Date.now() - userCreatedAt.getTime()) / (1000 * 60 * 60);
 
@@ -53,12 +53,12 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 🛡️ RULE 1: User Account One-Time Limit
+    // 🛡️ RULE 1: User Account One-Time Redemption Limit per Voucher Code
     const { data: userPrevTx } = await supabaseAdmin
-      .from("wallet_transactions")
+      .from("voucher_redemptions")
       .select("id")
       .eq("user_id", user.id)
-      .eq("reference", `voucher_${cleanCode}`)
+      .eq("voucher_code", cleanCode)
       .limit(1);
 
     if (userPrevTx && userPrevTx.length > 0) {
@@ -67,17 +67,15 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 🛡️ RULE 2 & 3: STRICT IP ADDRESS & DEVICE FINGERPRINT LOCK + AUTO SOFT-FREEZE
+    // 🛡️ RULE 2 & 3: IP ADDRESS & DEVICE FINGERPRINT MULTI-ACCOUNT LOCK
     const { data: existingRedemptions } = await supabaseAdmin
       .from("voucher_redemptions")
       .select("user_id, ip_address, device_fingerprint")
       .eq("voucher_code", cleanCode);
 
     if (existingRedemptions && existingRedemptions.length > 0) {
-      // Check IP match across different user accounts
       const ipMatch = existingRedemptions.find(r => r.ip_address === clientIp && r.user_id !== user.id);
       if (ipMatch) {
-        // Flag user account for admin review on multi-account attempt
         await flagUserForFraud({
           userId: user.id,
           userEmail: user.email!,
@@ -91,7 +89,6 @@ export async function POST(req: Request) {
         }, { status: 400 });
       }
 
-      // Check Device Fingerprint match across different user accounts
       const fpMatch = existingRedemptions.find(r => r.device_fingerprint === fingerprint && r.user_id !== user.id);
       if (fpMatch) {
         await flagUserForFraud({
@@ -108,86 +105,100 @@ export async function POST(req: Request) {
       }
     }
 
-    // Validate Database Voucher or Fallback Promo Codes
+    // 🛡️ STRICT DATABASE VOUCHER VALIDATION (NO TESTING CODES ALLOWED)
     const { data: dbVoucher } = await supabaseAdmin
       .from("vouchers")
       .select("*")
       .eq("code", cleanCode)
       .single();
 
-    let creditAmountUsd = 0;
-    let creditAmountNgn = 0;
-
-    if (dbVoucher) {
-      if (dbVoucher.is_used || (dbVoucher.max_uses && dbVoucher.used_count >= dbVoucher.max_uses)) {
-        return NextResponse.json({ error: "This promo code has reached its maximum user limit or expired." }, { status: 400 });
-      }
-
-      if (dbVoucher.expires_at && new Date(dbVoucher.expires_at) < new Date()) {
-        return NextResponse.json({ error: "This promo code voucher has expired." }, { status: 400 });
-      }
-
-      creditAmountUsd = dbVoucher.amount_usd || 0;
-      creditAmountNgn = dbVoucher.amount_ngn || 0;
-    } else {
-      // Hardcoded Promo Codes
-      const MOCK_PROMO_MAP: Record<string, { usd: number; ngn: number }> = {
-        WELCOME1000: { usd: 1.0, ngn: 1000 },
-        BONUS5: { usd: 5.0, ngn: 7500 },
-        CRYPTOVIP: { usd: 10.0, ngn: 15000 },
-        LAUNCH2026: { usd: 2.0, ngn: 3000 }
-      };
-
-      const promo = MOCK_PROMO_MAP[cleanCode];
-      if (!promo) {
-        return NextResponse.json({ error: "Invalid or expired promo voucher code." }, { status: 400 });
-      }
-      creditAmountUsd = promo.usd;
-      creditAmountNgn = promo.ngn;
+    if (!dbVoucher) {
+      return NextResponse.json({ error: "Invalid or expired gift card voucher code." }, { status: 400 });
     }
 
-    // Atomically Credit User Wallet Balance
+    // 🛡️ STRICT MAX USES ENFORCEMENT
+    const maxAllowedUses = dbVoucher.max_uses || 1;
+    const currentUsedCount = dbVoucher.used_count || 0;
+
+    if (dbVoucher.is_used || currentUsedCount >= maxAllowedUses) {
+      return NextResponse.json({ error: "🚫 This promo voucher code has reached its maximum redemption limit." }, { status: 400 });
+    }
+
+    if (dbVoucher.expires_at && new Date(dbVoucher.expires_at) < new Date()) {
+      return NextResponse.json({ error: "🚫 This promo voucher code has expired." }, { status: 400 });
+    }
+
+    // Fetch Exchange Rate for single-currency crediting
+    const { data: settings } = await supabaseAdmin
+      .from("settings")
+      .select("exchange_rate")
+      .eq("id", 1)
+      .single();
+
+    const exchangeRate = settings?.exchange_rate || 1500;
+
+    // Calculate Credit Amount strictly in the user's PREFERRED currency ONLY
+    const isNgnPreference = currencyPreference?.toUpperCase() === "NGN";
+    
+    let creditAmount = 0;
+    let finalCurrency: "USD" | "NGN" = "USD";
+
+    if (isNgnPreference) {
+      finalCurrency = "NGN";
+      if (dbVoucher.amount_ngn && dbVoucher.amount_ngn > 0) {
+        creditAmount = dbVoucher.amount_ngn;
+      } else {
+        creditAmount = (dbVoucher.amount_usd || 0) * exchangeRate;
+      }
+    } else {
+      finalCurrency = "USD";
+      if (dbVoucher.amount_usd && dbVoucher.amount_usd > 0) {
+        creditAmount = dbVoucher.amount_usd;
+      } else {
+        creditAmount = (dbVoucher.amount_ngn || 0) / exchangeRate;
+      }
+    }
+
+    if (creditAmount <= 0) {
+      return NextResponse.json({ error: "Voucher has zero credit value." }, { status: 400 });
+    }
+
+    // Atomically Credit ONLY the Selected Currency Balance
     if (!userWallet) {
       return NextResponse.json({ error: "Wallet not found." }, { status: 404 });
     }
 
-    const newUsd = (userWallet.balance_usd || 0) + creditAmountUsd;
-    const newNgn = (userWallet.balance_ngn || 0) + creditAmountNgn;
+    let updateWalletData: Record<string, number> = {};
+    let formattedSuccessText = "";
+
+    if (finalCurrency === "NGN") {
+      const newNgnBalance = (userWallet.balance_ngn || 0) + creditAmount;
+      updateWalletData = { balance_ngn: newNgnBalance };
+      formattedSuccessText = `₦${creditAmount.toLocaleString()} NGN`;
+    } else {
+      const newUsdBalance = (userWallet.balance_usd || 0) + creditAmount;
+      updateWalletData = { balance_usd: newUsdBalance };
+      formattedSuccessText = `$${creditAmount.toFixed(2)} USD`;
+    }
 
     await supabaseAdmin
       .from("wallets")
-      .update({ balance_usd: newUsd, balance_ngn: newNgn })
+      .update(updateWalletData)
       .eq("user_id", user.id);
 
-    // Record Transaction History with "Created with Voucher" Description
-    const voucherTxDescription = `Created with Gift Card Voucher: ${cleanCode}`;
-    const voucherRef = `voucher_${cleanCode}`;
+    // Increment DB Voucher Used Count Atomically
+    const newUsedCount = currentUsedCount + 1;
+    const isNowDepleted = newUsedCount >= maxAllowedUses;
 
     await supabaseAdmin
-      .from("wallet_transactions")
-      .insert({
-        user_id: user.id,
-        type: "Voucher",
-        amount: creditAmountUsd > 0 ? creditAmountUsd : creditAmountNgn,
-        currency: creditAmountUsd > 0 ? "USD" : "NGN",
-        status: "Completed",
-        reference: voucherRef,
-        description: voucherTxDescription
-      });
+      .from("vouchers")
+      .update({ 
+        used_count: newUsedCount,
+        is_used: isNowDepleted
+      })
+      .eq("id", dbVoucher.id);
 
-    await supabaseAdmin
-      .from("transactions")
-      .insert({
-        user_id: user.id,
-        type: "Voucher",
-        amount: creditAmountUsd > 0 ? creditAmountUsd : creditAmountNgn,
-        currency: creditAmountUsd > 0 ? "USD" : "NGN",
-        status: "Success",
-        reference: voucherRef,
-        description: voucherTxDescription
-      });
-
-    // Save Anti-Abuse Redemption Log (User + IP + Fingerprint)
+    // Record Anti-Abuse Redemption Log
     await supabaseAdmin
       .from("voucher_redemptions")
       .insert({
@@ -198,19 +209,39 @@ export async function POST(req: Request) {
         redeemed_at: new Date().toISOString()
       });
 
-    // Update DB voucher use count
-    if (dbVoucher) {
-      await supabaseAdmin
-        .from("vouchers")
-        .update({ used_count: (dbVoucher.used_count || 0) + 1 })
-        .eq("id", dbVoucher.id);
-    }
+    // Record Transaction Ledger with "Created with Voucher"
+    const voucherTxDescription = `Created with Gift Card Voucher: ${cleanCode}`;
+    const voucherRef = `voucher_${cleanCode}`;
+
+    await supabaseAdmin
+      .from("wallet_transactions")
+      .insert({
+        user_id: user.id,
+        type: "Voucher",
+        amount: creditAmount,
+        currency: finalCurrency,
+        status: "Completed",
+        reference: voucherRef,
+        description: voucherTxDescription
+      });
+
+    await supabaseAdmin
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        type: "Voucher",
+        amount: creditAmount,
+        currency: finalCurrency,
+        status: "Success",
+        reference: voucherRef,
+        description: voucherTxDescription
+      });
 
     return NextResponse.json({
       success: true,
-      message: `🎉 Success! Redeemed ${cleanCode} for ${creditAmountUsd > 0 ? `$${creditAmountUsd.toFixed(2)} USD` : `₦${creditAmountNgn.toLocaleString()} NGN`} wallet credit!`,
-      newUsd,
-      newNgn
+      message: `🎉 Success! Redeemed ${cleanCode} for ${formattedSuccessText} wallet credit!`,
+      creditedCurrency: finalCurrency,
+      creditedAmount: creditAmount
     });
   } catch (err: any) {
     console.error("Voucher redeem error:", err);
