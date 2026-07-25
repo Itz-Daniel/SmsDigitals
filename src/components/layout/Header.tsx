@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Headset, List, X, SignOut, Gear, Sun, Moon, User } from "@phosphor-icons/react";
+import { Headset, List, X, SignOut, Gear, Sun, Moon } from "@phosphor-icons/react";
 import { NotificationBell } from "./NotificationBell";
 import { navGroups } from "./Sidebar";
 import clsx from "clsx";
@@ -247,16 +247,8 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
                 )})}
               </div>
 
-              {/* Drawer Footer */}
-              <div className="p-4 border-t border-black/5 dark:border-white/5 space-y-1 bg-slate-50 dark:bg-[#050505]">
-                <Link 
-                  href="/dashboard/settings" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 hover:bg-black/5 hover:text-slate-900 dark:text-white/60 dark:hover:bg-white/5 dark:hover:text-white transition-colors"
-                >
-                  <Gear className="text-lg text-slate-400 dark:text-white/40" />
-                  Profile Settings
-                </Link>
+              {/* Drawer Footer (Only Logout, no duplicate Profile Settings) */}
+              <div className="p-4 border-t border-black/5 dark:border-white/5 bg-slate-50 dark:bg-[#050505]">
                 <button 
                   onClick={handleLogout}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors w-full text-left"

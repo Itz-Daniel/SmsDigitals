@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Megaphone, Info, CheckCircle, X, ArrowRight, Clock, ShieldCheck } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,9 +20,23 @@ export function NotificationBell() {
   const [hasUnread, setHasUnread] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  useEffect(() => {
+    setMounted(true);
+    fetchNotifications();
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -51,18 +66,6 @@ export function NotificationBell() {
       console.error("Error fetching notifications:", err);
     }
   };
-
-  useEffect(() => {
-    fetchNotifications();
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleOpen = async () => {
     setIsOpen(!isOpen);
@@ -184,123 +187,131 @@ export function NotificationBell() {
         </div>
       )}
 
-      {/* FULL UNTRUNCATED ANNOUNCEMENT READING MODAL */}
-      <AnimatePresence>
-        {selectedNotif && (
-          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-[#111111] border border-black/10 dark:border-white/15 rounded-3xl p-6 sm:p-8 max-w-lg w-full flex flex-col gap-6 shadow-2xl relative"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4 border-b border-black/5 dark:border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shrink-0">
-                    {selectedNotif.icon_type === 'megaphone' ? <Megaphone size={22} weight="fill" className="text-purple-500" /> :
-                     selectedNotif.icon_type === 'success' ? <CheckCircle size={22} weight="fill" className="text-emerald-500" /> :
-                     <Info size={22} weight="fill" className="text-brand-blue" />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center gap-1">
-                      <Clock size={12} /> {formatDateFull(selectedNotif.created_at)}
-                    </span>
-                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-tight">
-                      {selectedNotif.title}
-                    </h3>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setSelectedNotif(null)} 
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+      {/* REACT PORTALS: Render Modals directly at document.body level to avoid parent sticky header transforms */}
+      {mounted && createPortal(
+        <>
+          {/* FULL UNTRUNCATED ANNOUNCEMENT READING MODAL */}
+          <AnimatePresence>
+            {selectedNotif && (
+              <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className="bg-white dark:bg-[#111111] border border-black/10 dark:border-white/15 rounded-3xl p-6 sm:p-8 max-w-lg w-full flex flex-col gap-6 shadow-2xl relative my-auto"
                 >
-                  <X size={20} weight="bold" />
-                </button>
-              </div>
-
-              {/* Full Untruncated Announcement Content */}
-              <div className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-sans max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                {selectedNotif.message}
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-black/5 dark:border-white/10 pt-4 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 dark:text-white/40 flex items-center gap-1">
-                  <ShieldCheck size={14} className="text-emerald-500" weight="fill" /> Official Broadcast
-                </span>
-                <button
-                  onClick={() => setSelectedNotif(null)}
-                  className="px-6 py-2.5 rounded-xl bg-brand-blue text-white font-bold text-xs hover:bg-blue-600 transition-all shadow-md shadow-brand-blue/20"
-                >
-                  Close Update
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* FULL UPDATE HISTORY LIST MODAL */}
-      <AnimatePresence>
-        {showHistoryModal && (
-          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-[#111111] border border-black/10 dark:border-white/15 rounded-3xl p-6 sm:p-8 max-w-2xl w-full flex flex-col gap-6 max-h-[85vh] shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between border-b border-black/5 dark:border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
-                    <Bell size={22} weight="fill" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Platform Announcement History</h3>
-                    <p className="text-xs text-slate-500 dark:text-white/40">Complete archive of system updates and features.</p>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setShowHistoryModal(false)} 
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                >
-                  <X size={20} weight="bold" />
-                </button>
-              </div>
-
-              {/* History List */}
-              <div className="overflow-y-auto flex flex-col gap-3 pr-2 custom-scrollbar max-h-[60vh]">
-                {notifications.map((notif) => (
-                  <div 
-                    key={notif.id}
-                    onClick={() => {
-                      setShowHistoryModal(false);
-                      setSelectedNotif(notif);
-                    }}
-                    className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 hover:border-brand-blue/30 cursor-pointer flex flex-col gap-2 transition-all group"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">
-                        {notif.title}
-                      </h4>
-                      <span className="text-[11px] font-mono text-slate-400 dark:text-white/40">
-                        {formatDateFull(notif.created_at)}
-                      </span>
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-4 border-b border-black/5 dark:border-white/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shrink-0">
+                        {selectedNotif.icon_type === 'megaphone' ? <Megaphone size={22} weight="fill" className="text-purple-500" /> :
+                         selectedNotif.icon_type === 'success' ? <CheckCircle size={22} weight="fill" className="text-emerald-500" /> :
+                         <Info size={22} weight="fill" className="text-brand-blue" />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center gap-1">
+                          <Clock size={12} /> {formatDateFull(selectedNotif.created_at)}
+                        </span>
+                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-tight">
+                          {selectedNotif.title}
+                        </h3>
+                      </div>
                     </div>
 
-                    <p className="text-xs text-slate-600 dark:text-white/70 line-clamp-2 leading-relaxed">
-                      {notif.message}
-                    </p>
+                    <button 
+                      onClick={() => setSelectedNotif(null)} 
+                      className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
+                    >
+                      <X size={20} weight="bold" />
+                    </button>
                   </div>
-                ))}
+
+                  {/* Full Untruncated Announcement Content */}
+                  <div className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-sans max-h-[55vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {selectedNotif.message}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-black/5 dark:border-white/10 pt-4 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400 dark:text-white/40 flex items-center gap-1">
+                      <ShieldCheck size={14} className="text-emerald-500" weight="fill" /> Official Broadcast
+                    </span>
+                    <button
+                      onClick={() => setSelectedNotif(null)}
+                      className="px-6 py-2.5 rounded-xl bg-brand-blue text-white font-bold text-xs hover:bg-blue-600 transition-all shadow-md shadow-brand-blue/20"
+                    >
+                      Close Update
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            )}
+          </AnimatePresence>
+
+          {/* FULL UPDATE HISTORY LIST MODAL */}
+          <AnimatePresence>
+            {showHistoryModal && (
+              <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className="bg-white dark:bg-[#111111] border border-black/10 dark:border-white/15 rounded-3xl p-6 sm:p-8 max-w-2xl w-full flex flex-col gap-6 max-h-[85vh] shadow-2xl relative my-auto"
+                >
+                  <div className="flex items-center justify-between border-b border-black/5 dark:border-white/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shrink-0">
+                        <Bell size={22} weight="fill" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Platform Announcement History</h3>
+                        <p className="text-xs text-slate-500 dark:text-white/40">Complete archive of system updates and features.</p>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setShowHistoryModal(false)} 
+                      className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white shrink-0"
+                    >
+                      <X size={20} weight="bold" />
+                    </button>
+                  </div>
+
+                  {/* History List */}
+                  <div className="overflow-y-auto flex flex-col gap-3 pr-2 custom-scrollbar max-h-[60vh]">
+                    {notifications.map((notif) => (
+                      <div 
+                        key={notif.id}
+                        onClick={() => {
+                          setShowHistoryModal(false);
+                          setSelectedNotif(notif);
+                        }}
+                        className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 hover:border-brand-blue/30 cursor-pointer flex flex-col gap-2 transition-all group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">
+                            {notif.title}
+                          </h4>
+                          <span className="text-[11px] font-mono text-slate-400 dark:text-white/40 shrink-0">
+                            {formatDateFull(notif.created_at)}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-white/70 line-clamp-2 leading-relaxed">
+                          {notif.message}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
 
     </div>
   );
