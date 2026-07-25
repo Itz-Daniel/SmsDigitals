@@ -330,7 +330,7 @@ export default function AdminSettingsPanel({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
@@ -370,7 +370,7 @@ export default function AdminSettingsPanel({
             <span className="text-[11px] text-slate-500 dark:text-white/40">Rate per day before bulk duration discounts.</span>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:col-span-2 md:col-span-1">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">
               Rental Profit Margin (%)
             </label>
@@ -400,9 +400,9 @@ export default function AdminSettingsPanel({
 
       {/* 3. BRAND-SPECIFIC SERVICE PRICING RULES CARD */}
       <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
-        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
               <Gear size={20} weight="bold" />
             </div>
             <div>
@@ -432,9 +432,9 @@ export default function AdminSettingsPanel({
 
       {/* 4. ADMIN VOUCHER & GIFT CARD GENERATOR & HISTORY CENTER CARD */}
       <div className="bg-white dark:bg-[#111] border border-brand-blue/20 dark:border-brand-blue/30 rounded-3xl p-6 md:p-8 flex flex-col gap-8 shadow-sm transition-colors">
-        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shrink-0">
               <Ticket size={22} weight="bold" />
             </div>
             <div>
@@ -459,8 +459,8 @@ export default function AdminSettingsPanel({
           </div>
         )}
 
-        {/* Voucher Generator Form */}
-        <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Voucher Generator Form (Fully Screen Responsive Grid) */}
+        <form onSubmit={handleCreateVoucherAdmin} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Voucher Code</label>
             <input
@@ -519,7 +519,7 @@ export default function AdminSettingsPanel({
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-5 mt-1">
+          <div className="sm:col-span-2 md:col-span-3 xl:col-span-5 mt-1">
             <button
               type="submit"
               disabled={isCreatingVoucher || !voucherCodeInput.trim()}
@@ -552,7 +552,7 @@ export default function AdminSettingsPanel({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left whitespace-nowrap">
+              <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                 <thead>
                   <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-wider font-bold">
                     <th className="pb-3 px-3">Voucher Code</th>
