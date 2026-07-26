@@ -160,16 +160,22 @@ export default function USPurchasePage() {
       });
 
       const data = await res.json();
-      if (data.success && data.order) {
+      if (data.success) {
+        const rentalObj = data.rental || {};
+        const orderId = rentalObj.order_id || data.order_id || data.order?.order_id || `rent_${Date.now()}`;
+        const rentalId = rentalObj.id || orderId;
+        const phoneNumber = rentalObj.phone_number || data.phone_number || data.order?.phone_number || "";
+        const costVal = rentalObj.cost || data.cost || livePrice || 0;
+
         // INSTANT STATE UPDATE (0ms delay)
         const newRentalItem: Rental = {
-          id: data.order.order_id || `rent_${Date.now()}`,
-          order_id: data.order.order_id,
-          phone_number: data.order.phone_number,
+          id: rentalId,
+          order_id: orderId,
+          phone_number: phoneNumber,
           service: selectedService,
           status: 'Waiting',
           sms_code: null,
-          cost: data.order.cost || livePrice || 0,
+          cost: costVal,
           currency: currency,
           created_at: new Date().toISOString()
         };
@@ -180,9 +186,9 @@ export default function USPurchasePage() {
         setSuccessModalData({
           isOpen: true,
           serviceName: selectedServiceName,
-          phoneNumber: data.order.phone_number,
-          cost: isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${data.order.cost || livePrice}` : `₦${(data.order.cost || livePrice)?.toLocaleString()}`,
-          orderId: data.order.order_id
+          phoneNumber: phoneNumber,
+          cost: isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${costVal}` : `₦${costVal?.toLocaleString()}`,
+          orderId: orderId
         });
 
         fetchRentals();

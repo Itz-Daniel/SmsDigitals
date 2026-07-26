@@ -18,58 +18,61 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing rental_id parameter." }, { status: 400 });
     }
 
-    // 1. Fetch Rental Record
+    // 1. Fetch Rental Record by matching EITHER Supabase UUID 'id' OR provider 'order_id'
     const { data: rental, error: fetchError } = await supabase
       .from('rentals')
       .select('*')
-      .eq('id', rental_id)
+      .or(`id.eq.${rental_id},order_id.eq.${rental_id}`)
       .eq('user_id', user.id)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (fetchError || !rental) {
-      return NextResponse.json({ error: "Rental order not found." }, { status: 404 });
+      console.error(`Rental not found for ID ${rental_id}:`, fetchError);
+      return NextResponse.json({ error: "Rental order not found in database." }, { status: 404 });
     }
 
     if (rental.status !== 'Waiting') {
       return NextResponse.json({ error: `Cannot cancel an order that is currently in '${rental.status}' status.` }, { status: 400 });
     }
 
-    // 2. Validate time elapsed
+    // 2. Validate time elapsed (Allow manual cancellation after 120 seconds or instant in Sandbox mode)
     const createdAt = new Date(rental.created_at).getTime();
     const now = Date.now();
     const elapsedSeconds = (now - createdAt) / 1000;
+    const isSandboxOrder = rental.order_id?.startsWith('sandbox_') || rental.provider === 'sandbox';
 
-    // Allow manual cancellation after 2 minutes (120s), or auto-cancellation after 20 minutes (1200s)
-    if (elapsedSeconds < 120) {
+    if (elapsedSeconds < 120 && !isSandboxOrder) {
       const waitSeconds = Math.ceil(120 - elapsedSeconds);
       return NextResponse.json({ 
         error: `🚫 Provider Policy: Please wait ${waitSeconds} more seconds before cancelling this order.` 
       }, { status: 403 });
     }
 
-    // 3. Attempt Provider Denial / Cancellation API
-    console.log(`[${rental.provider}] Cancelling order ${rental.order_id} (Country: ${rental.country}, Service: ${rental.service})...`);
-    
-    let cancelledOnProvider = false;
-    try {
-      if (rental.provider === "5sim") {
-        cancelledOnProvider = await FiveSimApi.cancelOrder(rental.order_id);
-      } else if (rental.provider === "grizzly") {
-        cancelledOnProvider = await GrizzlyApi.cancelOrder(rental.order_id);
-      } else if (rental.provider === "smspva") {
-        cancelledOnProvider = await SmspvaApi.cancelOrder(
-          rental.order_id, 
-          rental.country || "us", 
-          rental.service || "wa"
-        );
-      } else if (rental.provider === "smsman") {
-        cancelledOnProvider = await SmsManApi.cancelOrder(rental.order_id);
-      } else if (rental.provider === "textverified") {
-        cancelledOnProvider = await TextVerifiedApi.cancelOrder(rental.order_id);
+    // 3. Attempt Provider Denial / Cancellation API (Skip for Sandbox)
+    if (!isSandboxOrder) {
+      console.log(`[${rental.provider}] Cancelling order ${rental.order_id} (Country: ${rental.country}, Service: ${rental.service})...`);
+      
+      try {
+        if (rental.provider === "5sim") {
+          await FiveSimApi.cancelOrder(rental.order_id);
+        } else if (rental.provider === "grizzly") {
+          await GrizzlyApi.cancelOrder(rental.order_id);
+        } else if (rental.provider === "smspva") {
+          await SmspvaApi.cancelOrder(
+            rental.order_id, 
+            rental.country || "us", 
+            rental.service || "wa"
+          );
+        } else if (rental.provider === "smsman") {
+          await SmsManApi.cancelOrder(rental.order_id);
+        } else if (rental.provider === "textverified") {
+          await TextVerifiedApi.cancelOrder(rental.order_id);
+        }
+      } catch (apiError) {
+        console.error(`Provider Cancellation Warning [${rental.provider}]:`, apiError);
+        // We still proceed to refund local wallet so user's money is never trapped
       }
-    } catch (apiError) {
-      console.error(`Provider Cancellation Warning [${rental.provider}]:`, apiError);
-      // We still proceed to refund the user locally so their money is never trapped
     }
 
     // 4. GUARANTEED LOCAL WALLET REFUND & STATUS UPDATE
@@ -93,7 +96,7 @@ export async function POST(req: Request) {
       amount: rental.cost,
       currency: rental.currency || 'USD',
       status: 'Success',
-      reference: `refund_${rental.order_id}`,
+      reference: `refund_${rental.order_id || rental.id}`,
       description: `Refunded ${rental.service || 'SMS'} number order (${rental.phone_number})`
     });
 
