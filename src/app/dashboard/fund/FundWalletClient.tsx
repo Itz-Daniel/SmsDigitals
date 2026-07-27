@@ -197,7 +197,7 @@ export default function FundWalletClient({
   // Redeem Promo Voucher Code in User's Selected Currency Preference
   const handleRedeemVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!voucherCode.trim()) return;
+    if (!voucherCode.trim() || isRedeemingVoucher) return;
     setIsRedeemingVoucher(true);
     setError(null);
     setSuccess(null);

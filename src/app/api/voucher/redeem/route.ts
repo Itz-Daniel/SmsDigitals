@@ -12,6 +12,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized. Please log in first." }, { status: 401 });
     }
 
+    // 🛡️ TIER 0: RATE LIMITER SPEED LOCK (Max 1 request per 5 seconds per user)
+    const { data: isAllowed, error: rateLimitError } = await supabase.rpc('check_rate_limit', {
+      p_identifier: user.id,
+      p_endpoint: '/api/voucher/redeem',
+      p_max_requests: 1,
+      p_window_seconds: 5
+    });
+
+    if (rateLimitError) {
+      console.warn("Voucher rate limit RPC warning:", rateLimitError.message);
+    } else if (isAllowed === false) {
+      return NextResponse.json({ 
+        error: "🚫 Speed Protection: You are attempting to redeem too fast. Please wait 5 seconds between requests." 
+      }, { status: 429 });
+    }
+
     // 🛡️ TIER 1: CHECK IF ACCOUNT IS BANNED OR FLAGGED
     const statusCheck = await checkUserAccountStatus(user.id);
     if (statusCheck.isBlocked) {
@@ -48,24 +64,26 @@ export async function POST(req: Request) {
 
     const lifetimeDeposits = userWallet?.lifetime_deposits_usd || 0;
 
-    // 🛡️ RULE 4: ACCOUNT AGE & DEPOSIT GUARD (24 Hours or 1 Deposit)
-    if (accountAgeHours < 24 && lifetimeDeposits <= 0) {
-      return NextResponse.json({
-        error: "🚫 Anti-Abuse Protection: Accounts under 24 hours old must have made at least 1 deposit before claiming promo vouchers."
-      }, { status: 400 });
-    }
+    // 🛡️ RULE 1: User Account One-Time Redemption Check (Transactions + Redemptions table)
+    const voucherRef = `voucher_${cleanCode}`;
 
-    // 🛡️ RULE 1: User Account One-Time Redemption Limit per Voucher Code
     const { data: userPrevTx } = await supabaseAdmin
+      .from("transactions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("reference", voucherRef)
+      .limit(1);
+
+    const { data: userPrevRedemption } = await supabaseAdmin
       .from("voucher_redemptions")
       .select("id")
       .eq("user_id", user.id)
       .eq("voucher_code", cleanCode)
       .limit(1);
 
-    if (userPrevTx && userPrevTx.length > 0) {
+    if ((userPrevTx && userPrevTx.length > 0) || (userPrevRedemption && userPrevRedemption.length > 0)) {
       return NextResponse.json({ 
-        error: "🚫 You have already redeemed this promo code on your account." 
+        error: "🚫 You have already redeemed this promo voucher code on your account." 
       }, { status: 400 });
     }
 
@@ -87,7 +105,7 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ 
-          error: "🚫 Multi-Account Violation: This promo code has already been claimed from your network IP. Account flagged for review." 
+          error: "🚫 Multi-Account Violation: This promo code has already been claimed from your network IP." 
         }, { status: 400 });
       }
 
@@ -102,7 +120,7 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ 
-          error: "🚫 Multi-Account Violation: This promo code has already been claimed on this device. Account flagged for review." 
+          error: "🚫 Multi-Account Violation: This promo code has already been claimed on this device." 
         }, { status: 400 });
       }
     }
@@ -133,7 +151,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 🛡️ STRICT MAX USES ENFORCEMENT
+    // 🛡️ STRICT MAX USES ENFORCEMENT (Pre-Check)
     const maxAllowedUses = dbVoucher.max_uses || 1;
     const currentUsedCount = dbVoucher.used_count || 0;
 
@@ -143,6 +161,26 @@ export async function POST(req: Request) {
 
     if (dbVoucher.expires_at && new Date(dbVoucher.expires_at) < new Date()) {
       return NextResponse.json({ error: "🚫 This promo voucher code has expired." }, { status: 400 });
+    }
+
+    // 🛡️ ATOMIC CONCURRENCY LOCK: Increment Used Count in Database with .lt("used_count", maxAllowedUses)
+    const newUsedCount = currentUsedCount + 1;
+    const isNowDepleted = newUsedCount >= maxAllowedUses;
+
+    const { data: updatedVouchers, error: updateVoucherError } = await supabaseAdmin
+      .from("vouchers")
+      .update({ 
+        used_count: newUsedCount,
+        is_used: isNowDepleted
+      })
+      .eq("id", dbVoucher.id)
+      .lt("used_count", maxAllowedUses)
+      .select();
+
+    if (updateVoucherError || !updatedVouchers || updatedVouchers.length === 0) {
+      return NextResponse.json({ 
+        error: "🚫 Voucher Depleted: This voucher code has reached its maximum redemption limit." 
+      }, { status: 400 });
     }
 
     // Fetch Exchange Rate for single-currency crediting
@@ -203,44 +241,23 @@ export async function POST(req: Request) {
       .update(updateWalletData)
       .eq("user_id", user.id);
 
-    // Increment DB Voucher Used Count Atomically
-    const newUsedCount = currentUsedCount + 1;
-    const isNowDepleted = newUsedCount >= maxAllowedUses;
-
-    await supabaseAdmin
-      .from("vouchers")
-      .update({ 
-        used_count: newUsedCount,
-        is_used: isNowDepleted
-      })
-      .eq("id", dbVoucher.id);
-
     // Record Anti-Abuse Redemption Log
-    await supabaseAdmin
-      .from("voucher_redemptions")
-      .insert({
-        voucher_code: cleanCode,
-        user_id: user.id,
-        ip_address: clientIp,
-        device_fingerprint: fingerprint,
-        redeemed_at: new Date().toISOString()
-      });
+    try {
+      await supabaseAdmin
+        .from("voucher_redemptions")
+        .insert({
+          voucher_code: cleanCode,
+          user_id: user.id,
+          ip_address: clientIp,
+          device_fingerprint: fingerprint,
+          redeemed_at: new Date().toISOString()
+        });
+    } catch (e) {
+      console.warn("voucher_redemptions log error:", e);
+    }
 
     // Record Transaction Ledger with "Created with Voucher"
     const voucherTxDescription = `Created with Gift Card Voucher: ${cleanCode}`;
-    const voucherRef = `voucher_${cleanCode}`;
-
-    await supabaseAdmin
-      .from("wallet_transactions")
-      .insert({
-        user_id: user.id,
-        type: "Voucher",
-        amount: creditAmount,
-        currency: finalCurrency,
-        status: "Completed",
-        reference: voucherRef,
-        description: voucherTxDescription
-      });
 
     await supabaseAdmin
       .from("transactions")
