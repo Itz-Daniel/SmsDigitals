@@ -28,6 +28,22 @@ export async function POST(req: Request) {
       }, { status: 429 });
     }
 
+    // 🛡️ TIER 0.5: ANTI-BRUTE-FORCE LOCKOUT (Max 5 failed code guesses per 10 minutes)
+    const { data: isBruteAllowed, error: bruteCheckError } = await supabase.rpc('check_rate_limit', {
+      p_identifier: `${user.id}_voucher_fails`,
+      p_endpoint: '/api/voucher/failed',
+      p_max_requests: 5,
+      p_window_seconds: 600
+    });
+
+    if (bruteCheckError) {
+      console.warn("Voucher brute check RPC warning:", bruteCheckError.message);
+    } else if (isBruteAllowed === false) {
+      return NextResponse.json({ 
+        error: "🚫 Security Lockout: Too many invalid promo code attempts. Voucher redemptions locked for 15 minutes." 
+      }, { status: 429 });
+    }
+
     // 🛡️ TIER 1: CHECK IF ACCOUNT IS BANNED OR FLAGGED
     const statusCheck = await checkUserAccountStatus(user.id);
     if (statusCheck.isBlocked) {
@@ -87,7 +103,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 🛡️ RULE 2 & 3: IP ADDRESS & DEVICE FINGERPRINT MULTI-ACCOUNT LOCK
+    // 🛡️ RULE 2 & 3: IP ADDRESS & DEVICE FINGERPRINT MULTI-ACCOUNT LOCK + AUTO-PAUSE TRIGGER
     const { data: existingRedemptions } = await supabaseAdmin
       .from("voucher_redemptions")
       .select("user_id, ip_address, device_fingerprint")
@@ -95,32 +111,41 @@ export async function POST(req: Request) {
 
     if (existingRedemptions && existingRedemptions.length > 0) {
       const ipMatch = existingRedemptions.find(r => r.ip_address === clientIp && r.user_id !== user.id);
-      if (ipMatch) {
-        await flagUserForFraud({
-          userId: user.id,
-          userEmail: user.email!,
-          ipAddress: clientIp,
-          deviceFingerprint: fingerprint,
-          reason: `Attempted multi-account redemption of promo code ${cleanCode} from IP ${clientIp}`
-        });
-
-        return NextResponse.json({ 
-          error: "🚫 Multi-Account Violation: This promo code has already been claimed from your network IP." 
-        }, { status: 400 });
-      }
-
       const fpMatch = existingRedemptions.find(r => r.device_fingerprint === fingerprint && r.user_id !== user.id);
-      if (fpMatch) {
+
+      if (ipMatch || fpMatch) {
+        const multiAccountCount = existingRedemptions.filter(r => r.user_id !== user.id).length + 1;
+
+        // Auto-Pause Voucher if 3+ multi-account attempts are detected
+        if (multiAccountCount >= 3) {
+          await supabaseAdmin
+            .from("vouchers")
+            .update({ is_used: true })
+            .eq("code", cleanCode);
+
+          try {
+            await supabaseAdmin.from("security_logs").insert({
+              event_type: "VOUCHER_AUTO_PAUSED",
+              severity: "HIGH",
+              user_id: user.id,
+              ip_address: clientIp,
+              details: `Promo voucher ${cleanCode} auto-paused due to 3+ multi-account redemption attempts.`
+            });
+          } catch (e) {
+            console.warn("security_logs insert error:", e);
+          }
+        }
+
         await flagUserForFraud({
           userId: user.id,
           userEmail: user.email!,
           ipAddress: clientIp,
           deviceFingerprint: fingerprint,
-          reason: `Attempted multi-account redemption of promo code ${cleanCode} on Device FP ${fingerprint}`
+          reason: `Attempted multi-account redemption of promo code ${cleanCode}`
         });
 
         return NextResponse.json({ 
-          error: "🚫 Multi-Account Violation: This promo code has already been claimed on this device." 
+          error: "🚫 Multi-Account Violation: This promo code has already been claimed on this network or device." 
         }, { status: 400 });
       }
     }
