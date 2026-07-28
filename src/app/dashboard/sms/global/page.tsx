@@ -52,6 +52,21 @@ export default function GlobalPurchasePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [rentals, setRentals] = useState<Rental[]>([]);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const isAdmin = user.user_metadata?.role === 'admin' || 
+                        user.app_metadata?.role === 'admin' ||
+                        user.email?.toLowerCase().includes('admin');
+        if (isAdmin) setIsAdminUser(true);
+      }
+    };
+    checkAdmin();
+  }, []);
 
   const fetchRentals = async () => {
     try {
@@ -532,12 +547,14 @@ export default function GlobalPurchasePage() {
                                 Listening for incoming message...
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <button
-                                  onClick={() => handleSimulateSms(rental.id)}
-                                  className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95"
-                                >
-                                  🧪 Simulate Test SMS
-                                </button>
+                                {isAdminUser && (
+                                  <button
+                                    onClick={() => handleSimulateSms(rental.id)}
+                                    className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95"
+                                  >
+                                    🧪 Simulate Test SMS
+                                  </button>
+                                )}
                                 <CancelOrderButton 
                                   rentalId={rental.id} 
                                   createdAt={rental.created_at} 
