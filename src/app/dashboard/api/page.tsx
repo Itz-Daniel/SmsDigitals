@@ -468,6 +468,15 @@ print(res.json())`;
             <p className="text-slate-500 dark:text-white/50 text-sm max-w-xl">
               Connect your Telegram bots, Python scripts, and automated software to buy virtual numbers, digital accounts, and receive instant SMS Webhooks.
             </p>
+            <div className="pt-1">
+              <Link
+                href="/dashboard/api/reseller"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all shadow-md shadow-brand-blue/20 hover:scale-[1.01] active:scale-95"
+              >
+                <Storefront size={16} weight="bold" />
+                Launch White-Label Reseller Storefront Builder <ArrowRight size={14} weight="bold" />
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 px-4 py-2 rounded-2xl border border-emerald-500/20">

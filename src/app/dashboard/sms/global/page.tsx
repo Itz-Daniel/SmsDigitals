@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, AppWindow, ArrowRight, Spinner, CaretDown, MagnifyingGlass, WarningCircle, Clock, CheckCircle, Copy, Check, Radio, Globe } from "@phosphor-icons/react";
+import { MapPin, AppWindow, ArrowRight, Spinner, CaretDown, MagnifyingGlass, WarningCircle, Clock, CheckCircle, Copy, Check, Radio, Globe, SpeakerHigh } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES, COUNTRIES } from "@/lib/data/sms-data";
@@ -517,20 +517,33 @@ export default function GlobalPurchasePage() {
                             />
                           </div>
                         ) : rental.status === 'Received' ? (
-                          <div className="flex items-center justify-between w-full">
-                            <div>
-                              <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-black/60 font-bold block">SMS Verification Code</span>
-                              <span className="text-3xl font-mono font-black tracking-[0.2em] text-slate-900 dark:text-white dark:text-slate-900">
-                                {rental.sms_code}
-                              </span>
+                          <div className="flex flex-col gap-3 w-full">
+                            {(rental as any).audio_url && (
+                              <div className="p-3.5 rounded-2xl bg-brand-blue/10 border border-brand-blue/20 flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+                                <div className="flex items-center gap-2 text-xs font-bold text-brand-blue">
+                                  <SpeakerHigh size={18} className="animate-pulse shrink-0" />
+                                  <span>Incoming Voice Call Verification Audio</span>
+                                </div>
+                                <audio controls src={(rental as any).audio_url} className="h-8 w-full sm:w-48" />
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between w-full">
+                              <div>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-black/60 font-bold block">
+                                  {(rental as any).audio_url ? "Transcribed Voice Code" : "SMS Verification Code"}
+                                </span>
+                                <span className="text-3xl font-mono font-black tracking-[0.2em] text-slate-900 dark:text-white dark:text-slate-900">
+                                  {rental.sms_code}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => copyToClipboard(rental.sms_code || '', `code-${rental.id}`)}
+                                className="px-4 py-2.5 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-1.5 shadow-md shadow-brand-blue/30"
+                              >
+                                {copiedId === `code-${rental.id}` ? <Check size={14} /> : <Copy size={14} />}
+                                {copiedId === `code-${rental.id}` ? 'Copied Code!' : 'Copy Code'}
+                              </button>
                             </div>
-                            <button
-                              onClick={() => copyToClipboard(rental.sms_code || '', `code-${rental.id}`)}
-                              className="px-4 py-2.5 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-1.5 shadow-md shadow-brand-blue/30"
-                            >
-                              {copiedId === `code-${rental.id}` ? <Check size={14} /> : <Copy size={14} />}
-                              {copiedId === `code-${rental.id}` ? 'Copied Code!' : 'Copy Code'}
-                            </button>
                           </div>
                         ) : (
                           <span className="text-slate-400 dark:text-white/40 text-xs font-medium">Rental Expired / Cancelled</span>

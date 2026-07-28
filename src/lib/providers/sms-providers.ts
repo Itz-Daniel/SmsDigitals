@@ -7,6 +7,8 @@ export interface ProviderResponse {
 export interface CheckCodeResponse {
   status: 'Waiting' | 'Received' | 'Expired';
   code: string | null;
+  audioUrl?: string | null;
+  isVoiceCall?: boolean;
 }
 
 export class ProviderLowBalanceError extends Error {
