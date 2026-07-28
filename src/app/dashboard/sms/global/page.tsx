@@ -102,6 +102,25 @@ export default function GlobalPurchasePage() {
     };
   }, []);
 
+  const handleSimulateSms = async (rentalId: string) => {
+    try {
+      const res = await fetch("/api/check-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rental_id: rentalId,
+          simulate_code: Math.floor(100000 + Math.random() * 900000).toString()
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'Received') {
+        fetchRentals();
+      }
+    } catch (e) {
+      console.error("Failed to simulate SMS:", e);
+    }
+  };
+
   const fetchLivePrice = async (serviceName: string, countryIso: string, cur: string) => {
     setIsFetchingPrice(true);
     setLivePrice(null);
@@ -512,11 +531,19 @@ export default function GlobalPurchasePage() {
                                 <Spinner className="w-4 h-4 animate-spin" />
                                 Listening for incoming message...
                               </div>
-                              <CancelOrderButton 
-                                rentalId={rental.id} 
-                                createdAt={rental.created_at} 
-                                onCancelSuccess={fetchRentals} 
-                              />
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={() => handleSimulateSms(rental.id)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95"
+                                >
+                                  🧪 Simulate Test SMS
+                                </button>
+                                <CancelOrderButton 
+                                  rentalId={rental.id} 
+                                  createdAt={rental.created_at} 
+                                  onCancelSuccess={fetchRentals} 
+                                />
+                              </div>
                             </div>
                             
                             {/* AI Smart Line Fixer Widget (Pops up when waiting >= 60 seconds) */}
