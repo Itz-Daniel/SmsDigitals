@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES, COUNTRIES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
+import { AILineFixerWidget } from "@/components/sms/AILineFixerWidget";
 import { PurchaseConfirmationModal } from "@/components/PurchaseConfirmationModal";
 import { useCurrency } from "@/components/CurrencyContext";
 
@@ -505,16 +506,27 @@ export default function GlobalPurchasePage() {
                       {/* SMS Code Display Area */}
                       <div className={`p-4 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-100/70 dark:bg-black/40 border-slate-200 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20 shadow-lg' : 'bg-red-500/5 border-red-500/10'}`}>
                         {rental.status === 'Waiting' ? (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-                            <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
-                              <Spinner className="w-4 h-4 animate-spin" />
-                              Listening for incoming message...
+                          <div className="flex flex-col gap-3 w-full">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+                              <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
+                                <Spinner className="w-4 h-4 animate-spin" />
+                                Listening for incoming message...
+                              </div>
+                              <CancelOrderButton 
+                                rentalId={rental.id} 
+                                createdAt={rental.created_at} 
+                                onCancelSuccess={fetchRentals} 
+                              />
                             </div>
-                            <CancelOrderButton 
-                              rentalId={rental.id} 
-                              createdAt={rental.created_at} 
-                              onCancelSuccess={fetchRentals} 
-                            />
+                            
+                            {/* AI Smart Line Fixer Widget (Pops up when waiting >= 60 seconds) */}
+                            {Math.floor((Date.now() - new Date(rental.created_at).getTime()) / 1000) >= 60 && (
+                              <AILineFixerWidget 
+                                rentalId={rental.id} 
+                                provider={rental.provider} 
+                                onFixSuccess={fetchRentals} 
+                              />
+                            )}
                           </div>
                         ) : rental.status === 'Received' ? (
                           <div className="flex flex-col gap-3 w-full">
