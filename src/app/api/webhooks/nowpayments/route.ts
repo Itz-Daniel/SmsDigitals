@@ -22,22 +22,34 @@ export async function POST(req: Request) {
       }
     }
 
-    const { payment_status, order_id, price_amount, outcome_amount } = payload;
+    const { payment_status, order_id, price_amount, outcome_amount, actually_paid, pay_currency } = payload;
 
-    // Only process completed / finished payments
-    if (payment_status === "finished" || payment_status === "confirmed") {
+    // Process finished, confirmed, sending, OR partially_paid crypto deposits
+    const validStatuses = ["finished", "confirmed", "partially_paid", "sending"];
+
+    if (validStatuses.includes(payment_status)) {
       const supabaseAdmin = createAdminClient();
 
-      // Extract user_id from order_id (format: crypto_timestamp_userIdShort)
-      // Query transactions or match user from order reference
-      const creditAmountUsd = parseFloat(outcome_amount || price_amount || "0");
+      // Proportional Partial Credit: Use actual amount received
+      const creditAmountUsd = parseFloat(actually_paid || outcome_amount || price_amount || "0");
 
       if (order_id && creditAmountUsd > 0) {
-        // Look up pending transaction or extract user reference
+        // Idempotency Check: Verify if this order_id has ALREADY been credited
+        const { data: existingTx } = await supabaseAdmin
+          .from("wallet_transactions")
+          .select("id")
+          .eq("reference", order_id)
+          .limit(1);
+
+        if (existingTx && existingTx.length > 0) {
+          // Already credited — prevent double-crediting
+          return NextResponse.json({ success: true, message: "Order already processed." });
+        }
+
+        // Extract user_id from order_id (format: crypto_timestamp_userIdShort)
         const userIdShort = order_id.split("_")[2];
 
         if (userIdShort) {
-          // Find user profile by ID prefix
           const { data: userProfiles } = await supabaseAdmin
             .from("profiles")
             .select("id, full_name");
@@ -64,6 +76,9 @@ export async function POST(req: Request) {
                 })
                 .eq("user_id", matchedUser.id);
 
+              const isPartial = payment_status === "partially_paid";
+              const statusLabel = isPartial ? "Partially Paid Deposit" : "Completed Deposit";
+
               // Record Transaction in History
               await supabaseAdmin
                 .from("wallet_transactions")
@@ -74,14 +89,26 @@ export async function POST(req: Request) {
                   currency: "USD",
                   status: "Completed",
                   reference: order_id,
-                  description: `Crypto Deposit (${payload.pay_currency?.toUpperCase() || 'USDT'})`
+                  description: `Crypto ${statusLabel} (${pay_currency?.toUpperCase() || 'USDT'})`
+                });
+
+              await supabaseAdmin
+                .from("transactions")
+                .insert({
+                  user_id: matchedUser.id,
+                  type: "Deposit",
+                  amount: creditAmountUsd,
+                  currency: "USD",
+                  status: "Success",
+                  reference: order_id,
+                  description: `Crypto ${statusLabel} (${pay_currency?.toUpperCase() || 'USDT'})`
                 });
 
               // Notify Admin via Telegram
               await notifyDepositAlert({
                 userEmail: matchedUser.full_name || matchedUser.id,
-                amount: `$${creditAmountUsd.toFixed(2)} USD`,
-                method: `Crypto (${payload.pay_currency?.toUpperCase() || 'USDT'})`,
+                amount: `$${creditAmountUsd.toFixed(2)} USD${isPartial ? ' (Partial)' : ''}`,
+                method: `Crypto (${pay_currency?.toUpperCase() || 'USDT'})`,
                 reference: order_id
               });
             }
