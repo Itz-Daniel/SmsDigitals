@@ -17,6 +17,14 @@ export function CancelOrderButton({ rentalId, createdAt, onCancelSuccess }: Canc
 
   useEffect(() => {
     const calculateTimeLeft = () => {
+      const isMockOrTest = rentalId?.startsWith('mock_') || 
+                           rentalId?.startsWith('test_') || 
+                           rentalId?.startsWith('sandbox_');
+      if (isMockOrTest) {
+        setSecondsLeft(0);
+        return;
+      }
+
       const createdTime = new Date(createdAt).getTime();
       const now = Date.now();
       const elapsed = Math.floor((now - createdTime) / 1000);

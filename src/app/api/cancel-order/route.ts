@@ -18,17 +18,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing rental_id parameter." }, { status: 400 });
     }
 
-    // 1. Fetch Rental Record by matching EITHER Supabase UUID 'id' OR provider 'order_id'
-    const { data: rental, error: fetchError } = await supabase
-      .from('rentals')
-      .select('*')
-      .or(`id.eq.${rental_id},order_id.eq.${rental_id}`)
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle();
+    // 1. Fetch Rental Record safely without throwing UUID syntax errors
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rental_id);
 
-    if (fetchError || !rental) {
-      console.error(`Rental not found for ID ${rental_id}:`, fetchError);
+    let rental: any = null;
+
+    if (isUuid) {
+      const { data } = await supabase
+        .from('rentals')
+        .select('*')
+        .eq('id', rental_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      rental = data;
+    }
+
+    if (!rental) {
+      const { data } = await supabase
+        .from('rentals')
+        .select('*')
+        .eq('order_id', rental_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      rental = data;
+    }
+
+    if (!rental) {
+      console.error(`Rental not found for ID ${rental_id}`);
       return NextResponse.json({ error: "Rental order not found in database." }, { status: 404 });
     }
 
@@ -36,11 +52,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Cannot cancel an order that is currently in '${rental.status}' status.` }, { status: 400 });
     }
 
-    // 2. Validate time elapsed (Allow manual cancellation after 120 seconds or instant in Sandbox mode)
+    // 2. Validate time elapsed (Instant cancellation for Sandbox/Mock/Test orders or after 120s for live carrier orders)
     const createdAt = new Date(rental.created_at).getTime();
     const now = Date.now();
     const elapsedSeconds = (now - createdAt) / 1000;
-    const isSandboxOrder = rental.order_id?.startsWith('sandbox_') || rental.provider === 'sandbox';
+    
+    const isSandboxOrder = rental.order_id?.startsWith('sandbox_') || 
+                           rental.order_id?.startsWith('mock_') || 
+                           rental.order_id?.startsWith('test_') || 
+                           rental.provider === 'sandbox' || 
+                           rental.provider === 'mock';
 
     if (elapsedSeconds < 120 && !isSandboxOrder) {
       const waitSeconds = Math.ceil(120 - elapsedSeconds);
@@ -49,7 +70,7 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    // 3. Attempt Provider Denial / Cancellation API (Skip for Sandbox)
+    // 3. Attempt Provider Denial / Cancellation API (Skip for Sandbox/Mock orders)
     if (!isSandboxOrder) {
       console.log(`[${rental.provider}] Cancelling order ${rental.order_id} (Country: ${rental.country}, Service: ${rental.service})...`);
       
