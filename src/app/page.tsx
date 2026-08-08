@@ -331,6 +331,10 @@ export default function Home() {
 
         {/* ===== LONG-TERM RENTALS ===== */}
         <section className="w-full py-24 md:py-32 bg-slate-50 dark:bg-[#0A0F1C] border-y border-slate-200 dark:border-white/5 relative overflow-hidden">
+          {/* Ambient Glows (Enabled on Mobile & Desktop) */}
+          <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] md:w-[600px] md:h-[600px] bg-brand-blue/20 blur-[80px] md:blur-[120px] rounded-full pointer-events-none"></div>
+          <div className="absolute bottom-0 right-0 w-[320px] h-[320px] md:w-[800px] md:h-[600px] bg-purple-600/10 blur-[90px] md:blur-[150px] rounded-full pointer-events-none"></div>
+
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <motion.div
@@ -424,6 +428,9 @@ export default function Home() {
 
         {/* ===== DIGITAL MARKETPLACE SHOWCASE ===== */}
         <section className="w-full py-24 md:py-32 bg-brand-blue/5 dark:bg-brand-blue/[0.02] border-y border-brand-blue/10 dark:border-brand-blue/[0.05] relative overflow-hidden">
+          {/* Ambient Glow (Enabled on Mobile & Desktop) */}
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 md:w-96 md:h-96 bg-brand-blue/15 blur-[80px] md:blur-[100px] rounded-full pointer-events-none"></div>
+
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
               <motion.div

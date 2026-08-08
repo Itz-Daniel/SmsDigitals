@@ -19,7 +19,7 @@ export const navGroups = [
     items: [
       { name: "Fund Wallet", href: "/dashboard/fund", icon: Wallet },
       { name: "Digital Marketplace", href: "/dashboard/marketplace", icon: Storefront, badge: "NEW" },
-      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash, badge: "NEW" },
+      { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash },
       { name: "Long Term Rentals", href: "/dashboard/sms/long-term", icon: ClockCounterClockwise, badge: "NEW" },
       { name: "Developer API", href: "/dashboard/api", icon: Code, badge: "API", badgeStyle: "new" },
       { name: "Affiliate Program", href: "/dashboard/affiliates", icon: UsersThree, badge: "EARN" },
@@ -181,10 +181,16 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                             <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0 animate-ping", isActive ? "bg-emerald-300" : "bg-brand-blue dark:bg-cyan-400")} />
                             {item.badge}
                           </span>
-                        ) : item.badgeStyle === "support" && ((isAdmin && openTicketsCount > 0) || (!isAdmin && hasUnreadReply)) ? (
-                          <span className="text-[9px] px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-extrabold animate-pulse">
-                            {isAdmin ? `${openTicketsCount} OPEN` : "1 NEW"}
-                          </span>
+                        ) : item.badgeStyle === "support" ? (
+                          (isAdmin && openTicketsCount > 0) ? (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full border bg-amber-500/20 text-amber-400 border-amber-500/30 font-extrabold animate-pulse">
+                              {openTicketsCount} OPEN
+                            </span>
+                          ) : (!isAdmin && hasUnreadReply) ? (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-extrabold animate-pulse">
+                              REPLY
+                            </span>
+                          ) : null
                         ) : (
                           <span
                             className={clsx(

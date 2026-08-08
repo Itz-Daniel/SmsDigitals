@@ -9,15 +9,11 @@ import { Suspense } from "react";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: "swap",
-  fallback: ["system-ui", "sans-serif"]
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-  display: "swap",
-  fallback: ["monospace"]
 });
 
 export const metadata: Metadata = {
