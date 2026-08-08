@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
-import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
+import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +14,8 @@ export async function POST(req: Request) {
     }
 
     const supabaseAdmin = createAdminClient();
-    const supabase = await createClient(); // For getting the current user session
 
-    // 1. Check local cache first (valid for 15 minutes)
+    // 1. Fast Cache Lookup (valid for 15 minutes)
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { data: cached } = await supabaseAdmin
       .from('cached_prices')
@@ -47,17 +45,16 @@ export async function POST(req: Request) {
       }
 
       if (prices.length === 0) {
-        // If entirely out of stock, see if we have a stale cache we can fallback to gracefully
         if (cached) {
           lowestRawCost = cached.lowest_raw_cost;
-          fromCache = true; // Fallback to stale cache
+          fromCache = true;
         } else {
           return NextResponse.json({ error: "Out of Stock", available: false }, { status: 200 });
         }
       } else {
         lowestRawCost = Math.min(...prices);
 
-        // 3. Update cache asynchronously (don't await so we return fast)
+        // Async Cache Update (fire and forget for instant response)
         supabaseAdmin.rpc('upsert_cached_price', {
           p_country: country,
           p_service: serviceName,
@@ -68,29 +65,18 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Fetch dynamic exchange rate and brand pricing config
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate, brand_pricing').eq('id', 1).single();
+    // 3. Fast Settings Lookup
+    const { data: settings } = await supabaseAdmin
+      .from('settings')
+      .select('exchange_rate, brand_pricing')
+      .eq('id', 1)
+      .single();
+
     const exchangeRate = settings?.exchange_rate || 1500;
     const brandPricing = settings?.brand_pricing || null;
-    
-    // Check if user is authenticated to get VIP discount
-    const { data: { user } } = await supabase.auth.getUser();
-    let userDiscount = 0;
-    
-    if (user) {
-      const { data: wallet } = await supabaseAdmin
-        .from('wallets')
-        .select('lifetime_deposits_usd')
-        .eq('user_id', user.id)
-        .single();
-        
-      if (wallet?.lifetime_deposits_usd) {
-        userDiscount = calculateUserDiscount(wallet.lifetime_deposits_usd);
-      }
-    }
 
-    // 5. Calculate Smart Tiered Pricing & Brand Margins
-    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount, serviceName, brandPricing);
+    // 4. Calculate Final Retail Price instantaneously
+    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, 0, serviceName, brandPricing);
 
     return NextResponse.json({
       success: true,
@@ -98,6 +84,10 @@ export async function POST(req: Request) {
       cost: finalCost,
       currency: currency,
       cached: fromCache
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
     });
 
   } catch (error: any) {

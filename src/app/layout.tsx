@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { FloatingSupport } from "@/components/FloatingSupport";
 import { ReferralTracker } from "@/components/ReferralTracker";
-import { CookieConsent } from "@/components/CookieConsent";
-import { LivePurchaseToast } from "@/components/LivePurchaseToast";
+import { ClientWidgets } from "@/components/ClientWidgets";
 import { Suspense } from "react";
 
 const geistSans = Geist({
@@ -64,9 +62,7 @@ export default function RootLayout({
             <ReferralTracker />
           </Suspense>
           {children}
-          <FloatingSupport />
-          <CookieConsent />
-          <LivePurchaseToast />
+          <ClientWidgets />
         </ThemeProvider>
       </body>
     </html>

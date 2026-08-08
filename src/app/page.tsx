@@ -174,11 +174,16 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* FLOATING CARDS CONTAINER (Clean, crisp, 60fps smooth layout) */}
+            {/* FLOATING CARDS CONTAINER (Hardware Accelerated Smooth Floating Animation) */}
             <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row flex-wrap gap-6 justify-center items-center w-full lg:block relative lg:static z-20">
               
-              {/* HERO CARD - LEFT */}
-              <div className="relative lg:absolute shrink-0 left-auto lg:left-0 xl:left-10 top-auto lg:top-60 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300">
+              {/* HERO CARD - LEFT (FLOATING) */}
+              <motion.div
+                animate={{ y: [0, -12, 0], rotate: [-4, -1, -4] }}
+                transition={{ duration: 6, ease: "easeInOut", repeat: Infinity }}
+                style={{ transform: "translateZ(0)", willChange: "transform" }}
+                className="relative lg:absolute shrink-0 left-auto lg:left-0 xl:left-10 top-auto lg:top-60 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300"
+              >
                 <div className="flex items-center gap-4 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-lg shadow-black/20 shrink-0">
                     <TwitterLogo weight="fill" size={24} />
@@ -204,10 +209,15 @@ export default function Home() {
                   <ShoppingCart weight="bold" size={16} />
                   Buy Account
                 </Link>
-              </div>
+              </motion.div>
 
-              {/* HERO CARD - RIGHT */}
-              <div className="relative lg:absolute shrink-0 right-auto lg:right-0 xl:right-10 top-auto lg:top-40 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,112,243,0.12)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300">
+              {/* HERO CARD - RIGHT (FLOATING) */}
+              <motion.div
+                animate={{ y: [0, 12, 0], rotate: [5, 2, 5] }}
+                transition={{ duration: 5.5, ease: "easeInOut", repeat: Infinity }}
+                style={{ transform: "translateZ(0)", willChange: "transform" }}
+                className="relative lg:absolute shrink-0 right-auto lg:right-0 xl:right-10 top-auto lg:top-40 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,112,243,0.12)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300"
+              >
                 <div className="flex items-center gap-4 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 shrink-0">
                     <FacebookLogo weight="fill" size={24} />
@@ -230,7 +240,7 @@ export default function Home() {
                   <ShoppingCart weight="bold" size={16} />
                   Buy Account
                 </Link>
-              </div>
+              </motion.div>
 
             </div>
           </div>
