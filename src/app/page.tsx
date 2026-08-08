@@ -14,14 +14,11 @@ import {
   Clock,
   CaretDown,
   ChatCircleDots,
-  DeviceMobile,
   UserCirclePlus,
   Crosshair,
   CheckCircle,
-  MapPin,
-  FacebookLogo,
   ShoppingCart,
-  Storefront,
+  FacebookLogo,
   TwitterLogo,
   InstagramLogo,
   GoogleLogo
@@ -104,7 +101,6 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -150,12 +146,12 @@ export default function Home() {
           <div className="max-w-[1200px] mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 relative flex flex-col lg:block">
             
             <motion.div
-              initial={{ opacity: 1, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: customEase }}
+              transition={{ duration: 0.6, ease: customEase }}
               className="flex flex-col items-center text-center max-w-3xl mx-auto z-10 relative"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.08] border border-brand-blue/20 text-brand-blue text-xs font-bold tracking-widest uppercase mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.08] border border-brand-blue/20 text-brand-blue text-xs font-bold tracking-wider uppercase mb-8">
                 <GlobeHemisphereWest weight="fill" size={14} /> 44+ Countries Available
               </div>
               
@@ -178,20 +174,11 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* FLOATING CARDS CONTAINER */}
+            {/* FLOATING CARDS CONTAINER (Clean, crisp, 60fps smooth layout) */}
             <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row flex-wrap gap-6 justify-center items-center w-full lg:block relative lg:static z-20">
               
-              {/* FLOATING 3D MARKETPLACE CARD - LEFT */}
-              <motion.div
-                animate={{ rotate: [-5, -2, -5], y: [0, 10, 0] }}
-                transition={{ 
-                  rotate: { repeat: Infinity, duration: 7, ease: "easeInOut" },
-                  y: { repeat: Infinity, duration: 6, ease: "easeInOut" }
-                }}
-                className="relative lg:absolute shrink-0 left-auto lg:left-0 xl:left-10 top-auto lg:top-60 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
-                style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
-              >
-                <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-slate-900/5 to-transparent pointer-events-none"></div>
+              {/* HERO CARD - LEFT */}
+              <div className="relative lg:absolute shrink-0 left-auto lg:left-0 xl:left-10 top-auto lg:top-60 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300">
                 <div className="flex items-center gap-4 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-lg shadow-black/20 shrink-0">
                     <TwitterLogo weight="fill" size={24} />
@@ -199,7 +186,7 @@ export default function Home() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">X Premium / Blue</p>
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-white/50 font-medium">Aged • Verified</p>
                   </div>
@@ -213,23 +200,14 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all shadow-md">
                   <ShoppingCart weight="bold" size={16} />
                   Buy Account
                 </Link>
-              </motion.div>
+              </div>
 
-              {/* FLOATING 3D MARKETPLACE CARD - RIGHT */}
-              <motion.div
-                animate={{ rotate: [6, 3, 6], y: [0, -15, 0] }}
-                transition={{ 
-                  rotate: { repeat: Infinity, duration: 6, ease: "easeInOut" },
-                  y: { repeat: Infinity, duration: 5, ease: "easeInOut" }
-                }}
-                className="relative lg:absolute shrink-0 right-auto lg:right-0 xl:right-10 top-auto lg:top-40 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/70 dark:bg-[#111]/80 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-[0_30px_60px_-15px_rgba(0,112,243,0.15)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] z-20"
-                style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
-              >
-                <div className="absolute inset-0 rounded-[24px] bg-gradient-to-tr from-brand-blue/5 to-transparent pointer-events-none"></div>
+              {/* HERO CARD - RIGHT */}
+              <div className="relative lg:absolute shrink-0 right-auto lg:right-0 xl:right-10 top-auto lg:top-40 w-[280px] lg:w-72 p-5 rounded-[24px] bg-white/80 dark:bg-[#111]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,112,243,0.12)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-20 hover:-translate-y-1.5 transition-all duration-300">
                 <div className="flex items-center gap-4 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 shrink-0">
                     <FacebookLogo weight="fill" size={24} />
@@ -237,7 +215,7 @@ export default function Home() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">Dating Facebook</p>
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-white/50 font-medium">High Quality • Aged</p>
                   </div>
@@ -248,11 +226,12 @@ export default function Home() {
                     <p className="text-xl font-black text-brand-blue tracking-tighter">₦2,500 <span className="text-sm text-slate-400 font-medium">/ $1.60</span></p>
                   </div>
                 </div>
-                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-md">
+                <Link href="/register" className="relative z-10 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold tracking-wide hover:opacity-90 active:scale-[0.98] transition-all shadow-md">
                   <ShoppingCart weight="bold" size={16} />
                   Buy Account
                 </Link>
-              </motion.div>
+              </div>
+
             </div>
           </div>
         </section>
@@ -265,7 +244,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 md:gap-x-16 lg:gap-x-20">
               {["WhatsApp", "Telegram", "Instagram", "TikTok", "Discord", "Google", "Binance"].map((name) => (
-                <span key={name} className="text-base md:text-lg tracking-tight font-bold text-slate-300 dark:text-white/15">
+                <span key={name} className="text-base md:text-lg tracking-tight font-bold text-slate-400 dark:text-white/30">
                   {name}
                 </span>
               ))}
@@ -273,7 +252,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===== HOW IT WORKS ===== */}
+        {/* ===== HOW IT WORKS (Human Fintech Polish: Pill Badges instead of giant watermark numbers) ===== */}
         <section className="w-full py-24 md:py-32">
           <div className="max-w-[1200px] mx-auto px-6">
             <motion.div
@@ -287,49 +266,51 @@ export default function Home() {
                 How it works
               </h2>
               <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto">
-                Three steps. Under a minute. No personal info required.
+                Three simple steps. Under a minute. Completely private.
               </p>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
               {[
                 {
-                  step: "01",
-                  icon: <UserCirclePlus weight="duotone" size={28} />,
-                  title: "Create an account",
-                  desc: "Sign up with just an email. Fund your wallet instantly with NGN via Paystack or convert to USD."
+                  stepLabel: "Step 1",
+                  icon: <UserCirclePlus weight="duotone" size={26} />,
+                  title: "Create your account",
+                  desc: "Sign up instantly with an email. Fund your wallet seamlessly in NGN via Paystack or USD."
                 },
                 {
-                  step: "02",
-                  icon: <Crosshair weight="duotone" size={28} />,
-                  title: "Choose your number",
-                  desc: "Pick a country and the service you need to verify. We show you live pricing before you buy."
+                  stepLabel: "Step 2",
+                  icon: <Crosshair weight="duotone" size={26} />,
+                  title: "Select country & service",
+                  desc: "Choose a target country and the service you want to verify with transparent live pricing."
                 },
                 {
-                  step: "03",
-                  icon: <ChatCircleDots weight="duotone" size={28} />,
-                  title: "Receive your code",
-                  desc: "Your SMS code appears in real-time on your dashboard. Copy it, verify your account, done."
+                  stepLabel: "Step 3",
+                  icon: <ChatCircleDots weight="duotone" size={26} />,
+                  title: "Receive SMS code",
+                  desc: "Your verification code arrives in real time on your dashboard. Copy it, complete verification, done."
                 }
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.5, delay: i * 0.1, ease: customEase }}
-                  className="relative bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8 md:p-10 group hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors"
+                  transition={{ duration: 0.4, delay: i * 0.1, ease: customEase }}
+                  className="relative bg-white dark:bg-[#111] border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-8 md:p-10 flex flex-col gap-4 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-all shadow-sm hover:shadow-md"
                 >
-                  <span className="absolute top-6 right-8 text-6xl font-black text-slate-100 dark:text-white/[0.03] leading-none select-none">
-                    {item.step}
-                  </span>
-                  <div className="w-12 h-12 rounded-xl bg-brand-blue/10 dark:bg-brand-blue/[0.08] text-brand-blue flex items-center justify-center mb-6">
-                    {item.icon}
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center">
+                      {item.icon}
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue border border-brand-blue/20">
+                      {item.stepLabel}
+                    </span>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mt-2">
                     {item.title}
                   </h3>
-                  <p className="text-slate-500 dark:text-white/40 leading-relaxed text-[15px]">
+                  <p className="text-slate-500 dark:text-white/50 leading-relaxed text-[15px] font-medium">
                     {item.desc}
                   </p>
                 </motion.div>
@@ -339,69 +320,61 @@ export default function Home() {
         </section>
 
         {/* ===== LONG-TERM RENTALS ===== */}
-        {/* ===== LONG-TERM RENTALS ===== */}
         <section className="w-full py-24 md:py-32 bg-slate-50 dark:bg-[#0A0F1C] border-y border-slate-200 dark:border-white/5 relative overflow-hidden">
-          {/* Immersive Glows (Hidden on mobile to prevent lag) */}
-          <div className="hidden lg:block absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-blue/20 blur-[120px] rounded-full pointer-events-none"></div>
-          <div className="hidden lg:block absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none"></div>
-
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
+                initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.6, ease: customEase }}
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue text-xs font-bold tracking-widest uppercase mb-6 border border-brand-blue/20 dark:border-brand-blue/30 shadow-[0_0_20px_rgba(0,112,243,0.1)] dark:shadow-[0_0_20px_rgba(0,112,243,0.2)]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue text-xs font-bold tracking-wider uppercase mb-6 border border-brand-blue/20 dark:border-brand-blue/30">
                   <Clock weight="fill" size={14} /> Long-Term Rentals
                 </div>
                 <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-[1.1]">
                   Keep the same number for <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-blue-400">30+ days.</span>
                 </h2>
-                <p className="text-lg text-slate-500 dark:text-white/60 leading-relaxed mb-8">
-                  Need a number that lasts? Rent real US & UK mobile numbers for a month or more. Enjoy unlimited SMS receiving, perfect for securing persistent accounts like WhatsApp, Telegram, or banking.
+                <p className="text-lg text-slate-500 dark:text-white/60 leading-relaxed mb-8 font-medium">
+                  Need a persistent number? Rent real US & UK mobile numbers for a month or more. Receive unlimited SMS text messages for securing persistent accounts like WhatsApp, Telegram, or banking.
                 </p>
                 
                 <ul className="flex flex-col gap-4 mb-10">
                   {[
                     "Unlimited SMS receiving during your rental period",
                     "Real SIM-routed numbers, not virtual VoIP lines",
-                    "Auto-renew options to keep your number forever"
+                    "Auto-renew options to keep your number active"
                   ].map((text, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <div className="w-6 h-6 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckCircle weight="bold" size={12} />
+                        <CheckCircle weight="bold" size={14} />
                       </div>
                       <span className="text-slate-700 dark:text-white/80 font-medium">{text}</span>
                     </li>
                   ))}
                 </ul>
 
-                <Link href="/register" className="h-14 px-8 inline-flex items-center justify-center gap-2 bg-brand-blue text-white text-sm font-bold rounded-full hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-brand-blue/25 dark:shadow-brand-blue/30">
+                <Link href="/register" className="h-14 px-8 inline-flex items-center justify-center gap-2 bg-brand-blue text-white text-sm font-bold rounded-full hover:bg-blue-600 transition-all shadow-xl shadow-brand-blue/25 dark:shadow-brand-blue/30">
                   Rent a Number Now <ArrowRight weight="bold" size={16} />
                 </Link>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.6, delay: 0.2, ease: customEase }}
+                transition={{ duration: 0.6, delay: 0.1, ease: customEase }}
                 className="relative"
               >
-                <div className="relative bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
+                <div className="relative bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
                   <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-400 via-brand-blue to-purple-500"></div>
-                  
-                  {/* Subtle glass reflection (Hidden on mobile) */}
-                  <div className="hidden lg:block absolute -top-24 -right-24 w-48 h-48 bg-white/10 blur-[50px] rounded-full pointer-events-none"></div>
 
                   <div className="flex justify-between items-center mb-8 relative z-10">
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <span className="text-xl">🇺🇸</span> United States
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-white/50 mt-1">Real Mobile Number</p>
+                      <p className="text-xs text-slate-500 dark:text-white/50 mt-1">Real Mobile Line</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xl font-black text-brand-blue">₦7,500 <span className="text-sm text-slate-400 dark:text-white/40 font-medium">/ mo</span></p>
@@ -409,7 +382,7 @@ export default function Home() {
                   </div>
                   
                   <div className="space-y-4 relative z-10">
-                    <div className="bg-slate-50/50 dark:bg-black/40 border border-slate-200/50 dark:border-white/5 rounded-2xl p-4 flex items-center gap-4">
+                    <div className="bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-2xl p-4 flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-brand-blue/10 dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center shrink-0">
                         <ShieldCheck weight="fill" size={20} />
                       </div>
@@ -419,7 +392,7 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    <div className="bg-slate-50/50 dark:bg-black/40 border border-slate-200/50 dark:border-white/5 rounded-2xl p-4">
+                    <div className="bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-2xl p-4">
                       <p className="text-[10px] font-bold text-slate-400 dark:text-white/40 mb-3 uppercase tracking-wider">Recent Messages</p>
                       <div className="flex flex-col gap-3">
                         <div className="flex gap-3 items-start opacity-70 dark:opacity-50">
@@ -427,7 +400,7 @@ export default function Home() {
                           <p className="text-sm font-medium text-slate-600 dark:text-white/70">Your WhatsApp code is 849-211.</p>
                         </div>
                         <div className="flex gap-3 items-start">
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-blue mt-1.5 shrink-0 animate-pulse shadow-[0_0_8px_rgba(0,112,243,0.8)]"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand-blue mt-1.5 shrink-0"></div>
                           <p className="text-sm font-bold text-slate-800 dark:text-white">PayPal: Your security code is 912384.</p>
                         </div>
                       </div>
@@ -441,8 +414,6 @@ export default function Home() {
 
         {/* ===== DIGITAL MARKETPLACE SHOWCASE ===== */}
         <section className="w-full py-24 md:py-32 bg-brand-blue/5 dark:bg-brand-blue/[0.02] border-y border-brand-blue/10 dark:border-brand-blue/[0.05] relative overflow-hidden">
-          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-brand-blue/10 blur-[100px] rounded-full pointer-events-none"></div>
-          
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
               <motion.div
@@ -452,14 +423,14 @@ export default function Home() {
                 transition={{ duration: 0.6, ease: customEase }}
                 className="max-w-2xl"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.15] text-brand-blue text-xs font-bold tracking-widest uppercase mb-6">
-                  <Storefront weight="fill" size={14} /> New Feature
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-brand-blue/[0.15] text-brand-blue text-xs font-bold tracking-wider uppercase mb-6">
+                  <ShoppingCart weight="fill" size={14} /> Marketplace
                 </div>
                 <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
                   Premium Digital Marketplace
                 </h2>
-                <p className="text-lg text-slate-600 dark:text-white/50 leading-relaxed">
-                  Beyond just SMS verification. Instantly purchase aged, high-quality social accounts, game keys, and digital assets. Clean UI, secure delivery, and zero hassle.
+                <p className="text-lg text-slate-600 dark:text-white/50 leading-relaxed font-medium">
+                  Beyond SMS verification. Purchase verified social accounts, game keys, and digital assets with instant delivery and escrow protection.
                 </p>
               </motion.div>
               
@@ -469,7 +440,7 @@ export default function Home() {
                 viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.6, delay: 0.1, ease: customEase }}
               >
-                <Link href="/register" className="h-12 px-6 inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold rounded-full hover:scale-105 transition-transform shadow-lg">
+                <Link href="/register" className="h-12 px-6 inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold rounded-full hover:opacity-90 transition-all shadow-lg">
                   Explore Marketplace <ArrowRight weight="bold" size={16} />
                 </Link>
               </motion.div>
@@ -486,17 +457,17 @@ export default function Home() {
                 return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
-                  transition={{ duration: 0.5, delay: i * 0.1, ease: customEase }}
-                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 flex flex-col hover:border-brand-blue/30 transition-colors shadow-sm hover:shadow-xl hover:-translate-y-1 duration-300"
+                  transition={{ duration: 0.4, delay: i * 0.08, ease: customEase }}
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 flex flex-col hover:border-brand-blue/30 transition-colors shadow-sm hover:shadow-lg hover:-translate-y-1 duration-300"
                 >
                   <div className="flex justify-between items-start mb-12">
                     <div className={`w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center`}>
                       <Icon weight="fill" size={20} />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 border border-slate-200 dark:border-white/10 px-2 py-1 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 border border-slate-200 dark:border-white/10 px-2.5 py-1 rounded-full">
                       {item.tag}
                     </span>
                   </div>
@@ -526,8 +497,8 @@ export default function Home() {
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
                 Numbers from 44+ countries
               </h2>
-              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto">
-                Real SIM-routed numbers with the highest verification success rates globally.
+              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto font-medium">
+                Real SIM-routed numbers with highest verification success rates globally.
               </p>
             </motion.div>
 
@@ -535,16 +506,16 @@ export default function Home() {
               {FEATURED_COUNTRIES.map((country, i) => (
                 <motion.div
                   key={country.name}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
-                  transition={{ duration: 0.4, delay: i * 0.05, ease: customEase }}
-                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-5 md:p-6 flex flex-col gap-3 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors group cursor-default"
+                  transition={{ duration: 0.3, delay: i * 0.04, ease: customEase }}
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-5 md:p-6 flex flex-col gap-3 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors group cursor-default shadow-sm"
                 >
                   <span className="text-3xl md:text-4xl">{country.flag}</span>
                   <div>
                     <h3 className="font-bold text-sm md:text-base text-slate-900 dark:text-white tracking-tight">{country.name}</h3>
-                    <p className="text-xs text-slate-400 dark:text-white/30 mt-0.5">{country.numbers} numbers</p>
+                    <p className="text-xs text-slate-400 dark:text-white/30 mt-0.5 font-medium">{country.numbers} numbers</p>
                   </div>
                 </motion.div>
               ))}
@@ -571,8 +542,8 @@ export default function Home() {
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
                 Why choose SmsDigitals
               </h2>
-              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto">
-                Built for speed, privacy, and reliability at scale.
+              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto font-medium">
+                Built for speed, privacy, and reliability.
               </p>
             </motion.div>
 
@@ -586,12 +557,12 @@ export default function Home() {
                 {
                   icon: <ShieldCheck weight="fill" size={22} />,
                   title: "Real SIM Numbers",
-                  desc: "No VoIP. Real carrier-grade SIMs that pass even the strictest platform verification checks."
+                  desc: "No VoIP. Real carrier-grade SIMs that pass even strict platform verification checks."
                 },
                 {
                   icon: <GlobeHemisphereWest weight="fill" size={22} />,
                   title: "44+ Countries",
-                  desc: "From the US and UK to Nigeria, India, and Brazil — numbers available where you need them."
+                  desc: "From the US and UK to Nigeria, India, and France — numbers available where you need them."
                 },
                 {
                   icon: <Clock weight="fill" size={22} />,
@@ -604,14 +575,14 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
-                  transition={{ duration: 0.5, delay: i * 0.08, ease: customEase }}
-                  className="flex flex-col gap-4 p-6 md:p-8 rounded-2xl border border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-transparent"
+                  transition={{ duration: 0.4, delay: i * 0.08, ease: customEase }}
+                  className="flex flex-col gap-4 p-6 md:p-8 rounded-2xl border border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-transparent shadow-sm"
                 >
                   <div className="w-11 h-11 rounded-xl bg-brand-blue/10 dark:bg-brand-blue/[0.08] text-brand-blue flex items-center justify-center">
                     {feature.icon}
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{feature.title}</h3>
-                  <p className="text-[15px] text-slate-500 dark:text-white/40 leading-relaxed">{feature.desc}</p>
+                  <p className="text-[15px] text-slate-500 dark:text-white/40 leading-relaxed font-medium">{feature.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -619,9 +590,7 @@ export default function Home() {
         </section>
 
         {/* ===== TESTIMONIALS ===== */}
-        <section className="w-full py-24 md:py-32 overflow-hidden relative">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-blue/[0.03] dark:bg-brand-blue/[0.02] rounded-full blur-[100px] pointer-events-none" />
-          
+        <section className="w-full py-24 md:py-32 border-t border-slate-200/80 dark:border-white/5 relative">
           <div className="max-w-[1200px] mx-auto px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -631,10 +600,10 @@ export default function Home() {
               className="text-center mb-16 md:mb-20"
             >
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
-                Trusted by professionals
+                Trusted by customers
               </h2>
-              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto">
-                Don&apos;t just take our word for it. Here&apos;s what our users have to say.
+              <p className="text-lg text-slate-500 dark:text-white/40 max-w-lg mx-auto font-medium">
+                Here is what our users say about SmsDigitals.
               </p>
             </motion.div>
 
@@ -645,10 +614,10 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
-                  transition={{ duration: 0.5, delay: i * 0.1, ease: customEase }}
-                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors flex flex-col justify-between"
+                  transition={{ duration: 0.4, delay: i * 0.08, ease: customEase }}
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-8 hover:border-brand-blue/30 dark:hover:border-brand-blue/20 transition-colors flex flex-col justify-between shadow-sm"
                 >
-                  <p className="text-[15px] md:text-base text-slate-600 dark:text-white/70 leading-relaxed mb-8 italic">
+                  <p className="text-[15px] md:text-base text-slate-600 dark:text-white/70 leading-relaxed mb-8 italic font-medium">
                     &quot;{testimonial.content}&quot;
                   </p>
                   
@@ -658,7 +627,7 @@ export default function Home() {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{testimonial.name}</h4>
-                      <p className="text-[13px] text-slate-500 dark:text-white/40">{testimonial.role}</p>
+                      <p className="text-[13px] text-slate-500 dark:text-white/40 font-medium">{testimonial.role}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -690,7 +659,7 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-20px" }}
                   transition={{ duration: 0.3, delay: i * 0.04, ease: customEase }}
-                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-xl overflow-hidden"
+                  className="bg-white dark:bg-[#111] border border-slate-200 dark:border-white/[0.06] rounded-xl overflow-hidden shadow-sm"
                 >
                   <button
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
@@ -710,7 +679,7 @@ export default function Home() {
                     }}
                   >
                     <div className="overflow-hidden">
-                      <p className="px-5 md:px-6 pb-5 md:pb-6 text-[15px] text-slate-500 dark:text-white/40 leading-relaxed">
+                      <p className="px-5 md:px-6 pb-5 md:pb-6 text-[15px] text-slate-500 dark:text-white/40 leading-relaxed font-medium">
                         {item.a}
                       </p>
                     </div>
@@ -731,13 +700,12 @@ export default function Home() {
               transition={{ duration: 0.6, ease: customEase }}
               className="relative bg-slate-900 dark:bg-[#111] rounded-3xl p-12 md:p-20 flex flex-col items-center text-center overflow-hidden border border-slate-800 dark:border-white/[0.06]"
             >
-              {/* Glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-brand-blue/20 rounded-full blur-[120px] pointer-events-none" />
 
               <h2 className="relative text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-5 leading-tight">
                 Ready to verify?
               </h2>
-              <p className="relative text-lg text-slate-400 max-w-md mb-10">
+              <p className="relative text-lg text-slate-400 max-w-md mb-10 font-medium">
                 Join thousands of users who trust SmsDigitals for fast, private, and reliable SMS verification.
               </p>
               <Link href="/register" className="relative h-14 px-10 inline-flex items-center justify-center gap-2.5 bg-brand-blue text-white text-base font-bold rounded-full transition-all hover:bg-blue-600 shadow-xl shadow-brand-blue/30 hover:-translate-y-0.5 hover:shadow-2xl">
