@@ -9,36 +9,35 @@ export async function GET() {
   try {
     const supabase = await createClient();
     
-    // Check if user is authenticated to get VIP discount
-    const { data: { user } } = await supabase.auth.getUser();
+    // Check if user is authenticated to get VIP discount & exchange rate in parallel
+    const [authRes, rawGoods, settingsRes] = await Promise.all([
+      supabase.auth.getUser().catch(() => ({ data: { user: null } })),
+      getUltimateLogsServices(),
+      supabase.from('api_settings').select('exchange_rate').single().catch(() => ({ data: { exchange_rate: 1500 } }))
+    ]);
+
     let userDiscount = 0;
+    const user = authRes?.data?.user;
     
     if (user) {
       const { data: wallet } = await supabase
         .from('wallets')
         .select('lifetime_deposits_usd')
         .eq('user_id', user.id)
-        .single();
+        .single()
+        .catch(() => ({ data: null }));
         
       if (wallet?.lifetime_deposits_usd) {
         userDiscount = calculateUserDiscount(wallet.lifetime_deposits_usd);
       }
     }
 
-    // 1. Fetch raw wholesale data from Ultimate Logs AND exchange rate
-    const [rawGoods, settingsRes] = await Promise.all([
-      getUltimateLogsServices(),
-      supabase.from('settings').select('exchange_rate').eq('id', 1).single() // fallback handled below
-    ]);
-
-    const exchangeRate = settingsRes.data?.exchange_rate || 1500;
+    const exchangeRate = settingsRes?.data?.exchange_rate || 1500;
 
     // 2. Transform goods: filter out zero-stock, apply Retail Pricing
     const transformedGoods = rawGoods
       .filter(g => g.price > 0 && g.in_stock > 0)
       .map(g => {
-        // Ultimate Logs API returns prices in NGN.
-        // Convert to USD so our standard margin tiers apply correctly.
         let wholesalePriceUsd = g.price;
         if (g.currency === 'NGN') {
           wholesalePriceUsd = g.price / exchangeRate;
@@ -57,10 +56,19 @@ export async function GET() {
         };
       });
 
-    return NextResponse.json({
-      success: true,
-      data: transformedGoods
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: transformedGoods
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        }
+      }
+    );
   } catch (error: any) {
     console.error("Failed to fetch marketplace goods:", error);
     return NextResponse.json(

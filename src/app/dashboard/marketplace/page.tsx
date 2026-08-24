@@ -191,6 +191,24 @@ export default function MarketplacePage() {
   const DEFAULT_LIMIT = 8;
 
   useEffect(() => {
+    // 1. Instant Cache Hydration (0ms load time from sessionStorage)
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("sms_marketplace_goods_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProducts(parsed);
+            setFilteredProducts(parsed);
+            setIsLoading(false);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not read marketplace cache:", e);
+      }
+    }
+
+    // 2. Fetch fresh catalog in background (Stale-While-Revalidate)
     fetchProducts();
   }, []);
 
@@ -217,17 +235,22 @@ export default function MarketplacePage() {
   }, [searchQuery, selectedCategory, products]);
 
   const fetchProducts = async () => {
-    setIsLoading(true);
     try {
       const res = await fetch("/api/marketplace/goods");
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setProducts(data.data);
+        if (typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem("sms_marketplace_goods_cache", JSON.stringify(data.data));
+          } catch (e) {}
+        }
       }
     } catch (error) {
       console.error("Error fetching goods:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleInitiateBuy = (product: DigitalProduct) => {

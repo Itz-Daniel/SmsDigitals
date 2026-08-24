@@ -20,18 +20,19 @@ export interface UltimateLogsCategory {
   products: UltimateLogsProduct[];
 }
 
-// In-memory cache to bypass Next.js unstable_cache limits
+// In-memory cache for fast sub-millisecond retrieval
 let productsCache: { data: UltimateLogsProduct[], expiresAt: number } | null = null;
+let lastKnownGoodProducts: UltimateLogsProduct[] = [];
 
 /**
  * Fetches all available services/goods.
- * Cached for 5 minutes (300s) in memory.
+ * High-speed caching with Next.js Data Cache (revalidate: 180s) and In-Memory Tier (600s).
  */
 export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> => {
   const apiKey = getApiKey();
-  if (!apiKey) return [];
+  if (!apiKey) return lastKnownGoodProducts;
 
-  if (productsCache && Date.now() < productsCache.expiresAt) {
+  if (productsCache && Date.now() < productsCache.expiresAt && productsCache.data.length > 0) {
     return productsCache.data;
   }
 
@@ -42,7 +43,8 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
         'X-API-Key': apiKey,
         'Accept': 'application/json'
       },
-      cache: 'no-store'
+      next: { revalidate: 180 },
+      signal: AbortSignal.timeout(8000)
     });
 
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
@@ -51,7 +53,7 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
     
     if (!json.success || !json.data) {
        console.error("Ultimate Logs API Error:", json);
-       return productsCache ? productsCache.data : [];
+       return lastKnownGoodProducts.length > 0 ? lastKnownGoodProducts : (productsCache?.data || []);
     }
 
     // Flatten nested products and inject category name
@@ -67,12 +69,15 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
       }
     });
 
-    // Cache for 5 minutes
-    productsCache = { data: allProducts, expiresAt: Date.now() + 300 * 1000 };
-    return allProducts;
+    if (allProducts.length > 0) {
+      lastKnownGoodProducts = allProducts;
+      productsCache = { data: allProducts, expiresAt: Date.now() + 600 * 1000 };
+    }
+
+    return allProducts.length > 0 ? allProducts : lastKnownGoodProducts;
   } catch (error) {
-    console.error("Failed to fetch Ultimate Logs services:", error);
-    return productsCache ? productsCache.data : [];
+    console.error("Failed to fetch Ultimate Logs services (using cached fallback):", error);
+    return lastKnownGoodProducts.length > 0 ? lastKnownGoodProducts : (productsCache?.data || []);
   }
 };
 
