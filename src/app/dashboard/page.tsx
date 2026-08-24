@@ -14,14 +14,13 @@ const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
 import ConvertModal from "@/components/dashboard/ConvertModal";
 
 export default function DashboardPage() {
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, showBalance, toggleShowBalance } = useCurrency();
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [wallet, setWallet] = useState<{ balance_ngn: number; balance_usd: number; lifetime_deposits_usd: number; id: string } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(1500);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
-  const [showBalance, setShowBalance] = useState(true);
 
   const supabase = createClient();
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
@@ -137,7 +136,7 @@ export default function DashboardPage() {
                   Wallet Balance
                 </span>
                 <button
-                  onClick={() => setShowBalance(!showBalance)}
+                  onClick={toggleShowBalance}
                   className="text-slate-400 hover:text-slate-700 dark:text-white/40 dark:hover:text-white transition-colors p-1"
                   title={showBalance ? "Hide Balance" : "Show Balance"}
                 >
