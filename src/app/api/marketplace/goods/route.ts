@@ -13,7 +13,7 @@ export async function GET() {
     const [authRes, rawGoods, settingsRes] = await Promise.all([
       supabase.auth.getUser().catch(() => ({ data: { user: null } })),
       getUltimateLogsServices(),
-      supabase.from('api_settings').select('exchange_rate').single().catch(() => ({ data: { exchange_rate: 1500 } }))
+      supabase.from('settings').select('exchange_rate').single().catch(() => ({ data: { exchange_rate: 1500 } }))
     ]);
 
     let userDiscount = 0;
@@ -63,9 +63,7 @@ export async function GET() {
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-          'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-          'Vercel-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
         }
       }
     );

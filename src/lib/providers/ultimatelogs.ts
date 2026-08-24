@@ -26,7 +26,7 @@ let lastKnownGoodProducts: UltimateLogsProduct[] = [];
 
 /**
  * Fetches all available services/goods.
- * High-speed caching with Next.js Data Cache (revalidate: 180s) and In-Memory Tier (600s).
+ * In-memory cache of 2 minutes to keep response snappy while always staying current.
  */
 export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> => {
   const apiKey = getApiKey();
@@ -42,9 +42,7 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
       headers: {
         'X-API-Key': apiKey,
         'Accept': 'application/json'
-      },
-      next: { revalidate: 180 },
-      signal: AbortSignal.timeout(8000)
+      }
     });
 
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
@@ -71,12 +69,12 @@ export const getUltimateLogsServices = async (): Promise<UltimateLogsProduct[]> 
 
     if (allProducts.length > 0) {
       lastKnownGoodProducts = allProducts;
-      productsCache = { data: allProducts, expiresAt: Date.now() + 600 * 1000 };
+      productsCache = { data: allProducts, expiresAt: Date.now() + 120 * 1000 };
     }
 
     return allProducts.length > 0 ? allProducts : lastKnownGoodProducts;
   } catch (error) {
-    console.error("Failed to fetch Ultimate Logs services (using cached fallback):", error);
+    console.error("Failed to fetch Ultimate Logs services (using fallback):", error);
     return lastKnownGoodProducts.length > 0 ? lastKnownGoodProducts : (productsCache?.data || []);
   }
 };
