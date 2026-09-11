@@ -302,7 +302,7 @@ export default function DashboardPage() {
         className="w-full flex flex-col gap-6"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Quick Services & Marketplace</h3>
+          <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Quick Services</h3>
         </div>
 
         {/* Tactile Motion Bento Grid */}
@@ -323,28 +323,6 @@ export default function DashboardPage() {
               <div>
                 <h4 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">Virtual Phone Numbers</h4>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">Get non-VoIP lines for instant WhatsApp, Telegram & 1,300+ app verifications.</p>
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* Action 2: Digital Marketplace (Featured Storefront Card) */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
-          >
-            <Link href="/dashboard/marketplace" className="h-full w-full rounded-3xl border border-brand-blue/40 dark:border-brand-blue/50 bg-gradient-to-br from-brand-blue/15 via-purple-500/10 to-transparent hover:from-brand-blue/25 hover:to-purple-500/20 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-md relative overflow-hidden">
-              <div className="absolute inset-0 bg-brand-blue/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
-              <div className="w-11 h-11 rounded-2xl bg-brand-blue text-white flex items-center justify-center shadow-md shadow-brand-blue/30 group-hover:scale-110 transition-transform shrink-0 relative z-10">
-                <Storefront className="text-2xl" weight="duotone" />
-              </div>
-              <div className="flex-1 min-w-0 relative z-10">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between gap-1">
-                  <span className="truncate">Digital Marketplace</span>
-                  <span className="text-[9px] bg-brand-blue text-white px-2 py-0.5 rounded-full uppercase font-extrabold tracking-wider shrink-0 shadow-sm animate-pulse">HOT</span>
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-white/60 truncate">Buy Aged Social & Ad Accounts</p>
               </div>
             </Link>
           </motion.div>

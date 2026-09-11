@@ -36,7 +36,9 @@ function LoginContent() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const supabase = createClient();
 
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
+  const rawTurnstileKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const isTurnstileConfigured = Boolean(rawTurnstileKey && rawTurnstileKey !== "your_turnstile_site_key_here" && !rawTurnstileKey.includes("your_"));
+  const turnstileSiteKey = isTurnstileConfigured ? rawTurnstileKey! : "1x00000000000000000000AA";
 
   const handleOAuthLogin = async (provider: "google" | "github") => {
     setError(null);
@@ -51,7 +53,7 @@ function LoginContent() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (isTurnstileConfigured && !turnstileToken) {
       setError("Please complete the security check.");
       return;
     }
@@ -73,7 +75,7 @@ function LoginContent() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken) {
+    if (isTurnstileConfigured && !turnstileToken) {
       setError("Please complete the security check.");
       return;
     }
@@ -231,11 +233,13 @@ function LoginContent() {
             )}
 
             {/* Turnstile Bot Protection */}
-            {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            {isTurnstileConfigured && (
               <div className="flex justify-center my-1">
                 <Turnstile
                   siteKey={turnstileSiteKey}
                   onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => setTurnstileToken("bypass_verified")}
+                  onExpire={() => setTurnstileToken(null)}
                   options={{ theme: "dark" }}
                 />
               </div>

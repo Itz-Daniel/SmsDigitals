@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendAdminNotificationEmail } from "@/lib/resend";
 
 export async function POST(request: Request) {
@@ -37,10 +37,7 @@ export async function POST(request: Request) {
     const currentMessages = ticket.messages || [];
     const newMessages = [...currentMessages, { sender: 'user', text: replyText, timestamp: new Date().toISOString(), attachment_url: attachmentUrl || null }];
 
-    const adminDb = createSupabaseClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const adminDb = createAdminClient();
 
     // 2. Update ticket
     const { error: updateError } = await adminDb

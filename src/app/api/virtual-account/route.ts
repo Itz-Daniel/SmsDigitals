@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(req: Request) {
   try {
@@ -73,11 +74,7 @@ export async function POST(req: Request) {
     const account = dvaData.data;
 
     // 4. Save to Supabase using Admin Key (Bypass RLS for safe update)
-    const { createClient: createAdminClient } = require('@supabase/supabase-js');
-    const adminSupabase = createAdminClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const adminSupabase = createAdminClient();
 
     await adminSupabase
       .from("wallets")

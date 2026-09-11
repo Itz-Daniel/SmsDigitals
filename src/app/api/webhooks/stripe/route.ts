@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // We must disable the default body parser to get the raw body for Stripe signature verification
 export const dynamic = "force-dynamic";
@@ -8,12 +8,6 @@ export const dynamic = "force-dynamic";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-05-27.dahlia" as any,
 });
-
-// We must use the Service Role Key to bypass RLS in the background webhook
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(req: Request) {
   const payload = await req.text();
@@ -47,6 +41,7 @@ export async function POST(req: Request) {
     }
 
     try {
+      const supabase = createAdminClient();
       // 3. Prevent Double Funding (Check if transaction exists)
       const { data: existingTx } = await supabase
         .from("transactions")

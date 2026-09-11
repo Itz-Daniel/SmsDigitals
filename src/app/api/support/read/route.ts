@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -17,10 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ticket ID is required." }, { status: 400 });
     }
 
-    const adminDb = createSupabaseClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const adminDb = createAdminClient();
 
     const { error } = await adminDb
       .from('support_tickets')

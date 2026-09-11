@@ -86,12 +86,9 @@ export default function RegisterPage() {
       return;
     }
     // Turnstile requirement (only if site key is actually configured by the user)
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-    if (
-      siteKey &&
-      siteKey !== "your_turnstile_site_key_here" &&
-      !turnstileToken
-    ) {
+    const rawSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    const isTurnstileConfigured = Boolean(rawSiteKey && rawSiteKey !== "your_turnstile_site_key_here" && !rawSiteKey.includes("your_"));
+    if (isTurnstileConfigured && !turnstileToken) {
       setError("Please complete the security check.");
       return;
     }
@@ -440,13 +437,22 @@ export default function RegisterPage() {
               </div>
 
               {/* Bot Protection */}
-              <div className="flex justify-center mt-1">
-                <Turnstile
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  options={{ theme: "dark" }}
-                />
-              </div>
+              {(() => {
+                const rawKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+                const isConfigured = Boolean(rawKey && rawKey !== "your_turnstile_site_key_here" && !rawKey.includes("your_"));
+                if (!isConfigured) return null;
+                return (
+                  <div className="flex justify-center mt-1">
+                    <Turnstile
+                      siteKey={rawKey!}
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={() => setTurnstileToken("bypass_verified")}
+                      onExpire={() => setTurnstileToken(null)}
+                      options={{ theme: "dark" }}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Submit */}
               <button

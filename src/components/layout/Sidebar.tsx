@@ -18,7 +18,6 @@ export const navGroups = [
     title: "SERVICES",
     items: [
       { name: "Fund Wallet", href: "/dashboard/fund", icon: Wallet },
-      { name: "Digital Marketplace", href: "/dashboard/marketplace", icon: Storefront, badge: "NEW" },
       { name: "Virtual Numbers", href: "/dashboard/sms", icon: Hash },
       { name: "Long Term Rentals", href: "/dashboard/sms/long-term", icon: ClockCounterClockwise, badge: "NEW" },
       { name: "Developer API", href: "/dashboard/api", icon: Code, badge: "API", badgeStyle: "new" },

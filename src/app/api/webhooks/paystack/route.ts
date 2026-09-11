@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Ensure raw body processing
 export const dynamic = "force-dynamic";
-
-// Service Role Key for bypassing RLS securely in background webhooks
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(req: Request) {
   try {
@@ -46,6 +40,7 @@ export async function POST(req: Request) {
       }
 
       // 4. Atomic Wallet Credit & Transaction Logging
+      const supabase = createAdminClient();
       const { data: creditResult, error: creditError } = await supabase.rpc('credit_wallet', {
         p_user_id: userId,
         p_amount: amountInNgn,
