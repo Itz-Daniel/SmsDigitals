@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { MapPin, AppWindow, ArrowRight, Spinner, CaretDown, MagnifyingGlass, WarningCircle, Clock, CheckCircle, Copy, Check, Radio } from "@phosphor-icons/react";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ArrowRight, 
+  Spinner, 
+  CaretDown, 
+  MagnifyingGlass, 
+  WarningCircle, 
+  Clock, 
+  CheckCircle, 
+  Copy, 
+  Check, 
+  Broadcast
+} from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES } from "@/lib/data/sms-data";
@@ -10,6 +21,7 @@ import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { useCurrency } from "@/components/CurrencyContext";
 import { SandboxToggle, useSandboxMode } from "@/components/SandboxToggle";
 import { PurchaseSuccessModal } from "@/components/PurchaseSuccessModal";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Rental {
   id: string;
@@ -23,16 +35,22 @@ interface Rental {
   created_at: string;
 }
 
+interface ServiceItem {
+  id: string;
+  name: string;
+}
+
 const POPULAR_QUICK_SERVICES = [
   { id: "wa", name: "WhatsApp" },
   { id: "tg", name: "Telegram" },
   { id: "lf", name: "TikTok" },
   { id: "go", name: "Google" },
   { id: "oi", name: "Tinder" },
+  { id: "ig", name: "Instagram" },
+  { id: "ds", name: "Discord" }
 ];
 
 export default function USPurchasePage() {
-  const region = "us";
   const { currency } = useCurrency();
   const { isSandbox } = useSandboxMode();
 
@@ -65,11 +83,11 @@ export default function USPurchasePage() {
     orderId: ""
   });
 
-  const fetchRentals = async () => {
+  const fetchRentals = useCallback(async () => {
     try {
       const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error || !user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return;
 
       const { data } = await supabase
         .from('rentals')
@@ -79,23 +97,32 @@ export default function USPurchasePage() {
         .order('created_at', { ascending: false });
 
       if (data) {
-        setRentals(data);
+        setRentals(data as Rental[]);
       }
-    } catch (err) {
-      console.error("Failed to fetch rentals:", err);
+    } catch {
+      // silently handle
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchRentals();
-
-    let channel: any = null;
     let isMounted = true;
+    let channel: RealtimeChannel | null = null;
     const supabase = createClient();
 
-    const setupRealtime = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !isMounted) return;
+
+      const { data } = await supabase
+        .from('rentals')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('region', 'usa')
+        .order('created_at', { ascending: false });
+
+      if (data && isMounted) {
+        setRentals(data as Rental[]);
+      }
 
       channel = supabase.channel(`realtime-rentals-usa-${Math.random()}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'rentals', filter: `user_id=eq.${user.id}` }, () => {
@@ -104,7 +131,7 @@ export default function USPurchasePage() {
         .subscribe();
     };
 
-    setupRealtime();
+    init();
 
     return () => {
       isMounted = false;
@@ -112,34 +139,41 @@ export default function USPurchasePage() {
         supabase.removeChannel(channel);
       }
     };
-  }, []);
-
-  const fetchLivePrice = async (serviceName: string, selectedCurrency: string) => {
-    setIsFetchingPrice(true);
-    setLivePrice(null);
-    setIsAvailable(true);
-    try {
-      const res = await fetch('/api/pricing/live', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ country: 'usa', serviceName, currency: selectedCurrency })
-      });
-      const data = await res.json();
-      if (data.available && data.cost !== undefined) {
-        setLivePrice(data.cost);
-        setIsAvailable(true);
-      } else {
-        setIsAvailable(false);
-      }
-    } catch (err) {
-      setIsAvailable(false);
-    } finally {
-      setIsFetchingPrice(false);
-    }
-  };
+  }, [fetchRentals]);
 
   useEffect(() => {
-    fetchLivePrice(selectedServiceName, currency);
+    let isMounted = true;
+
+    const loadPrice = async () => {
+      try {
+        const res = await fetch('/api/pricing/live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ country: 'usa', serviceName: selectedServiceName, currency })
+        });
+        const data = await res.json();
+        if (isMounted) {
+          if (data.available && data.cost !== undefined) {
+            setLivePrice(data.cost);
+            setIsAvailable(true);
+          } else {
+            setIsAvailable(false);
+          }
+          setIsFetchingPrice(false);
+        }
+      } catch {
+        if (isMounted) {
+          setIsAvailable(false);
+          setIsFetchingPrice(false);
+        }
+      }
+    };
+
+    loadPrice();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedServiceName, currency]);
 
   const handlePurchase = async () => {
@@ -167,7 +201,6 @@ export default function USPurchasePage() {
         const phoneNumber = rentalObj.phone_number || data.phone_number || data.order?.phone_number || "";
         const costVal = rentalObj.cost || data.cost || livePrice || 0;
 
-        // INSTANT STATE UPDATE (0ms delay)
         const newRentalItem: Rental = {
           id: rentalId,
           order_id: orderId,
@@ -182,7 +215,6 @@ export default function USPurchasePage() {
 
         setRentals(prev => [newRentalItem, ...prev]);
 
-        // POP OPEN PURCHASE SUCCESS MODAL
         setSuccessModalData({
           isOpen: true,
           serviceName: selectedServiceName,
@@ -193,10 +225,12 @@ export default function USPurchasePage() {
 
         fetchRentals();
       } else {
-        setError(data.error || "Purchase failed. Check your wallet balance.");
+        const rawErr = data.error || "";
+        const isProviderErr = /5sim|grizzly|smspva|textverified|smsman|daisy|carrier|provider/i.test(rawErr);
+        setError(isProviderErr ? "This line is currently out of stock. Please try again in a few moments or select another country." : (rawErr || "Purchase failed. Check your wallet balance."));
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      setError((err as Error).message || "An unexpected error occurred.");
     } finally {
       setIsPurchasing(false);
     }
@@ -209,322 +243,320 @@ export default function USPurchasePage() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-4 md:p-8 font-sans pb-32 transition-colors duration-500">
-      <div className="max-w-7xl mx-auto flex flex-col gap-6 relative">
-        
-        {/* Background ambient glow */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-blue/10 blur-[150px] rounded-full pointer-events-none"></div>
-
-        {/* TOP COMMAND HEADER BAR */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#111111] p-6 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm relative z-10">
-          <div className="flex flex-col gap-1">
-            <Link 
-              href="/dashboard/sms"
-              className="w-fit text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-1.5 mb-1"
-            >
-              ← Back to Server Selection
-            </Link>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                <span>🇺🇸</span> USA Dedicated Server
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                99.8% Online
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <SandboxToggle />
-
-            <div className="flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-white/5">
-              <Radio size={18} className="text-brand-blue animate-pulse" />
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-white/40 font-bold">Routing</span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white">Real SIM Networks</span>
-              </div>
-            </div>
+    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans overflow-x-hidden">
+      
+      {/* ── Page Header ────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
+        <div>
+          <Link 
+            href="/dashboard/sms"
+            className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white transition-colors flex items-center gap-1 mb-1.5"
+          >
+            ← Back to Server Selection
+          </Link>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <span>🇺🇸</span> USA Dedicated Server
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Online
+            </span>
           </div>
         </div>
 
-        {/* MAIN SPLIT GRID */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10"
-        >
-          {/* LEFT COLUMN: ORDER CONTROL CARD */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6 relative overflow-hidden">
-              
-              <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <AppWindow size={20} className="text-brand-blue" /> Deploy Virtual Number
-                </h2>
-                <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
-                  USA Only
-                </span>
-              </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <SandboxToggle />
+          <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-white/50 hidden md:inline">
+            Real Physical SIMs
+          </span>
+        </div>
+      </div>
 
-              {/* QUICK SERVICE SELECTION TAGS */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
-                  Popular Services
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {POPULAR_QUICK_SERVICES.map((s) => {
-                    const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
-                    const isSelected = selectedServiceName.toLowerCase().includes(s.name.toLowerCase());
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          if (matched) {
-                            setSelectedService(matched.id);
-                            setSelectedServiceName(matched.name);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                          isSelected
-                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
-                            : "bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10"
-                        }`}
-                      >
-                        {s.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* FULL SERVICE DROPDOWN SELECTOR */}
-              <div className="flex flex-col gap-2 relative">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
-                  Select Target Application
-                </label>
-                <div className="relative z-20">
-                  <button 
-                    onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                    className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center shadow-sm"
-                  >
-                    <span className="truncate pr-4 font-bold text-sm">{selectedServiceName}</span>
-                    <CaretDown weight="bold" className={`transition-transform duration-300 text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  
-                  <AnimatePresence>
-                    {isServiceDropdownOpen && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setIsServiceDropdownOpen(false)} 
-                        />
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0D1322] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[350px]"
-                        >
-                          <div className="p-3 border-b border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
-                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/40 rounded-xl px-3 py-2 border border-slate-200/80 dark:border-white/10">
-                              <MagnifyingGlass className="text-slate-400 dark:text-white/40 flex-shrink-0" />
-                              <input 
-                                type="text"
-                                placeholder="Search 1,300+ services..."
-                                value={serviceSearchQuery}
-                                onChange={(e) => setServiceSearchQuery(e.target.value)}
-                                className="bg-transparent border-none outline-none text-sm w-full text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30"
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="overflow-y-auto p-2 custom-scrollbar flex-1 space-y-1">
-                            {SERVICES.filter((s: any) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
-                              .slice(0, 40)
-                              .map((service: any) => (
-                                <button
-                                  key={service.id}
-                                  onClick={() => {
-                                    setSelectedService(service.id);
-                                    setSelectedServiceName(service.name);
-                                    setIsServiceDropdownOpen(false);
-                                    setServiceSearchQuery("");
-                                  }}
-                                  className={`w-full text-left flex justify-between px-3.5 py-2.5 rounded-xl text-sm transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
-                                >
-                                  <span>{service.name}</span>
-                                </button>
-                              ))}
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* LIVE PRICING & STOCK BOX */}
-              <div className="p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block mb-0.5">Live Unit Price</span>
-                  {isFetchingPrice ? (
-                    <span className="text-sm font-bold text-brand-blue animate-pulse">Calculating...</span>
-                  ) : !isAvailable || livePrice === null ? (
-                    <span className="text-sm font-bold text-red-500 flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-red-500"></span> Out of Stock
-                    </span>
-                  ) : (
-                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-                      {isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
-                    </span>
-                  )}
-                </div>
-
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {isSandbox ? "Sandbox Ready" : "In Stock"}
-                </span>
-              </div>
-
-              {/* ERROR ALERT BANNER */}
-              {error && (
-                <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                  <WarningCircle size={18} weight="fill" className="shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* ORDER ACTION BUTTON */}
-              <button 
-                onClick={handlePurchase}
-                disabled={isPurchasing || (isFetchingPrice && !isSandbox)}
-                className={`w-full text-white rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-base transition-all shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isSandbox ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/20" : "bg-brand-blue hover:bg-blue-600 shadow-brand-blue/20"
-                }`}
-              >
-                {isPurchasing ? (
-                  <>
-                    <Spinner size={20} className="animate-spin" /> Provisioning Number...
-                  </>
-                ) : (
-                  <>
-                    {isSandbox ? "🧪 Deploy Test USA Number (Free)" : "Deploy USA Number"} <ArrowRight weight="bold" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: LIVE VERIFICATION MONITOR */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                Live Verification Monitor
-              </h2>
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white">
-                {rentals.length} Active {rentals.length === 1 ? 'Line' : 'Lines'}
+      {/* ── Main 2-Column Grid (Order Form on Left / Active Lines on Right) ─ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Column: Order Control Card */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-7 flex flex-col gap-5 shadow-sm dark:shadow-none">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+                Deploy Number
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-brand-blue/10 text-brand-blue">
+                NON-VOIP
               </span>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <AnimatePresence>
-                {rentals.length === 0 ? (
-                  <div className="p-12 rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white/50 dark:bg-[#111111]/50 backdrop-blur-sm flex flex-col items-center justify-center text-center gap-3">
-                    <div className="w-16 h-16 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shadow-inner">
-                      <Radio size={32} className="animate-pulse" />
-                    </div>
-                    <h3 className="font-bold text-base text-slate-900 dark:text-white">No Active Verifications</h3>
-                    <p className="text-xs text-slate-500 dark:text-white/50 max-w-sm leading-relaxed font-medium">
-                      Select a target application on the left and click <strong className="text-slate-800 dark:text-white">Deploy USA Number</strong> to receive instant SMS codes.
-                    </p>
-                  </div>
-                ) : (
-                  rentals.map((rental) => (
-                    <motion.div 
-                      key={rental.id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white dark:bg-[#111111] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden"
+            {/* Quick Popular Services Row (Horizontal Scroll Rail on Mobile) */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                Popular Services
+              </span>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {POPULAR_QUICK_SERVICES.map((s) => {
+                  const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
+                  const isSelected = selectedServiceName.toLowerCase().includes(s.name.toLowerCase());
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        if (matched) {
+                          setSelectedService(matched.id);
+                          setSelectedServiceName(matched.name);
+                        }
+                      }}
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                        isSelected
+                          ? "bg-brand-blue text-white border-brand-blue shadow-sm shadow-brand-blue/20"
+                          : "bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10"
+                      }`}
                     >
-                      {/* Top Bar: Service + Status Pill */}
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {rental.status === 'Waiting' ? <Clock weight="duotone" size={20} className="animate-pulse" /> : rental.status === 'Received' ? <CheckCircle weight="fill" size={20} /> : <WarningCircle weight="fill" size={20} />}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                              {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
-                            </h4>
-                            <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase tracking-widest font-semibold">
-                              USA Dedicated {rental.order_id.startsWith('sandbox-') && '• 🧪 Test Mode'}
-                            </span>
-                          </div>
-                        </div>
+                      {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                          {rental.status === 'Waiting' ? 'Waiting for SMS...' : rental.status === 'Received' ? '✓ Code Received' : rental.status}
-                        </span>
-                      </div>
-
-                      {/* Phone Number Bar with Copy Button */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-white/40">Virtual Phone Number</span>
-                          <span className="text-lg font-mono font-bold tracking-wider text-slate-900 dark:text-white">{rental.phone_number}</span>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(rental.phone_number, `phone-${rental.id}`)}
-                          className="px-3 py-2 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm border border-slate-200/80 dark:border-transparent"
-                        >
-                          {copiedId === `phone-${rental.id}` ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                          {copiedId === `phone-${rental.id}` ? 'Copied!' : 'Copy'}
-                        </button>
-                      </div>
-
-                      {/* SMS Code Display Area */}
-                      <div className={`p-4 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-100/70 dark:bg-black/40 border-slate-200/80 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20 shadow-lg' : 'bg-red-500/5 border-red-500/10'}`}>
-                        {rental.status === 'Waiting' ? (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-                            <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
-                              <Spinner className="w-4 h-4 animate-spin" />
-                              Listening for incoming message...
-                            </div>
-                            <CancelOrderButton 
-                              rentalId={rental.id} 
-                              createdAt={rental.created_at} 
-                              onCancelSuccess={fetchRentals} 
+            {/* Target Application Dropdown Search */}
+            <div className="flex flex-col gap-2 relative">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                Target Application
+              </span>
+              
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center"
+                >
+                  <span className="truncate font-bold text-sm">{selectedServiceName}</span>
+                  <CaretDown weight="bold" size={16} className={`transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+                
+                <AnimatePresence>
+                  {isServiceDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsServiceDropdownOpen(false)} 
+                      />
+                      <motion.div 
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
+                      >
+                        <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
+                          <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
+                            <MagnifyingGlass size={15} className="text-slate-400" />
+                            <input 
+                              type="text"
+                              placeholder="Search 1,300+ services..."
+                              value={serviceSearchQuery}
+                              onChange={(e) => setServiceSearchQuery(e.target.value)}
+                              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
+                              autoFocus
                             />
                           </div>
-                        ) : rental.status === 'Received' ? (
-                          <div className="flex items-center justify-between w-full">
-                            <div>
-                              <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-black/60 font-bold block">SMS Verification Code</span>
-                              <span className="text-3xl font-mono font-black tracking-[0.2em] text-white dark:text-slate-900">
-                                {rental.sms_code}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => copyToClipboard(rental.sms_code || '', `code-${rental.id}`)}
-                              className="px-4 py-2.5 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-1.5 shadow-md shadow-brand-blue/30"
-                            >
-                              {copiedId === `code-${rental.id}` ? <Check size={14} /> : <Copy size={14} />}
-                              {copiedId === `code-${rental.id}` ? 'Copied Code!' : 'Copy Code'}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 dark:text-white/40 text-xs font-medium">Rental Expired / Cancelled</span>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </AnimatePresence>
+                        </div>
+                        
+                        <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
+                          {SERVICES.filter((s: ServiceItem) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
+                            .slice(0, 40)
+                            .map((service: ServiceItem) => (
+                              <button
+                                key={service.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedService(service.id);
+                                  setSelectedServiceName(service.name);
+                                  setIsServiceDropdownOpen(false);
+                                  setServiceSearchQuery("");
+                                }}
+                                className={`w-full text-left flex justify-between px-3 py-2 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                              >
+                                <span>{service.name}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
+
+            {/* Live Pricing & Stock Box */}
+            <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block">
+                  Unit Price
+                </span>
+                {isFetchingPrice ? (
+                  <span className="text-sm font-bold text-brand-blue animate-pulse">Checking price...</span>
+                ) : !isAvailable || livePrice === null ? (
+                  <span className="text-xs font-bold text-red-500 flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Out of Stock
+                  </span>
+                ) : (
+                  <span className="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
+                    {isSandbox ? "$0.00" : currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
+                  </span>
+                )}
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                {isSandbox ? "Sandbox Free" : "In Stock"}
+              </span>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+                <WarningCircle size={16} weight="fill" className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Order Action Button */}
+            <button 
+              type="button"
+              onClick={handlePurchase}
+              disabled={isPurchasing || (isFetchingPrice && !isSandbox)}
+              className={`w-full text-white rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isSandbox ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/25" : "bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
+              }`}
+            >
+              {isPurchasing ? (
+                <>
+                  <Spinner size={18} className="animate-spin" /> Provisioning Line...
+                </>
+              ) : (
+                <>
+                  {isSandbox ? "Deploy Test USA Number (Free)" : "Deploy USA Number"} <ArrowRight weight="bold" size={16} />
+                </>
+              )}
+            </button>
+
           </div>
-        </motion.div>
+        </div>
+
+        {/* Right Column: Live Verification Monitor (Active Lines) */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-white/10 px-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+              Active Lines ({rentals.length})
+            </span>
+            <span className="text-[11px] text-slate-400 dark:text-white/30">
+              Real-time OTP listener
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <AnimatePresence>
+              {rentals.length === 0 ? (
+                <div className="p-10 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 flex flex-col items-center justify-center text-center gap-2 text-slate-400 dark:text-white/40">
+                  <Broadcast size={32} weight="light" className="opacity-40 mb-1" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-white/80">No active USA lines</p>
+                  <p className="text-xs max-w-xs text-slate-500 dark:text-white/40">
+                    Select a service on the left and deploy your number. Incoming SMS codes will appear here instantly.
+                  </p>
+                </div>
+              ) : (
+                rentals.map((rental) => (
+                  <motion.div 
+                    key={rental.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-5 flex flex-col gap-3.5 shadow-sm dark:shadow-none"
+                  >
+                    {/* Header: Service + Status Pill */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 dark:bg-white/10 text-slate-500'}`}>
+                          {rental.status === 'Waiting' ? <Clock size={18} weight="duotone" className="animate-pulse" /> : rental.status === 'Received' ? <CheckCircle size={18} weight="fill" /> : <WarningCircle size={18} weight="fill" />}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                            {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-mono">
+                            USA Line {rental.order_id.startsWith('sandbox-') && '· Test'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-slate-100 dark:bg-white/10 text-slate-500 border-slate-200 dark:border-white/10'}`}>
+                        {rental.status === 'Waiting' ? 'Waiting for SMS...' : rental.status === 'Received' ? 'Code Received' : rental.status}
+                      </span>
+                    </div>
+
+                    {/* Phone Number Box with Copy */}
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500 dark:text-white/40">Number</span>
+                        <span className="text-base font-mono font-bold tracking-wider text-slate-900 dark:text-white">{rental.phone_number}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(rental.phone_number, `phone-${rental.id}`)}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-all flex items-center gap-1 shadow-sm border border-slate-200 dark:border-transparent"
+                      >
+                        {copiedId === `phone-${rental.id}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                        {copiedId === `phone-${rental.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+
+                    {/* SMS Code Display */}
+                    <div className={`p-3.5 rounded-2xl flex flex-col items-center justify-center border ${rental.status === 'Waiting' ? 'bg-slate-50 dark:bg-black/20 border-slate-200/60 dark:border-white/5' : rental.status === 'Received' ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-slate-900 dark:border-white/20' : 'bg-slate-100 dark:bg-white/5 border-slate-200/60 dark:border-white/5'}`}>
+                      {rental.status === 'Waiting' ? (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+                          <div className="flex items-center gap-2 text-brand-blue text-xs font-bold">
+                            <Spinner size={15} className="animate-spin" />
+                            Listening for incoming code...
+                          </div>
+                          <CancelOrderButton 
+                            rentalId={rental.id} 
+                            createdAt={rental.created_at} 
+                            cost={rental.cost}
+                            currency={rental.currency}
+                            onCancelSuccess={fetchRentals} 
+                          />
+                        </div>
+                      ) : rental.status === 'Received' ? (
+                        <div className="flex items-center justify-between w-full">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-black/60 font-bold block">SMS Code</span>
+                            <span className="text-2xl font-mono font-black tracking-widest text-white dark:text-slate-900">
+                              {rental.sms_code}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(rental.sms_code || '', `code-${rental.id}`)}
+                            className="px-3.5 py-2 rounded-xl bg-brand-blue text-white text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-1 shadow-sm shadow-brand-blue/30"
+                          >
+                            {copiedId === `code-${rental.id}` ? <Check size={13} /> : <Copy size={13} />}
+                            {copiedId === `code-${rental.id}` ? 'Copied!' : 'Copy Code'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 dark:text-white/40 text-xs">Rental Expired or Cancelled</span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
       </div>
 
       <PurchaseSuccessModal

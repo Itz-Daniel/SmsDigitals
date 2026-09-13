@@ -3,6 +3,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi, SmspvaApi, SmsManApi, TextVerifiedApi } from "@/lib/providers/sms-providers";
 
+interface RentalRecord {
+  id: string;
+  user_id: string;
+  order_id: string;
+  phone_number: string;
+  service?: string;
+  country?: string;
+  region?: string;
+  status: string;
+  cost: number;
+  currency: string;
+  provider: string;
+  created_at: string;
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -21,7 +36,7 @@ export async function POST(req: Request) {
     // 1. Fetch Rental Record safely without throwing UUID syntax errors
     const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rental_id);
 
-    let rental: any = null;
+    let rental: RentalRecord | null = null;
 
     if (isUuid) {
       const { data } = await supabase
@@ -66,7 +81,7 @@ export async function POST(req: Request) {
     if (elapsedSeconds < 120 && !isSandboxOrder) {
       const waitSeconds = Math.ceil(120 - elapsedSeconds);
       return NextResponse.json({ 
-        error: `🚫 Provider Policy: Please wait ${waitSeconds} more seconds before cancelling this order.` 
+        error: `Carrier verification window: Please wait ${waitSeconds} more seconds before cancelling and refunding this order.` 
       }, { status: 403 });
     }
 
@@ -154,8 +169,8 @@ export async function POST(req: Request) {
       message: `🎉 Order cancelled successfully! ${rental.currency === 'USD' ? '$' : '₦'}${rental.cost} refunded to your wallet.`
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Cancel Order API Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to cancel order." }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || "Failed to cancel order." }, { status: 500 });
   }
 }

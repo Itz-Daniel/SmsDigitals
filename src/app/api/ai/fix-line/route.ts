@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi } from "@/lib/providers/sms-providers";
-import { diagnoseStalledLine } from "@/lib/ai-verification-engine";
+import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse } from "@/lib/providers/sms-providers";
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
       new SmspvaApi()
     ];
 
-    let freshResponse: any = null;
+    let freshResponse: ProviderResponse | null = null;
     let newProviderName = "";
 
     for (const provider of backupProviders) {
@@ -91,7 +90,7 @@ export async function POST(req: Request) {
           newProviderName = provider.name;
           break;
         }
-      } catch (e) {
+      } catch {
         console.warn(`AI Line Fixer: Provider ${provider.name} failed for ${country}/${service}`);
       }
     }
@@ -121,17 +120,22 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      rental: updatedRental || {
-        id: rental.id,
+      rental: {
+        id: updatedRental?.id || rental.id,
         phone_number: freshResponse.phoneNumber,
-        provider: newProviderName,
-        order_id: freshResponse.orderId
+        order_id: freshResponse.orderId,
+        status: 'Waiting',
+        service: rental.service,
+        region: rental.region,
+        currency: rental.currency,
+        cost: rental.cost,
+        created_at: newExpiresAt
       },
-      message: `⚡ AI Auto-Switch Success! Replaced stalled line with fresh line (${freshResponse.phoneNumber}) via ${newProviderName}.`
+      message: `⚡ AI Auto-Switch Success! Replaced stalled line with fresh line (${freshResponse.phoneNumber}).`
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI Fix Line API Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to execute AI line auto-switch." }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || "Failed to execute AI line auto-switch." }, { status: 500 });
   }
 }

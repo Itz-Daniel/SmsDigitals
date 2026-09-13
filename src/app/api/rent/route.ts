@@ -112,7 +112,7 @@ export async function POST(req: Request) {
           usedProviderName = provider.name;
           break;
         }
-      } catch (e) {
+      } catch {
         console.warn(`Provider ${provider.name} failed for ${country}/${serviceId}, cascading...`);
       }
     }
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     if (!successResponse) {
       await notifyTelegramAdmin(`🚨 Out of Stock: No virtual number available for ${country}/${serviceId}`);
       return NextResponse.json({ 
-        error: "Temporary Stock Out: All providers are currently out of stock for this line. Please try another country or retry in a few moments." 
+        error: "This line is currently out of stock for this country. Please try again in a few moments or select another country." 
       }, { status: 503 });
     }
 
@@ -195,7 +195,18 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      rental: newRental,
+      rental: {
+        id: newRental?.id || successResponse.orderId,
+        order_id: successResponse.orderId,
+        phone_number: successResponse.phoneNumber,
+        service: serviceId,
+        region: region || country,
+        status: 'Waiting',
+        cost: finalPriceUsd,
+        currency: currency,
+        expires_at: expiresAt,
+        created_at: newRental?.created_at || new Date().toISOString()
+      },
       order_id: successResponse.orderId,
       phone_number: successResponse.phoneNumber,
       service: serviceId,
@@ -205,8 +216,13 @@ export async function POST(req: Request) {
       message: "Virtual Number Procured Successfully!"
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Number procurement API error:", err);
-    return NextResponse.json({ error: err.message || "Server Error" }, { status: 500 });
+    const msg = (err as Error)?.message || "";
+    const isProviderErr = /5sim|grizzly|smspva|textverified|smsman|provider|api/i.test(msg);
+    const safeError = isProviderErr
+      ? "This line is currently out of stock. Please try again in a few moments or select another country."
+      : (msg || "Temporary server error while procuring number.");
+    return NextResponse.json({ error: safeError }, { status: 500 });
   }
 }

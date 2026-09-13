@@ -2,7 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClockCounterClockwise, ArrowsLeftRight, Hash, CreditCard, WifiHigh, Gift, Lifebuoy, CaretRight, Spinner, CheckCircle, Eye, EyeSlash, Storefront, Code } from "@phosphor-icons/react";
+import { 
+  ClockCounterClockwise, 
+  ArrowsLeftRight, 
+  CreditCard, 
+  Gift, 
+  Lifebuoy, 
+  CaretRight, 
+  CheckCircle, 
+  Eye, 
+  EyeSlash, 
+  Code,
+  Globe,
+  Receipt,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Plus
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
@@ -12,32 +28,46 @@ const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
   ssr: false,
 });
 import ConvertModal from "@/components/dashboard/ConvertModal";
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
+
+interface Transaction {
+  id: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  reference: string;
+  description?: string;
+  created_at: string;
+}
 
 export default function DashboardPage() {
   const { currency, setCurrency, showBalance, toggleShowBalance } = useCurrency();
-  const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; email: string; created_at?: string } | null>(null);
   const [wallet, setWallet] = useState<{ balance_ngn: number; balance_usd: number; lifetime_deposits_usd: number; id: string } | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(1500);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
 
-  const supabase = createClient();
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
 
   useEffect(() => {
     const fetchData = async () => {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [profileRes, walletRes, settingsRes] = await Promise.all([
+      const [profileRes, walletRes, settingsRes, txRes] = await Promise.all([
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
         supabase.from("wallets").select("balance_ngn, balance_usd, lifetime_deposits_usd, id").eq("user_id", user.id).single(),
-        supabase.from("api_settings").select("exchange_rate").single()
+        supabase.from("api_settings").select("exchange_rate").single(),
+        supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(4)
       ]);
 
       if (profileRes.data) {
-        setProfile({ full_name: profileRes.data.full_name, email: user.email! });
+        setProfile({ full_name: profileRes.data.full_name, email: user.email!, created_at: user.created_at });
       }
 
       if (walletRes.data) {
@@ -49,6 +79,10 @@ export default function DashboardPage() {
 
       if (settingsRes.data && settingsRes.data.exchange_rate) {
         setExchangeRate(settingsRes.data.exchange_rate);
+      }
+
+      if (txRes.data) {
+        setRecentTransactions(txRes.data as Transaction[]);
       }
 
       setLoading(false);
@@ -77,134 +111,258 @@ export default function DashboardPage() {
 
   const getFirstName = (fullName: string | null) => {
     if (!fullName) return "User";
-    return fullName.split(' ')[0];
+    return fullName.split(" ")[0];
+  };
+
+  const formatDate = () => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date());
+    } catch {
+      return "Today";
+    }
+  };
+
+  const formatTxDate = (isoStr: string) => {
+    try {
+      const d = new Date(isoStr);
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      }).format(d);
+    } catch {
+      return "Recently";
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8 md:gap-12 pb-12 w-full max-w-5xl text-slate-900 dark:text-white transition-colors duration-500 animate-pulse font-sans">
-        <section className="w-full flex flex-col gap-6">
-          <div>
-            <div className="h-8 bg-slate-200 dark:bg-white/10 rounded-lg w-64 mb-3"></div>
-            <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-lg w-48"></div>
+      <div className="flex flex-col gap-6 md:gap-8 pb-16 w-full max-w-6xl text-slate-900 dark:text-white font-sans animate-pulse">
+        <div className="flex justify-between items-end pb-4 border-b border-slate-200/60 dark:border-white/5">
+          <div className="flex flex-col gap-2">
+            <div className="h-7 bg-slate-200 dark:bg-white/10 rounded-lg w-56"></div>
+            <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-md w-40"></div>
           </div>
-          <div className="relative overflow-hidden rounded-3xl border border-black/5 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-10 flex flex-col gap-8">
-            <div className="flex items-center justify-between">
-              <div className="w-24 h-4 bg-slate-200 dark:bg-white/10 rounded-full"></div>
-              <div className="w-32 h-8 bg-slate-200 dark:bg-white/10 rounded-full"></div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="w-64 h-16 bg-slate-200 dark:bg-white/10 rounded-2xl"></div>
-              <div className="w-48 h-4 bg-slate-100 dark:bg-white/5 rounded-lg"></div>
-            </div>
+          <div className="h-9 bg-slate-200 dark:bg-white/10 rounded-full w-28 hidden sm:block"></div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <div className="h-56 bg-slate-100 dark:bg-white/5 rounded-3xl border border-slate-200/60 dark:border-white/5"></div>
+            <div className="h-32 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5"></div>
+            <div className="h-64 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5"></div>
           </div>
-        </section>
+          <div className="lg:col-span-1 flex flex-col gap-5">
+            <div className="h-44 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5"></div>
+            <div className="h-36 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5"></div>
+            <div className="h-28 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5"></div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  const services = [
+    {
+      id: "us",
+      label: "USA Numbers",
+      href: "/dashboard/sms/us",
+      badge: "POPULAR",
+      flag: "🇺🇸",
+      isFlag: true,
+      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+    },
+    {
+      id: "cana",
+      label: "Canada",
+      href: "/dashboard/sms/cana",
+      flag: "🇨🇦",
+      isFlag: true,
+      color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+    },
+    {
+      id: "global",
+      label: "All Countries",
+      href: "/dashboard/sms/global",
+      icon: Globe,
+      isFlag: false,
+      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+    },
+    {
+      id: "long-term",
+      label: "Long-Term",
+      href: "/dashboard/sms/long-term",
+      icon: ClockCounterClockwise,
+      isFlag: false,
+      color: "bg-brand-blue/10 text-brand-blue border-brand-blue/20"
+    },
+    {
+      id: "fund",
+      label: "Fund Wallet",
+      href: "/dashboard/fund",
+      icon: CreditCard,
+      isFlag: false,
+      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+    },
+    {
+      id: "history",
+      label: "History",
+      href: "/dashboard/transactions",
+      icon: Receipt,
+      isFlag: false,
+      color: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20"
+    },
+    {
+      id: "api",
+      label: "Developer API",
+      href: "/dashboard/api",
+      icon: Code,
+      isFlag: false,
+      color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+    },
+    {
+      id: "referrals",
+      label: "Referrals",
+      href: "/dashboard/affiliates",
+      icon: Gift,
+      isFlag: false,
+      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+    },
+    {
+      id: "support",
+      label: "Support",
+      href: "/dashboard/support",
+      icon: Lifebuoy,
+      isFlag: false,
+      color: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20"
+    }
+  ];
+
   return (
-    <div className="flex flex-col gap-8 md:gap-12 pb-24 md:pb-32 w-full max-w-5xl text-slate-900 dark:text-white transition-colors duration-500 font-sans overflow-x-hidden">
+    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans overflow-x-hidden">
       
-      {/* Hero Section with Wallet Component */}
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full flex flex-col gap-6"
-      >
+      {/* ── Page Header ────────────────────────────────────── */}
+      <div className="flex items-end justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
         <div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             Welcome back, {getFirstName(profile?.full_name || null)} <span className="inline-block origin-[70%_70%] animate-wave">👋</span>
           </h2>
-          <p className="text-slate-500 dark:text-white/40 text-xs sm:text-sm mt-1">Here is your account overview and balance.</p>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1 font-medium">{formatDate()}</p>
         </div>
 
-        {/* Hero Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Wallet Balance Card */}
-          <div className="lg:col-span-2 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-10 flex flex-col justify-between gap-6 relative overflow-hidden shadow-xl dark:shadow-none group">
-            
-            {/* Ambient Hover Glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/10 via-purple-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl pointer-events-none"></div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-white/60">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            #{wallet?.id ? wallet.id.substring(0, 6).toUpperCase() : "4162"}
+          </span>
 
-            {/* Header / Currency Switcher */}
-            <div className="flex items-center justify-between relative z-10 flex-wrap gap-2">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] sm:text-xs uppercase tracking-widest text-slate-500 dark:text-white/40 font-mono font-bold">
-                  Wallet Balance
+          <Link
+            href="/dashboard/fund"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand-blue hover:bg-blue-600 active:scale-95 text-white text-xs sm:text-sm font-bold shadow-sm shadow-brand-blue/25 transition-all"
+          >
+            <Plus size={14} weight="bold" />
+            <span>Add money</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── New User Welcome & Device Bookmark Banner ───────── */}
+      <WelcomeBanner userCreatedAt={profile?.created_at} />
+
+      {/* ── Dashboard Grid (Desktop 2-Col / Mobile Linear Stack) ─ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column: Wallet, Country/Services Slider, Recent Activity */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          
+          {/* 1. Main Wallet Balance Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/40 p-6 md:p-8 flex flex-col justify-between gap-6 relative overflow-hidden shadow-sm dark:shadow-none"
+          >
+            {/* Top row: Label + Currency Switcher */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-white/40">
+                  Wallet balance
                 </span>
                 <button
                   onClick={toggleShowBalance}
                   className="text-slate-400 hover:text-slate-700 dark:text-white/40 dark:hover:text-white transition-colors p-1"
                   title={showBalance ? "Hide Balance" : "Show Balance"}
                 >
-                  {showBalance ? <Eye size={18} /> : <EyeSlash size={18} />}
+                  {showBalance ? <Eye size={17} /> : <EyeSlash size={17} />}
                 </button>
               </div>
 
+              {/* Currency Switcher Pills */}
               <div className="flex items-center bg-slate-100 dark:bg-white/5 p-1 rounded-full border border-black/5 dark:border-white/10">
                 <button
                   onClick={() => setCurrency('NGN')}
-                  className={`px-3 sm:px-4 py-1 text-xs font-bold rounded-full relative z-10 transition-colors ${currency === 'NGN' ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-white/40'}`}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${currency === 'NGN' ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-white/40'}`}
                 >
                   NGN
                 </button>
                 <button
                   onClick={() => setCurrency('USD')}
-                  className={`px-3 sm:px-4 py-1 text-xs font-bold rounded-full relative z-10 transition-colors ${currency === 'USD' ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-white/40'}`}
+                  className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${currency === 'USD' ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-white/40'}`}
                 >
                   USD
                 </button>
               </div>
             </div>
 
-            {/* Balance Display */}
-            <div className="relative z-10 flex flex-col">
+            {/* Middle: Big Balance Figure */}
+            <div className="flex flex-col gap-1.5">
               <AnimatePresence mode="wait">
                 {currency === 'NGN' ? (
-                  <motion.h1
-                    key="balance-ngn"
-                    initial={{ opacity: 0, y: -10 }}
+                  <motion.div
+                    key="bal-ngn"
+                    initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-none flex items-center text-slate-900 dark:text-white truncate"
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums flex items-baseline gap-1"
                   >
-                    <span className="text-slate-400 dark:text-white/40 font-mono mr-2">₦</span>
-                    <span className="truncate">{showBalance ? wallet?.balance_ngn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
-                  </motion.h1>
+                    <span className="text-slate-400 dark:text-white/40 font-normal">₦</span>
+                    <span>{showBalance ? wallet?.balance_ngn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
+                  </motion.div>
                 ) : (
-                  <motion.h1
-                    key="balance-usd"
-                    initial={{ opacity: 0, y: -10 }}
+                  <motion.div
+                    key="bal-usd"
+                    initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-none flex items-center text-slate-900 dark:text-white truncate"
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums flex items-baseline gap-1"
                   >
-                    <span className="text-slate-400 dark:text-white/40 font-mono mr-2">$</span>
-                    <span className="truncate">{showBalance ? wallet?.balance_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
-                  </motion.h1>
+                    <span className="text-slate-400 dark:text-white/40 font-normal">$</span>
+                    <span>{showBalance ? wallet?.balance_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
+                  </motion.div>
                 )}
               </AnimatePresence>
-              <span className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-3 font-mono">
-                Available Balance · Wallet ID #{wallet?.id.substring(0, 6).toUpperCase()}
-              </span>
+
+              <div className="text-xs text-slate-500 dark:text-white/40 font-medium">
+                <span>Available to spend</span>
+                <span className="mx-1.5 opacity-50">·</span>
+                <span>Shown at $1 = ₦{exchangeRate.toLocaleString()}</span>
+              </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mt-2 items-stretch sm:items-center relative z-10">
-              <AnimatePresence mode="popLayout">
+            {/* Bottom: Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <AnimatePresence mode="wait">
                 {currency === 'NGN' ? (
-                  <motion.div
-                    key="ngn-actions"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="w-full sm:w-auto"
-                  >
+                  <div key="act-ngn" className="w-full sm:w-auto">
                     {profile && (
                       <QuickFund
                         email={profile.email}
@@ -212,74 +370,210 @@ export default function DashboardPage() {
                         onSuccessPayment={handleSuccessfulPayment}
                       />
                     )}
-                  </motion.div>
+                  </div>
                 ) : (
-                  <motion.div
-                    key="usd-actions"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="w-full sm:w-auto"
-                  >
+                  <div key="act-usd" className="w-full sm:w-auto">
                     <button
                       onClick={() => setIsConvertModalOpen(true)}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-brand-blue text-white text-sm font-bold tracking-wide hover:bg-blue-600 active:scale-95 transition-all shadow-lg shadow-brand-blue/20"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-blue text-white text-xs sm:text-sm font-bold tracking-wide hover:bg-blue-600 active:scale-95 transition-all shadow-sm shadow-brand-blue/20"
                     >
-                      <ArrowsLeftRight weight="bold" className="text-lg" />
+                      <ArrowsLeftRight weight="bold" size={16} />
                       Convert to USD
                     </button>
-                  </motion.div>
+                  </div>
                 )}
               </AnimatePresence>
 
-              <Link href="/dashboard/transactions" className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-white text-sm font-bold tracking-wide hover:bg-slate-200 dark:hover:bg-white/10 active:scale-95 transition-all">
-                <ClockCounterClockwise weight="bold" className="text-lg" />
+              <Link
+                href="/dashboard/transactions"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-white text-xs sm:text-sm font-bold tracking-wide active:scale-95 transition-all"
+              >
+                <ClockCounterClockwise weight="bold" size={16} />
                 History
               </Link>
             </div>
 
-            {successMsg && <p className="text-emerald-500 text-xs font-bold relative z-10 flex items-center gap-1"><CheckCircle weight="fill" /> {successMsg}</p>}
-          </div>
+            {successMsg && (
+              <p className="text-emerald-500 text-xs font-bold flex items-center gap-1 mt-1">
+                <CheckCircle weight="fill" size={14} /> {successMsg}
+              </p>
+            )}
+          </motion.div>
 
-          {/* VIP Status Card */}
-          <div className="lg:col-span-1 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-white p-6 relative overflow-hidden flex flex-col justify-between shadow-xl dark:shadow-none transition-colors group">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 dark:bg-yellow-500/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold tracking-tight text-xs uppercase text-slate-500 dark:text-slate-400">VIP Loyalty Status</h3>
-                {wallet && wallet.lifetime_deposits_usd >= 500 ? (
-                  <span className="bg-amber-500/10 text-amber-600 dark:bg-yellow-500/20 dark:text-yellow-400 px-2.5 py-1 rounded-full text-[10px] font-extrabold border border-amber-500/20">GOLD (12% OFF)</span>
-                ) : wallet && wallet.lifetime_deposits_usd >= 150 ? (
-                  <span className="bg-slate-200 text-slate-700 dark:bg-slate-300/20 dark:text-slate-300 px-2.5 py-1 rounded-full text-[10px] font-extrabold border border-slate-300/30">SILVER (7% OFF)</span>
-                ) : wallet && wallet.lifetime_deposits_usd >= 50 ? (
-                  <span className="bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 px-2.5 py-1 rounded-full text-[10px] font-extrabold border border-orange-500/20">BRONZE (3% OFF)</span>
-                ) : (
-                  <span className="bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60 px-2.5 py-1 rounded-full text-[10px] font-bold">STANDARD</span>
-                )}
-              </div>
-              
-              <div className="mt-4">
-                <p className="text-2xl font-bold font-mono tracking-tighter text-slate-900 dark:text-white">
-                  {currency === 'NGN' ? '₦' : '$'}
-                  {wallet?.lifetime_deposits_usd ? (currency === 'NGN' ? wallet.lifetime_deposits_usd * exchangeRate : wallet.lifetime_deposits_usd).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Lifetime Deposits</p>
-              </div>
+          {/* 2. Centered Country & Services Slider (Mobile Peek Rail + Desktop Grid) */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+                Services & Numbers
+              </span>
+              <span className="text-[11px] font-medium text-slate-400 dark:text-white/30 hidden sm:inline">
+                Instant virtual lines
+              </span>
             </div>
 
-            <div className="mt-6">
-              {wallet && wallet.lifetime_deposits_usd >= 500 ? (
-                <div className="text-xs font-semibold text-amber-600 dark:text-yellow-400">You've reached the highest VIP tier! Enjoy 12% off everything.</div>
+            {/* Slider Container with Peek Effect on Mobile */}
+            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-3 sm:p-5 relative overflow-hidden">
+              
+              {/* Mobile Right Edge Gradient Fade (Cues horizontal scrollability) */}
+              <div className="sm:hidden absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-[#0F172A] to-transparent pointer-events-none z-10"></div>
+
+              {/* Horizontal Scroll Rail */}
+              <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
+                {services.map((svc) => {
+                  const Icon = svc.icon;
+                  return (
+                    <Link
+                      key={svc.id}
+                      href={svc.href}
+                      className="group shrink-0 flex-1 min-w-[76px] sm:min-w-[84px] max-w-[94px] snap-start flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95 transition-all relative"
+                    >
+                      {/* Icon / Flag Box */}
+                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl relative transition-transform duration-200 group-hover:-translate-y-0.5 shadow-sm dark:shadow-none ${svc.color}`}>
+                        {svc.isFlag ? (
+                          <span className="text-2xl leading-none select-none">{svc.flag}</span>
+                        ) : (
+                          Icon && <Icon size={22} weight="duotone" />
+                        )}
+
+                        {svc.badge && (
+                          <span className="absolute -top-1.5 -right-1 bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter shadow-sm">
+                            {svc.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Label */}
+                      <span className="text-[11px] font-semibold text-center leading-tight text-slate-700 dark:text-white/70 group-hover:text-brand-blue dark:group-hover:text-white transition-colors truncate w-full">
+                        {svc.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Recent Activity List (Rules, Not Heavy Cards) */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+                Recent activity
+              </span>
+              <Link 
+                href="/dashboard/transactions" 
+                className="text-xs font-bold text-brand-blue hover:underline flex items-center gap-0.5"
+              >
+                See all <CaretRight size={12} weight="bold" />
+              </Link>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 overflow-hidden">
+              {recentTransactions && recentTransactions.length > 0 ? (
+                <div className="divide-y divide-slate-100 dark:divide-white/5">
+                  {recentTransactions.map((tx) => {
+                    const isCredit = tx.type?.toLowerCase().includes("fund") || 
+                                     tx.type?.toLowerCase().includes("deposit") ||
+                                     tx.type?.toLowerCase().includes("credit") ||
+                                     tx.type?.toLowerCase().includes("voucher");
+
+                    return (
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/60'}`}>
+                            {isCredit ? <ArrowDownLeft size={16} weight="bold" /> : <ArrowUpRight size={16} weight="bold" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                              {isCredit ? "Wallet Funding" : (tx.description || tx.type || "Number Purchase")}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-white/40 truncate font-mono">
+                              {tx.reference ? tx.reference.slice(-10).toUpperCase() : "Direct transaction"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0 pl-3">
+                          <p className={`text-xs sm:text-sm font-bold font-mono tabular-nums ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                            {isCredit ? "+" : "−"}{tx.currency === "NGN" ? "₦" : "$"}{Number(tx.amount || 0).toLocaleString(tx.currency === "NGN" ? "en-NG" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-white/30">
+                            {formatTxDate(tx.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <>
-                  <div className="flex justify-between text-xs mb-2 text-slate-500 dark:text-slate-400 font-medium">
-                    <span>VIP Tier Progress</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {currency === 'NGN' ? '₦' : '$'}{((wallet?.lifetime_deposits_usd || 0) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()} / {currency === 'NGN' ? '₦' : '$'}{((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()}
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-white/40">
+                  <Receipt size={32} weight="light" className="opacity-40" />
+                  <p className="text-xs font-semibold">No recent activity yet</p>
+                  <Link
+                    href="/dashboard/sms/us"
+                    className="text-xs text-brand-blue font-bold hover:underline mt-1"
+                  >
+                    Rent your first virtual number →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column / Rail: VIP Tier, Referrals, Support */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+
+          {/* 1. Account Level / VIP Loyalty Status */}
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 flex flex-col justify-between gap-5 relative overflow-hidden shadow-sm dark:shadow-none">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+                Account level
+              </span>
+              {wallet && wallet.lifetime_deposits_usd >= 500 ? (
+                <span className="bg-amber-500/10 text-amber-600 dark:bg-yellow-500/20 dark:text-yellow-400 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-500/20">
+                  GOLD (12% OFF)
+                </span>
+              ) : wallet && wallet.lifetime_deposits_usd >= 150 ? (
+                <span className="bg-slate-200 text-slate-700 dark:bg-slate-300/20 dark:text-slate-300 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border border-slate-300/30">
+                  SILVER (7% OFF)
+                </span>
+              ) : wallet && wallet.lifetime_deposits_usd >= 50 ? (
+                <span className="bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border border-orange-500/20">
+                  BRONZE (3% OFF)
+                </span>
+              ) : (
+                <span className="bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                  STANDARD
+                </span>
+              )}
+            </div>
+
+            <div>
+              <p className="text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
+                {currency === 'NGN' ? '₦' : '$'}
+                {wallet?.lifetime_deposits_usd ? (currency === 'NGN' ? wallet.lifetime_deposits_usd * exchangeRate : wallet.lifetime_deposits_usd).toLocaleString(currency === 'NGN' ? 'en-NG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-white/40 mt-0.5">Total Lifetime Deposits</p>
+            </div>
+
+            <div>
+              {wallet && wallet.lifetime_deposits_usd >= 500 ? (
+                <p className="text-xs font-semibold text-amber-600 dark:text-yellow-400">
+                  Highest tier unlocked! 12% discount active on all numbers.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-white/40 font-medium">
+                    <span>Next Tier Target</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-white/80">
+                      {currency === 'NGN' ? '₦' : '$'}{((wallet && wallet.lifetime_deposits_usd >= 150 ? 500 : wallet && wallet.lifetime_deposits_usd >= 50 ? 150 : 50) * (currency === 'NGN' ? exchangeRate : 1)).toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-brand-blue rounded-full transition-all duration-500"
                       style={{ 
@@ -287,133 +581,58 @@ export default function DashboardPage() {
                       }}
                     ></div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      </motion.section>
 
-      {/* Bento Grid Quick Links */}
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full flex flex-col gap-6"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Quick Services</h3>
-        </div>
+          {/* 2. Earn From Referrals Card */}
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 flex flex-col justify-between gap-4 shadow-sm dark:shadow-none relative overflow-hidden">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <Gift size={20} weight="duotone" />
+            </div>
 
-        {/* Tactile Motion Bento Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Earn from referrals</h4>
+              <p className="text-xs text-slate-500 dark:text-white/40 mt-1 leading-relaxed">
+                Invite friends or clients and earn instant cashback commissions every time they fund and transact.
+              </p>
+            </div>
 
-          {/* Action 1: Virtual Numbers (Focal Card) */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1 sm:row-span-2"
-          >
-            <Link href="/dashboard/sms" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/40 hover:bg-slate-50 dark:hover:bg-surface/60 transition-all p-6 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-lg dark:shadow-none">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-brand-blue/10 rounded-full blur-3xl group-hover:bg-brand-blue/20 transition-all duration-500"></div>
-              <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue mb-6 sm:mb-8 group-hover:scale-110 transition-transform">
-                <Hash className="text-2xl" weight="duotone" />
-              </div>
-              <div>
-                <h4 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-brand-blue transition-colors">Virtual Phone Numbers</h4>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">Get non-VoIP lines for instant WhatsApp, Telegram & 1,300+ app verifications.</p>
-              </div>
+            <Link
+              href="/dashboard/affiliates"
+              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-800 dark:text-white text-xs font-bold tracking-wide transition-all"
+            >
+              <span>Share your link</span>
+              <CaretRight size={12} weight="bold" />
             </Link>
-          </motion.div>
+          </div>
 
-          {/* Action 3: Long-Term Rentals */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
-          >
-            <Link href="/dashboard/sms/long-term" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
-              <div className="absolute inset-0 bg-brand-blue/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
-              <div className="w-11 h-11 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
-                <ClockCounterClockwise className="text-2xl" weight="duotone" />
+          {/* 3. Need Help Support Box */}
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-5 flex items-center justify-between gap-3 shadow-sm dark:shadow-none">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center shrink-0">
+                <Lifebuoy size={20} weight="duotone" />
               </div>
-              <div className="flex-1 min-w-0 relative z-10">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">Long-Term Rentals</h4>
-                <p className="text-xs text-slate-500 dark:text-white/40 truncate">30-365 Day Dedicated Lines</p>
+              <div className="min-w-0">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">Need help?</h4>
+                <p className="text-[11px] text-slate-500 dark:text-white/40 truncate">We reply around the clock</p>
               </div>
-            </Link>
-          </motion.div>
+            </div>
 
-          {/* Action 4: Reseller Developer API */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
-          >
-            <Link href="/dashboard/api" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
-              <div className="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
-              <div className="w-11 h-11 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
-                <Code className="text-2xl" weight="bold" />
-              </div>
-              <div className="flex-1 min-w-0 relative z-10">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span className="truncate">Developer API</span>
-                  <span className="text-[9px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">cURL</span>
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-white/40 truncate">Automated Reseller REST API</p>
-              </div>
+            <Link
+              href="/dashboard/support"
+              className="shrink-0 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-white text-xs font-bold transition-all"
+            >
+              Contact
             </Link>
-          </motion.div>
-
-          {/* Action 5: Affiliate Program */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
-          >
-            <Link href="/dashboard/affiliates" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-base hover:bg-slate-200/70 dark:hover:bg-white/5 transition-all p-5 flex items-center gap-4 group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
-              <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"></div>
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0 group-hover:scale-110">
-                <Gift className="text-2xl" weight="duotone" />
-              </div>
-              <div className="flex-1 min-w-0 relative z-10">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span className="truncate">Affiliate Program</span>
-                  <span className="text-[9px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider shrink-0">EARN</span>
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-white/40 truncate">Earn rewards for referrals</p>
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* Action 6: Support / Help */}
-          <motion.div
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-1"
-          >
-            <Link href="/dashboard/support" className="h-full w-full rounded-3xl border border-slate-200/80 dark:border-white/5 bg-gradient-to-r from-slate-100 to-white dark:from-surface dark:to-base hover:from-slate-200 hover:to-slate-100 dark:hover:from-surface-hover dark:hover:to-surface transition-all p-5 flex items-center justify-between group cursor-pointer shadow-sm dark:shadow-none relative overflow-hidden">
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform">
-                  <Lifebuoy className="text-2xl" weight="duotone" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Need Help?</h4>
-                  <p className="text-xs text-slate-500 dark:text-white/40">24/7 dedicated support</p>
-                </div>
-              </div>
-              <CaretRight className="text-slate-400 dark:text-white/20 group-hover:text-slate-600 dark:group-hover:text-white/60 transition-colors shrink-0 relative z-10" />
-            </Link>
-          </motion.div>
+          </div>
 
         </div>
-      </motion.section>
 
+      </div>
+
+      {/* Currency Convert Modal */}
       <ConvertModal
         isOpen={isConvertModalOpen}
         onClose={() => setIsConvertModalOpen(false)}

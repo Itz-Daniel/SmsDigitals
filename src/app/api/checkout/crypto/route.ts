@@ -39,8 +39,43 @@ export async function POST(req: Request) {
       priceAmountUsd: payment.price_amount,
       qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(payment.pay_address)}`
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Crypto checkout error:", err);
-    return NextResponse.json({ error: err.message || "Failed to generate crypto payment." }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message || "Failed to generate crypto payment." }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const orderId = searchParams.get("orderId");
+
+    if (!orderId) {
+      return NextResponse.json({ error: "Missing orderId parameter" }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the order has been completed and credited in database
+    const { data: tx } = await supabase
+      .from("wallet_transactions")
+      .select("status, amount")
+      .eq("reference", orderId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (tx && (tx.status === "Completed" || tx.status === "Success")) {
+      return NextResponse.json({ status: "confirmed", amount: tx.amount });
+    }
+
+    return NextResponse.json({ status: "waiting" });
+  } catch (err: unknown) {
+    console.error("Crypto check status error:", err);
+    return NextResponse.json({ status: "waiting", error: (err as Error).message });
   }
 }

@@ -10,7 +10,7 @@ interface AILineFixerProps {
   onFixSuccess: () => void;
 }
 
-export function AILineFixerWidget({ rentalId, provider = "5sim", onFixSuccess }: AILineFixerProps) {
+export function AILineFixerWidget({ rentalId, onFixSuccess }: AILineFixerProps) {
   const [isFixing, setIsFixing] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -35,8 +35,8 @@ export function AILineFixerWidget({ rentalId, provider = "5sim", onFixSuccess }:
       } else {
         setMessage({ text: data.error || "Failed to auto-switch line.", type: "error" });
       }
-    } catch (err: any) {
-      setMessage({ text: err.message || "Network error while running AI auto-switch.", type: "error" });
+    } catch (err: unknown) {
+      setMessage({ text: (err as Error).message || "Network error while running AI auto-switch.", type: "error" });
     } finally {
       setIsFixing(false);
     }
@@ -59,7 +59,7 @@ export function AILineFixerWidget({ rentalId, provider = "5sim", onFixSuccess }:
       </div>
 
       <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-        Carrier network route <strong className="text-slate-900 dark:text-white font-bold">{provider.toUpperCase()}</strong> is experiencing slow SMS transmission. AI recommends auto-switching to a fresh backup line.
+        Current cellular line is experiencing delayed SMS transmission. AI recommends auto-switching to a fresh high-priority backup route.
       </p>
 
       {message && (

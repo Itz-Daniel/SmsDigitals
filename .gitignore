@@ -43,3 +43,6 @@ next-env.d.ts
 
 # gstack
 .gstack/
+
+# Temporary web archives
+Blissdigitals*

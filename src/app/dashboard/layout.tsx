@@ -4,6 +4,7 @@ import { GlobalCodePopup } from "@/components/GlobalCodePopup";
 import { CurrencyProvider } from "@/components/CurrencyContext";
 import { CurrencyOnboardingModal } from "@/components/CurrencyOnboardingModal";
 import { AccountStatusBanner } from "@/components/AccountStatusBanner";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -41,13 +42,14 @@ export default async function DashboardLayout({
         <Sidebar email={email} initials={initials} avatarUrl={avatarUrl} isAdmin={isAdmin} />
       </div>
       <CurrencyProvider>
-        <main className="flex-1 flex flex-col h-full relative overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <main className="flex-1 flex flex-col h-full relative overflow-y-auto overflow-x-hidden pb-28 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Header avatarUrl={avatarUrl} isAdmin={isAdmin} email={email} />
           <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full flex-1">
             <AccountStatusBanner status={accountStatus} reason={flagReason} />
             {children}
           </div>
         </main>
+        <MobileBottomNav />
         <GlobalCodePopup userId={user.id} />
         <CurrencyOnboardingModal />
       </CurrencyProvider>
