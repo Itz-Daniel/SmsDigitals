@@ -145,6 +145,40 @@ export default function SupportPage() {
     }
   };
 
+  const handleResolveTicket = async (ticketId: string) => {
+    try {
+      const res = await fetch("/api/support/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId, status: "Resolved" }),
+      });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: "Resolved" } : t));
+      } else {
+        alert("Failed to update ticket status");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReopenTicket = async (ticketId: string) => {
+    try {
+      const res = await fetch("/api/support/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId, status: "Open" }),
+      });
+      if (res.ok) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: "Open" } : t));
+      } else {
+        alert("Failed to update ticket status");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-4 md:p-8 font-sans pb-32 transition-colors duration-500">
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
@@ -272,9 +306,9 @@ export default function SupportPage() {
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-xs text-slate-400">#{t.id.split('-')[0]}</span>
                           <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest ${
-                            t.status === 'Open' ? 'bg-brand-blue/10 text-brand-blue' :
-                            t.status === 'In Progress' ? 'bg-orange-500/10 text-orange-500' :
-                            'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-white/40'
+                            t.status === 'Open' ? 'bg-brand-blue/10 text-brand-blue border border-brand-blue/20' :
+                            t.status === 'In Progress' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' :
+                            'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                           }`}>
                             {t.status}
                           </div>
@@ -348,9 +382,22 @@ export default function SupportPage() {
                             ))}
                             <div ref={chatEndRef} />
 
-                            {/* Reply Input */}
-                            {t.status !== 'Closed' && t.status !== 'Resolved' && (
-                              <div className="mt-4 flex flex-col gap-2">
+                            {/* Reply & Resolution Actions */}
+                            {t.status !== 'Closed' && t.status !== 'Resolved' ? (
+                              <div className="mt-4 flex flex-col gap-3">
+                                {/* Resolve button */}
+                                <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
+                                  <span className="text-xs text-slate-500 dark:text-white/40">Is your issue resolved?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResolveTicket(t.id)}
+                                    className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <CheckCircle size={14} weight="fill" />
+                                    <span>Mark as Resolved</span>
+                                  </button>
+                                </div>
+
                                 {attachment && (
                                   <div className="flex items-center justify-between bg-brand-blue/10 text-brand-blue px-3 py-2 rounded-lg text-xs font-medium w-fit">
                                     <div className="flex items-center gap-2">
@@ -385,16 +432,25 @@ export default function SupportPage() {
                                   <button
                                     onClick={() => handleReply(t.id)}
                                     disabled={isReplying || (!replyText.trim() && !attachment) || isUploading}
-                                    className="px-4 py-2 bg-brand-blue hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                                    className="px-4 py-2 bg-brand-blue hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer"
                                   >
                                     {isReplying || isUploading ? '...' : 'Send'}
                                   </button>
                                 </div>
                               </div>
-                            )}
-                            {(t.status === 'Closed' || t.status === 'Resolved') && (
-                              <div className="mt-4 p-3 bg-slate-50 dark:bg-[#1A1A1A] border border-black/5 dark:border-white/5 rounded-xl text-center text-xs text-slate-500">
-                                This ticket has been marked as {t.status.toLowerCase()}. You cannot reply.
+                            ) : (
+                              <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  <CheckCircle size={16} weight="fill" />
+                                  <span>This ticket has been marked as {t.status}.</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReopenTicket(t.id)}
+                                  className="px-3.5 py-1.5 bg-white dark:bg-[#222] border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl text-xs font-bold text-slate-700 dark:text-white transition-colors cursor-pointer"
+                                >
+                                  Need More Help? Re-open Ticket
+                                </button>
                               </div>
                             )}
                           </div>

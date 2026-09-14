@@ -30,7 +30,7 @@ export const navGroups = [
     items: [
       { name: "SMS History", href: "/dashboard/history", icon: ClockCounterClockwise },
       { name: "Admin Overview", href: "/dashboard/management/overview", icon: ChartLineUp },
-      { name: "Admin Support", href: "/dashboard/management/support", icon: Headset },
+      { name: "Admin Support", href: "/dashboard/management/support", icon: Headset, badgeStyle: "admin-support" },
       { name: "Global Settings", href: "/dashboard/management", icon: Gear },
     ],
   },
@@ -38,7 +38,7 @@ export const navGroups = [
     title: "ACCOUNT & SUPPORT",
     items: [
       { name: "Profile Settings", href: "/dashboard/settings", icon: Gear },
-      { name: "Support Tickets", href: "/dashboard/support", icon: Headset, badge: "24/7", badgeStyle: "support" },
+      { name: "Support Tickets", href: "/dashboard/support", icon: Headset, badge: "24/7", badgeStyle: "user-support" },
     ],
   },
 ];
@@ -47,27 +47,32 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const [openTicketsCount, setOpenTicketsCount] = useState(0);
+  const [adminOpenTicketsCount, setAdminOpenTicketsCount] = useState(0);
+  const [userOpenTicketsCount, setUserOpenTicketsCount] = useState(0);
   const [hasUnreadReply, setHasUnreadReply] = useState(false);
 
   useEffect(() => {
+    // 1. Fetch user's own ticket stats
+    fetch('/api/support')
+      .then(res => res.json())
+      .then(data => {
+        if (data.tickets) {
+          const hasUnread = data.tickets.some((t: { has_unread_admin_reply: boolean }) => t.has_unread_admin_reply);
+          const userOpen = data.tickets.filter((t: { status: string }) => t.status === 'Open' || t.status === 'In Progress').length;
+          setHasUnreadReply(hasUnread);
+          setUserOpenTicketsCount(userOpen);
+        }
+      })
+      .catch(() => {});
+
+    // 2. If admin, fetch global queue stats for Admin Support
     if (isAdmin) {
       fetch('/api/admin/support')
         .then(res => res.json())
         .then(data => {
           if (data.tickets) {
             const open = data.tickets.filter((t: { status: string }) => t.status !== 'Resolved' && t.status !== 'Closed').length;
-            setOpenTicketsCount(open);
-          }
-        })
-        .catch(() => {});
-    } else {
-      fetch('/api/support')
-        .then(res => res.json())
-        .then(data => {
-          if (data.tickets) {
-            const hasUnread = data.tickets.some((t: { has_unread_admin_reply: boolean }) => t.has_unread_admin_reply);
-            setHasUnreadReply(hasUnread);
+            setAdminOpenTicketsCount(open);
           }
         })
         .catch(() => {});
@@ -180,16 +185,26 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
                             <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0 animate-ping", isActive ? "bg-emerald-300" : "bg-brand-blue dark:bg-cyan-400")} />
                             {item.badge}
                           </span>
-                        ) : item.badgeStyle === "support" ? (
-                          (isAdmin && openTicketsCount > 0) ? (
+                        ) : item.badgeStyle === "admin-support" ? (
+                          (isAdmin && adminOpenTicketsCount > 0) ? (
                             <span className="text-[9px] px-2 py-0.5 rounded-full border bg-amber-500/20 text-amber-400 border-amber-500/30 font-extrabold animate-pulse">
-                              {openTicketsCount} OPEN
+                              {adminOpenTicketsCount} OPEN
                             </span>
-                          ) : (!isAdmin && hasUnreadReply) ? (
+                          ) : null
+                        ) : item.badgeStyle === "user-support" ? (
+                          hasUnreadReply ? (
                             <span className="text-[9px] px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-extrabold animate-pulse">
                               REPLY
                             </span>
-                          ) : null
+                          ) : userOpenTicketsCount > 0 ? (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full border bg-brand-blue/20 text-brand-blue dark:text-cyan-400 border-brand-blue/30 font-extrabold">
+                              {userOpenTicketsCount} OPEN
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full border font-bold bg-brand-blue/10 text-brand-blue border-brand-blue/20">
+                              24/7
+                            </span>
+                          )
                         ) : (
                           <span
                             className={clsx(
