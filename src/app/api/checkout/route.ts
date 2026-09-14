@@ -55,6 +55,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: session.url });
 
     } else if (type === "paystack" && currency === "NGN") {
+      const originHeader = req.headers.get("origin") || req.headers.get("referer");
+      const cleanOrigin = originHeader 
+        ? originHeader.split("/dashboard")[0].replace(/\/$/, "")
+        : (process.env.NEXT_PUBLIC_SITE_URL || "https://smsdigitals.vercel.app").replace(/\/$/, "");
+
+      const returnPath = originHeader?.includes("/dashboard/fund") ? "/dashboard/fund" : "/dashboard";
+      const callback_url = `${cleanOrigin}${returnPath}?payment=success`;
+
       // Create Paystack Checkout Session
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
@@ -66,18 +74,23 @@ export async function POST(req: Request) {
           email: user.email,
           amount: amount * 100, // Paystack expects kobo
           currency: "NGN",
-          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard?payment=success`,
+          callback_url: callback_url,
           metadata: {
-            user_id: user.id, // Very important for the webhook
+            user_id: user.id,
+            user_email: user.email,
+            custom_fields: [
+              { display_name: "User ID", variable_name: "user_id", value: user.id },
+              { display_name: "Email", variable_name: "email", value: user.email }
+            ]
           },
         }),
       });
 
       const data = await response.json();
-      if (data.status) {
+      if (data.status && data.data?.authorization_url) {
         return NextResponse.json({ url: data.data.authorization_url });
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || "Failed to initialize Paystack session");
       }
     } else {
       return NextResponse.json({ error: "Invalid payment type or currency" }, { status: 400 });
@@ -85,6 +98,6 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     console.error("Checkout Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || "Internal Server Error" }, { status: 500 });
   }
 }

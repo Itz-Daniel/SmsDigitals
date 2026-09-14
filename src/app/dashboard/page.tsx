@@ -86,6 +86,33 @@ export default function DashboardPage() {
       }
 
       setLoading(false);
+
+      // Check for Paystack redirect callback
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get("reference") || urlParams.get("trxref");
+        const payment = urlParams.get("payment");
+
+        if (ref && (payment === "success" || urlParams.has("trxref"))) {
+          fetch("/api/fund/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference: ref }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.success) {
+                setSuccessMsg("Wallet funded successfully!");
+                if (data.new_balance !== undefined) {
+                  setWallet((prev) => prev ? { ...prev, balance_ngn: data.new_balance } : prev);
+                }
+                window.history.replaceState({}, "", window.location.pathname);
+                setTimeout(() => setSuccessMsg(null), 5000);
+              }
+            })
+            .catch((err) => console.error("Verify callback error:", err));
+        }
+      }
     };
 
     fetchData();

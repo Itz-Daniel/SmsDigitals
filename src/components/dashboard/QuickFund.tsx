@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { Plus, Spinner } from "@phosphor-icons/react";
-import { usePaystackPayment } from "react-paystack";
 
 interface QuickFundProps {
-  email: string;
-  onSuccessPayment: (reference: string, amount: string) => Promise<void>;
-  publicKey: string;
+  email?: string;
+  onSuccessPayment?: (reference: string, amount: string) => Promise<void>;
+  publicKey?: string;
 }
 
 export default function QuickFund({ email, onSuccessPayment, publicKey }: QuickFundProps) {
@@ -15,40 +14,40 @@ export default function QuickFund({ email, onSuccessPayment, publicKey }: QuickF
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const config = {
-    reference: (new Date()).getTime().toString(),
-    email: email,
-    amount: parseInt(fundAmount || "0") * 100, // kobo
-    publicKey: publicKey,
-  };
-
-  const initializePayment = usePaystackPayment(config);
-
-  const onSuccess = async (reference: { reference: string }) => {
-    setVerifying(true);
-    setErrorMsg(null);
-    try {
-      await onSuccessPayment(reference.reference, fundAmount);
-      setFundAmount("");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Payment verification failed.";
-      setErrorMsg(msg);
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const onClose = () => {
-    // Popup closed
-  };
-
-  const handleFund = () => {
-    if (!fundAmount || parseInt(fundAmount) < 100) {
+  const handleFund = async () => {
+    const amountVal = parseInt(fundAmount || "0");
+    if (!fundAmount || isNaN(amountVal) || amountVal < 100) {
       setErrorMsg("Minimum amount is ₦100");
       setTimeout(() => setErrorMsg(null), 3000);
       return;
     }
-    initializePayment({ onSuccess, onClose });
+
+    setVerifying(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: amountVal,
+          currency: "NGN",
+          type: "paystack",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setErrorMsg(data.error || "Failed to initialize payment gateway.");
+        setVerifying(false);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Payment initialization failed.";
+      setErrorMsg(msg);
+      setVerifying(false);
+    }
   };
 
   return (

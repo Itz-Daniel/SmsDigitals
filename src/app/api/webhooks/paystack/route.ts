@@ -48,11 +48,57 @@ export async function POST(req: Request) {
       });
 
       if (creditError) {
-        console.error("Credit Wallet RPC Error:", creditError);
-        throw new Error("Failed to process transaction atomically");
-      }
+        console.warn("Paystack Webhook RPC credit_wallet fallback executing:", creditError.message);
 
-      if (creditResult && !creditResult.success) {
+        // Check idempotency: if reference already processed
+        const { data: existingTx } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("reference", reference)
+          .maybeSingle();
+
+        if (existingTx) {
+          return NextResponse.json({ success: true, message: "Already processed" });
+        }
+
+        // Fetch or create wallet
+        const { data: wallet } = await supabase
+          .from("wallets")
+          .select("id, balance_ngn")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (wallet) {
+          await supabase
+            .from("wallets")
+            .update({ balance_ngn: (wallet.balance_ngn || 0) + amountInNgn })
+            .eq("user_id", userId);
+        } else {
+          await supabase
+            .from("wallets")
+            .insert({ user_id: userId, balance_ngn: amountInNgn, balance_usd: 0 });
+        }
+
+        await supabase.from("transactions").insert({
+          user_id: userId,
+          type: "Deposit",
+          amount: amountInNgn,
+          currency: "NGN",
+          status: "Success",
+          reference: reference,
+          description: `Paystack Deposit (₦${amountInNgn.toLocaleString()})`
+        });
+
+        await supabase.from("wallet_transactions").insert({
+          user_id: userId,
+          type: "deposit",
+          amount: amountInNgn,
+          currency: "NGN",
+          status: "Completed",
+          reference: reference,
+          description: `Paystack Deposit (₦${amountInNgn.toLocaleString()})`
+        });
+      } else if (creditResult && !creditResult.success) {
         console.log("Transaction already processed (caught by RPC):", reference);
         return NextResponse.json({ success: true, message: "Already processed" });
       }
@@ -75,7 +121,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
 
   } catch (error: unknown) {
-    console.error("Paystack Webhook Error:", error.message);
+    console.error("Paystack Webhook Error:", (error as Error).message);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

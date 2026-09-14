@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePaystackPayment } from "react-paystack";
 import { CreditCard, Bank, Coins, ArrowRight, CheckCircle, Warning, Spinner, Copy, Check, Ticket, Clock, WarningCircle, ShieldCheck, CurrencyBtc } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
@@ -20,10 +19,12 @@ const CRYPTO_COINS = [
 export default function FundWalletClient({
   userEmail,
   publicKey,
+  userId,
   initialTxRef,
 }: {
-  userEmail: string;
-  publicKey: string;
+  userEmail?: string;
+  publicKey?: string;
+  userId?: string;
   initialTxRef?: string;
 }) {
   const { currency } = useCurrency(); // User's active currency preference (USD or NGN)
@@ -35,6 +36,36 @@ export default function FundWalletClient({
 
   // Card / Local Bank State (Paystack)
   const [ngnAmount, setNgnAmount] = useState("");
+
+  // Handle Paystack callback redirect verification
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("reference") || params.get("trxref");
+    const payment = params.get("payment");
+
+    if (ref && (payment === "success" || params.has("trxref"))) {
+      setVerifying(true);
+      fetch("/api/fund/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference: ref }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setSuccess("🎉 Payment confirmed! Your wallet has been credited successfully.");
+            window.history.replaceState({}, "", window.location.pathname);
+          } else {
+            setError(data.error || "Failed to verify transaction. Please contact support.");
+          }
+        })
+        .catch(() => {
+          setError("Network error while verifying payment. If you were debited, your wallet will be credited automatically.");
+        })
+        .finally(() => setVerifying(false));
+    }
+  }, []);
 
   // Crypto Gateway State (45m Timer)
   const [selectedCoin, setSelectedCoin] = useState("usdttrc20");
@@ -103,56 +134,41 @@ export default function FundWalletClient({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const paystackConfig = {
-    reference: initialTxRef || "SMS_" + Math.floor(Math.random() * 1000000000 + 1),
-    email: userEmail,
-    amount: parseInt(ngnAmount || "0") * 100, // Paystack requires amount in Kobo
-    publicKey: publicKey,
-  };
+  const handlePaystackFund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountVal = parseInt(ngnAmount || "0");
+    if (!ngnAmount || isNaN(amountVal) || amountVal < 100) {
+      setError("Minimum deposit amount is ₦100.");
+      return;
+    }
 
-  const initializePaystack = usePaystackPayment(paystackConfig);
-
-  const handlePaystackSuccess = async (reference: any) => {
     setVerifying(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const res = await fetch("/api/fund/verify", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference: reference.reference }),
+        body: JSON.stringify({
+          amount: amountVal,
+          currency: "NGN",
+          type: "paystack",
+        }),
       });
 
       const data = await res.json();
 
-      if (data.success) {
-        setSuccess(`Successfully credited ₦${parseInt(ngnAmount).toLocaleString()} to your wallet!`);
-        setNgnAmount("");
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        setError(data.error || "Failed to verify payment. Please contact support.");
+        setError(data.error || "Failed to initialize Paystack checkout session.");
+        setVerifying(false);
       }
-    } catch (err) {
-      setError("Network error while verifying payment. If you were debited, contact support.");
-    } finally {
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to connect to payment server.");
       setVerifying(false);
     }
-  };
-
-  const handlePaystackFund = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ngnAmount || parseInt(ngnAmount) < 100) {
-      setError("Minimum deposit amount is ₦100.");
-      return;
-    }
-    if (!publicKey) {
-      setError("Payment gateway missing configuration.");
-      return;
-    }
-
-    setError(null);
-    setSuccess(null);
-    initializePaystack({ onSuccess: handlePaystackSuccess, onClose: () => {} });
   };
 
   // Generate Crypto Deposit Order with 45-minute limit
@@ -358,9 +374,19 @@ export default function FundWalletClient({
               <button
                 type="submit"
                 disabled={verifying}
-                className="w-full py-4 rounded-2xl bg-brand-blue text-white font-bold text-sm hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20"
+                className="w-full py-4 rounded-2xl bg-brand-blue text-white font-bold text-sm hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 disabled:opacity-50"
               >
-                {verifying ? <Spinner size={20} className="animate-spin" /> : "Proceed to Paystack Deposit"} <ArrowRight size={16} weight="bold" />
+                {verifying ? (
+                  <>
+                    <Spinner size={20} className="animate-spin" />
+                    <span>Connecting to Paystack...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Proceed to Paystack Deposit</span>
+                    <ArrowRight size={16} weight="bold" />
+                  </>
+                )}
               </button>
             </form>
           </div>
