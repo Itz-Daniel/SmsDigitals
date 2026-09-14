@@ -133,12 +133,81 @@ export default function HistoryPage() {
           <p className="text-slate-500 dark:text-white/40 text-sm max-w-md">Access your previously purchased virtual numbers and their received OTP verification codes.</p>
         </div>
 
-        {/* Double-Bezel Table Container */}
-        <div className="w-full p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-3xl shadow-2xl dark:shadow-none">
+        {/* Mobile View: Cards (< 640px) */}
+        {!loading && rentals.length > 0 && (
+          <div className="flex flex-col gap-3 sm:hidden">
+            {rentals.map((rental, idx) => (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03, duration: 0.25 }}
+                key={`mob-${rental.id}`}
+                className="p-4 rounded-2xl bg-white dark:bg-[#111111] border border-black/5 dark:border-white/10 shadow-sm flex flex-col gap-3"
+              >
+                {/* Top: Service & Cost */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                      {getServiceName(rental.service)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-white/40">
+                      {formatDate(rental.created_at)}
+                    </span>
+                  </div>
+                  <span className="font-mono text-sm font-bold text-slate-900 dark:text-white shrink-0">
+                    {rental.currency === 'USD' ? '$' : '₦'}{rental.cost}
+                  </span>
+                </div>
+
+                {/* Middle: Phone Number with 1-tap copy */}
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-black/40 p-2.5 rounded-xl border border-black/5 dark:border-white/5">
+                  <span className="font-mono text-sm font-bold text-brand-blue">{rental.phone_number}</span>
+                  <button
+                    onClick={() => copyToClipboard(rental.phone_number, rental.id + "phone")}
+                    className="p-1 rounded text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  >
+                    {copiedId === rental.id + "phone" ? <CheckCircle className="text-[#10B981]" weight="fill" size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
+
+                {/* Bottom: Status & OTP Code */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                    rental.status === 'Received' ? 'bg-[#10B981]/10 text-[#10B981]' :
+                    rental.status === 'Refunded' || rental.status === 'Cancelled' ? 'bg-red-500/10 text-red-400' :
+                    'bg-orange-500/10 text-orange-400'
+                  }`}>
+                    {rental.status === 'Received' ? <CheckCircle weight="fill" size={12} /> : rental.status === 'Refunded' || rental.status === 'Cancelled' ? <WarningCircle weight="fill" size={12} /> : <Clock weight="fill" size={12} className="animate-pulse" />}
+                    {rental.status}
+                  </div>
+
+                  {rental.sms_code ? (
+                    <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                      <span className="font-mono text-sm font-extrabold tracking-wider text-emerald-600 dark:text-emerald-400">
+                        {rental.sms_code}
+                      </span>
+                      <button 
+                        onClick={() => copyToClipboard(rental.sms_code!, rental.id + "code")}
+                        className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                      >
+                        {copiedId === rental.id + "code" ? <CheckCircle className="text-[#10B981]" weight="fill" size={14} /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 dark:text-white/30 font-medium">Waiting for OTP...</span>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Double-Bezel Table Container (Tablet & Desktop: >= 640px) */}
+        <div className="hidden sm:block w-full p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-3xl shadow-2xl dark:shadow-none">
           <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(2rem-0.375rem)] overflow-hidden shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] border border-transparent">
             
             <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[750px] lg:min-w-[900px]">
                 <thead>
                   <tr className="border-b border-black/5 dark:border-white/5 bg-slate-100 dark:bg-[#111111]">
                     <th className="p-6 text-[10px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-[0.2em]">Service & Date</th>

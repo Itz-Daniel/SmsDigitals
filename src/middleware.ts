@@ -31,52 +31,80 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect all /dashboard routes
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
+  const pathname = request.nextUrl.pathname
+  const isDashboardRoute = pathname.startsWith('/dashboard')
+  const isAuthRoute = pathname === '/login' || pathname === '/register'
 
-    // Inactivity Security Check:
+  // If user is detected in session cookies, ALWAYS enforce inactivity security check
+  if (user) {
     const lastActiveCookie = request.cookies.get('sms_last_active')?.value
     const timeoutDaysCookie = request.cookies.get('sms_session_timeout_days')?.value
-    const timeoutDays = timeoutDaysCookie ? parseInt(timeoutDaysCookie) : 7
-    const maxInactivityMs = (timeoutDays || 7) * 24 * 60 * 60 * 1000
+    const timeoutDays = timeoutDaysCookie ? parseFloat(timeoutDaysCookie) : 1 // Default strict 24 hours
+    const maxInactivityMs = (timeoutDays || 1) * 24 * 60 * 60 * 1000
+
+    let isExpired = false
+    const now = Date.now()
 
     if (lastActiveCookie) {
       const lastActiveTime = parseInt(lastActiveCookie)
-      const now = Date.now()
-
-      if (!isNaN(lastActiveTime) && (now - lastActiveTime > maxInactivityMs)) {
-        // Session expired due to inactivity! Force sign-out for security.
-        await supabase.auth.signOut()
-        const url = request.nextUrl.clone()
-        url.pathname = '/login'
-        url.searchParams.set('reason', 'inactivity_timeout')
-
-        const response = NextResponse.redirect(url)
-        response.cookies.delete('sms_last_active')
-        return response
+      if (isNaN(lastActiveTime) || now - lastActiveTime > maxInactivityMs) {
+        isExpired = true
       }
+    } else {
+      // User is logged in according to Supabase, but the last active cookie was deleted or expired (>30 days).
+      // For account security, this prolonged inactivity MUST expire the session!
+      isExpired = true
     }
 
-    // Refresh last active timestamp on active request
-    supabaseResponse.cookies.set('sms_last_active', Date.now().toString(), {
+    if (isExpired) {
+      // Sign out from Supabase
+      await supabase.auth.signOut()
+
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('reason', 'inactivity_timeout')
+
+      const response = NextResponse.redirect(url)
+
+      // Purge all Supabase auth and session cookies from client response
+      request.cookies.getAll().forEach((cookie) => {
+        if (
+          cookie.name.startsWith('sb-') ||
+          cookie.name.includes('auth-token') ||
+          cookie.name === 'sms_last_active'
+        ) {
+          response.cookies.delete(cookie.name)
+          response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 })
+        }
+      })
+
+      return response
+    }
+
+    // User is active and within valid timeout window:
+    // If attempting to visit /login or /register, redirect to /dashboard
+    if (isAuthRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+
+    // Continuously refresh last active timestamp with 1-year maxAge
+    // (So the cookie NEVER disappears while user is away, preserving expiration math)
+    supabaseResponse.cookies.set('sms_last_active', now.toString(), {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      maxAge: 365 * 24 * 60 * 60, // 1 year
     })
-  }
-
-  // Redirect logged-in users away from auth pages
-  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+  } else {
+    // Unauthenticated user attempting to access protected dashboard routes
+    if (isDashboardRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

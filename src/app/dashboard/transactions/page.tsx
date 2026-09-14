@@ -106,14 +106,26 @@ export default function TransactionsPage() {
     );
   };
 
+  const formatShortDate = (dateString: string) => {
+    try {
+      const d = new Date(dateString);
+      return new Intl.DateTimeFormat('en-US', { 
+        month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      }).format(d);
+    } catch {
+      return dateString;
+    }
+  };
+
   return (
-    <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-4 md:p-8 font-sans pb-32 relative overflow-hidden transition-colors duration-500">
+    <div className="w-full min-h-[100dvh] bg-slate-50 dark:bg-background text-slate-900 dark:text-white p-3.5 sm:p-6 md:p-8 font-sans pb-32 relative overflow-hidden transition-colors duration-500">
       
       {/* Ambient glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-brand-blue/10 blur-[150px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-[#10B981]/5 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="max-w-6xl mx-auto flex flex-col gap-8 relative z-10">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6 sm:gap-8 relative z-10">
         
         {/* Header Section */}
         <div className="flex flex-col gap-2">
@@ -121,7 +133,7 @@ export default function TransactionsPage() {
             <Receipt className="text-brand-blue" />
             <span className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-slate-600 dark:text-white/60">Financial Ledger</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             Transaction History
           </h1>
           <p className="text-slate-500 dark:text-white/50 text-xs md:text-sm max-w-md">
@@ -129,39 +141,217 @@ export default function TransactionsPage() {
           </p>
         </div>
 
-        {/* Double-Bezel Table Container */}
-        <div className="w-full p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-3xl shadow-xl dark:shadow-none transition-colors">
-          <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(2rem-0.375rem)] overflow-hidden border border-transparent">
-            
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[850px]">
-                <thead>
-                  <tr className="border-b border-black/5 dark:border-white/5 bg-slate-100 dark:bg-[#111111] text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-[0.2em] font-bold">
-                    <th className="p-5 px-6">Reference ID</th>
-                    <th className="p-5 px-6">Type & Description</th>
-                    <th className="p-5 px-6">Date & Time</th>
-                    <th className="p-5 px-6 text-center">Status</th>
-                    <th className="p-5 px-6 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="p-16 text-center">
-                        <Spinner className="animate-spin text-2xl text-brand-blue mx-auto" />
-                      </td>
-                    </tr>
-                  ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-16 text-center text-slate-400 dark:text-white/30">
-                        <div className="flex flex-col items-center gap-3">
-                          <Swap className="text-4xl opacity-30" />
-                          <p className="text-sm font-medium">No transactions recorded yet.</p>
+        {/* LOADING STATE */}
+        {loading && (
+          <div className="w-full p-12 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-xl flex flex-col items-center justify-center gap-3">
+            <Spinner className="animate-spin text-3xl text-brand-blue" />
+            <span className="text-xs font-bold text-slate-400">Loading ledger records...</span>
+          </div>
+        )}
+
+        {/* EMPTY STATE */}
+        {!loading && transactions.length === 0 && (
+          <div className="w-full p-16 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-xl flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-white/30">
+            <Swap className="text-4xl opacity-30" />
+            <p className="text-sm font-medium">No transactions recorded yet.</p>
+          </div>
+        )}
+
+        {!loading && transactions.length > 0 && (
+          <>
+            {/* ============================================================ */}
+            {/* 1. MOBILE VIEW (< 640px): NATIVE CARD STACK (Zero Horizontal Scroll) */}
+            {/* ============================================================ */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {transactions.map((tx, idx) => {
+                const isVoucher = isVoucherTx(tx);
+                const formattedRef = formatReference(tx.reference, tx.id);
+                const rawCopyText = tx.reference || tx.id;
+                const txKey = tx.id || tx.reference || idx.toString();
+
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.02, duration: 0.25 }}
+                    key={`mob-${txKey}`}
+                    className="p-4 rounded-2xl bg-white dark:bg-[#111111] border border-black/5 dark:border-white/10 shadow-sm flex flex-col gap-3"
+                  >
+                    {/* Top Row: Type, Icon & Amount */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                          isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
+                          tx.type === 'Funding' ? 'bg-emerald-500/15 text-emerald-500' : 
+                          tx.type === 'Refund' ? 'bg-brand-blue/15 text-brand-blue' : 
+                          'bg-red-500/15 text-red-500'
+                        }`}>
+                          {isVoucher ? <Ticket weight="fill" size={18} /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" size={18} /> : <ArrowUpRight weight="bold" size={18} />}
                         </div>
-                      </td>
+                        <div className="flex flex-col min-w-0">
+                          <span className={`font-bold text-xs ${isVoucher ? 'text-brand-blue dark:text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
+                            {isVoucher ? "Gift Card Voucher" : tx.type}
+                          </span>
+                          {tx.description && (
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-white/50 truncate max-w-[190px]">
+                              {tx.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <span className={`font-mono text-base font-extrabold shrink-0 ${
+                        isVoucher ? 'text-brand-blue dark:text-cyan-400' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Bottom Row: Reference Tag + Status Pill + Date */}
+                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-black/5 dark:border-white/5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-slate-700 dark:text-white/80 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-md border border-black/5 dark:border-white/10 text-[10px]">
+                          {formattedRef}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyReference(rawCopyText, txKey)}
+                          title="Copy Reference ID"
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                        >
+                          {copiedRef === txKey ? <Check className="text-emerald-500" size={13} weight="bold" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          tx.status === 'Success' || tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                          tx.status === 'Failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                          'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }`}>
+                          {tx.status === 'Success' || tx.status === 'Completed' ? <CheckCircle weight="fill" size={11} /> : tx.status === 'Failed' ? <WarningCircle weight="fill" size={11} /> : <Clock weight="fill" size={11} />}
+                          {tx.status}
+                        </div>
+                        <span className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
+                          {formatShortDate(tx.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* ============================================================ */}
+            {/* 2. TABLET VIEW (640px – 1024px): STREAMLINED FIT-TO-WIDTH TABLE */}
+            {/* ============================================================ */}
+            <div className="hidden sm:block lg:hidden w-full p-1.5 rounded-3xl border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-3xl shadow-md">
+              <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(1.5rem-0.375rem)] overflow-hidden">
+                <table className="w-full text-left border-collapse table-auto">
+                  <thead>
+                    <tr className="border-b border-black/5 dark:border-white/5 bg-slate-100 dark:bg-[#111111] text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-[0.15em] font-bold">
+                      <th className="p-3.5 px-4">Transaction</th>
+                      <th className="p-3.5 px-3">Reference</th>
+                      <th className="p-3.5 px-3 text-center">Status</th>
+                      <th className="p-3.5 px-4 text-right">Amount</th>
                     </tr>
-                  ) : (
-                    transactions.map((tx, idx) => {
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx, idx) => {
+                      const isVoucher = isVoucherTx(tx);
+                      const formattedRef = formatReference(tx.reference, tx.id);
+                      const rawCopyText = tx.reference || tx.id;
+                      const txKey = tx.id || tx.reference || idx.toString();
+
+                      return (
+                        <tr 
+                          key={`tab-${txKey}`}
+                          className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                        >
+                          {/* Type, Description & Date */}
+                          <td className="p-3.5 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                                isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
+                                tx.type === 'Funding' ? 'bg-emerald-500/15 text-emerald-500' : 
+                                tx.type === 'Refund' ? 'bg-brand-blue/15 text-brand-blue' : 
+                                'bg-red-500/15 text-red-500'
+                              }`}>
+                                {isVoucher ? <Ticket weight="fill" size={15} /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" size={15} /> : <ArrowUpRight weight="bold" size={15} />}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className={`font-bold text-xs ${isVoucher ? 'text-brand-blue dark:text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
+                                  {isVoucher ? "Gift Card Voucher" : tx.type}
+                                </span>
+                                <span className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
+                                  {formatShortDate(tx.created_at)}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Reference ID + Copy */}
+                          <td className="p-3.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[11px] font-bold text-slate-800 dark:text-white/90 bg-slate-200/70 dark:bg-white/10 px-2 py-0.5 rounded border border-black/5 dark:border-white/10">
+                                {formattedRef}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => copyReference(rawCopyText, txKey)}
+                                title="Copy Reference ID"
+                                className="p-1 rounded text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                              >
+                                {copiedRef === txKey ? <Check className="text-emerald-500" size={12} weight="bold" /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="p-3.5 px-3 text-center">
+                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                              tx.status === 'Success' || tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                              tx.status === 'Failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                              'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {tx.status === 'Success' || tx.status === 'Completed' ? <CheckCircle weight="fill" size={11} /> : tx.status === 'Failed' ? <WarningCircle weight="fill" size={11} /> : <Clock weight="fill" size={11} />}
+                              {tx.status}
+                            </div>
+                          </td>
+
+                          {/* Amount */}
+                          <td className="p-3.5 px-4 text-right">
+                            <span className={`font-mono text-sm font-bold ${
+                              isVoucher ? 'text-brand-blue dark:text-cyan-400' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'
+                            }`}>
+                              {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ============================================================ */}
+            {/* 3. DESKTOP VIEW (>= 1024px): FULL DOUBLE-BEZEL LEDGER TABLE */}
+            {/* ============================================================ */}
+            <div className="hidden lg:block w-full p-1.5 rounded-[2rem] border border-black/5 dark:border-white/10 bg-white dark:bg-white/5 backdrop-blur-3xl shadow-xl dark:shadow-none transition-colors">
+              <div className="bg-slate-50 dark:bg-[#0A0A0A] rounded-[calc(2rem-0.375rem)] overflow-hidden border border-transparent">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-black/5 dark:border-white/5 bg-slate-100 dark:bg-[#111111] text-slate-500 dark:text-white/40 text-[10px] uppercase tracking-[0.2em] font-bold">
+                      <th className="p-5 px-6">Reference ID</th>
+                      <th className="p-5 px-6">Type & Description</th>
+                      <th className="p-5 px-6">Date & Time</th>
+                      <th className="p-5 px-6 text-center">Status</th>
+                      <th className="p-5 px-6 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx, idx) => {
                       const isVoucher = isVoucherTx(tx);
                       const formattedRef = formatReference(tx.reference, tx.id);
                       const rawCopyText = tx.reference || tx.id;
@@ -171,8 +361,8 @@ export default function TransactionsPage() {
                         <motion.tr 
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03, duration: 0.3 }}
-                          key={txKey} 
+                          transition={{ delay: idx * 0.02, duration: 0.25 }}
+                          key={`desk-${txKey}`} 
                           className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
                         >
                           {/* Clean Abbreviated Reference ID + 1-Click Copy */}
@@ -242,17 +432,15 @@ export default function TransactionsPage() {
                               {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
                             </span>
                           </td>
-
                         </motion.tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-          </div>
-        </div>
+          </>
+        )}
 
       </div>
     </div>

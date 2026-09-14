@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const [securityMsg, setSecurityMsg] = useState<{ type: "success" | "error", text: string } | null>(null);
   
   // Session Security
-  const [sessionTimeoutDays, setSessionTimeoutDays] = useState<number>(7);
+  const [sessionTimeoutDays, setSessionTimeoutDays] = useState<number>(1);
   const [isSigningOutAll, setIsSigningOutAll] = useState(false);
 
   const supabase = createClient();
@@ -386,8 +386,8 @@ export default function SettingsPage() {
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {[
-                        { label: "24 Hours", days: 1 },
-                        { label: "7 Days (Recommended)", days: 7 },
+                        { label: "24 Hours (Strict)", days: 1 },
+                        { label: "7 Days", days: 7 },
                         { label: "14 Days", days: 14 },
                         { label: "30 Days", days: 30 },
                       ].map((item) => (
