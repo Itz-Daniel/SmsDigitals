@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ClockCounterClockwise, 
@@ -8,16 +8,17 @@ import {
   CreditCard, 
   Gift, 
   Lifebuoy, 
+  CaretLeft,
   CaretRight, 
   CheckCircle, 
   Eye, 
   EyeSlash, 
-  Code,
-  Globe,
-  Receipt,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Plus
+  Code, 
+  Globe, 
+  Receipt, 
+  ArrowDownLeft, 
+  ArrowUpRight, 
+  Plus 
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -50,6 +51,31 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+
+  // Services Rail Scroll Controls
+  const servicesRailRef = useRef<HTMLDivElement>(null);
+  const [hasScrolledServices, setHasScrolledServices] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkRailScroll = () => {
+    if (servicesRailRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = servicesRailRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+      if (scrollLeft > 15) {
+        setHasScrolledServices(true);
+      }
+    }
+  };
+
+  const scrollServicesRail = (direction: "left" | "right") => {
+    if (servicesRailRef.current) {
+      setHasScrolledServices(true);
+      const amount = direction === "left" ? -240 : 240;
+      servicesRailRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
 
@@ -116,6 +142,13 @@ export default function DashboardPage() {
     };
 
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    // Initial check and resize monitoring for services rail
+    checkRailScroll();
+    window.addEventListener("resize", checkRailScroll);
+    return () => window.removeEventListener("resize", checkRailScroll);
   }, []);
 
   const handleSuccessfulPayment = async (reference: string, amountStr: string) => {
@@ -430,22 +463,74 @@ export default function DashboardPage() {
           {/* 2. Centered Country & Services Slider (Mobile Peek Rail + Desktop Grid) */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
-                Services & Numbers
-              </span>
-              <span className="text-[11px] font-medium text-slate-400 dark:text-white/30 hidden sm:inline">
-                Instant virtual lines
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+                  Services & Numbers
+                </span>
+                {!hasScrolledServices && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-blue bg-blue-500/10 border border-brand-blue/25 px-2 py-0.5 rounded-full animate-pulse shadow-xs">
+                    <span>Swipe / Scroll</span>
+                    <CaretRight size={10} weight="bold" />
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-slate-400 dark:text-white/30 hidden sm:inline mr-2">
+                  Instant virtual lines
+                </span>
+                {/* Scroll left button */}
+                <button
+                  type="button"
+                  onClick={() => scrollServicesRail("left")}
+                  disabled={!canScrollLeft}
+                  aria-label="Scroll services left"
+                  title="Scroll left"
+                  className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all ${
+                    canScrollLeft
+                      ? 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-white active:scale-90 shadow-xs cursor-pointer'
+                      : 'border-slate-100 dark:border-white/5 bg-transparent text-slate-300 dark:text-white/20 cursor-not-allowed opacity-40'
+                  }`}
+                >
+                  <CaretLeft size={13} weight="bold" />
+                </button>
+                {/* Scroll right button */}
+                <button
+                  type="button"
+                  onClick={() => scrollServicesRail("right")}
+                  disabled={!canScrollRight}
+                  aria-label="Scroll services right"
+                  title="Scroll right"
+                  className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all ${
+                    canScrollRight
+                      ? 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-white active:scale-90 shadow-xs cursor-pointer'
+                      : 'border-slate-100 dark:border-white/5 bg-transparent text-slate-300 dark:text-white/20 cursor-not-allowed opacity-40'
+                  }`}
+                >
+                  <CaretRight size={13} weight="bold" />
+                </button>
+              </div>
             </div>
 
             {/* Slider Container with Peek Effect on Mobile */}
-            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-3 sm:p-5 relative overflow-hidden">
+            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-3 sm:p-5 relative overflow-hidden group">
               
-              {/* Mobile Right Edge Gradient Fade (Cues horizontal scrollability) */}
-              <div className="sm:hidden absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-[#0F172A] to-transparent pointer-events-none z-10"></div>
+              {/* Left Edge Gradient Fade */}
+              {canScrollLeft && (
+                <div className="absolute top-0 left-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-white dark:from-[#0F172A] to-transparent pointer-events-none z-10 transition-opacity duration-300"></div>
+              )}
+
+              {/* Right Edge Gradient Fade */}
+              {canScrollRight && (
+                <div className="absolute top-0 right-0 bottom-0 w-8 sm:w-12 bg-gradient-to-l from-white dark:from-[#0F172A] to-transparent pointer-events-none z-10 transition-opacity duration-300"></div>
+              )}
 
               {/* Horizontal Scroll Rail */}
-              <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1">
+              <div 
+                ref={servicesRailRef}
+                onScroll={checkRailScroll}
+                className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1"
+              >
                 {services.map((svc) => {
                   const Icon = svc.icon;
                   return (
