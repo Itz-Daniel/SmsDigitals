@@ -513,7 +513,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Slider Container with Peek Effect on Mobile */}
-            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-3 sm:p-5 relative overflow-hidden group">
+            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-3 sm:p-5 relative overflow-hidden">
               
               {/* Left Edge Gradient Fade */}
               {canScrollLeft && (
@@ -529,7 +529,7 @@ export default function DashboardPage() {
               <div 
                 ref={servicesRailRef}
                 onScroll={checkRailScroll}
-                className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1"
+                className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 pt-1 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-1 select-none touch-pan-x"
               >
                 {services.map((svc) => {
                   const Icon = svc.icon;
@@ -537,10 +537,10 @@ export default function DashboardPage() {
                     <Link
                       key={svc.id}
                       href={svc.href}
-                      className="group shrink-0 flex-1 min-w-[76px] sm:min-w-[84px] max-w-[94px] snap-start flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95 transition-all relative"
+                      className="group/svc shrink-0 flex-1 min-w-[76px] sm:min-w-[84px] max-w-[94px] snap-start flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95 transition-all relative select-none [-webkit-tap-highlight-color:transparent]"
                     >
                       {/* Icon / Flag Box */}
-                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl relative transition-transform duration-200 group-hover:-translate-y-0.5 shadow-sm dark:shadow-none ${svc.color}`}>
+                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl relative transition-transform duration-200 group-hover/svc:-translate-y-0.5 shadow-sm dark:shadow-none ${svc.color}`}>
                         {svc.isFlag ? (
                           <span className="text-2xl leading-none select-none">{svc.flag}</span>
                         ) : (
@@ -548,14 +548,14 @@ export default function DashboardPage() {
                         )}
 
                         {svc.badge && (
-                          <span className="absolute -top-1.5 -right-1 bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter shadow-sm">
+                          <span className="absolute -top-1.5 -right-1 bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter shadow-sm pointer-events-none">
                             {svc.badge}
                           </span>
                         )}
                       </div>
 
                       {/* Label */}
-                      <span className="text-[11px] font-semibold text-center leading-tight text-slate-700 dark:text-white/70 group-hover:text-brand-blue dark:group-hover:text-white transition-colors truncate w-full">
+                      <span className="text-[11px] font-semibold text-center leading-tight text-slate-700 dark:text-white/70 group-hover/svc:text-brand-blue dark:group-hover/svc:text-white transition-colors truncate w-full select-none">
                         {svc.label}
                       </span>
                     </Link>
