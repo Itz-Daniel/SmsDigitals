@@ -121,19 +121,39 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-    // 3. Pricing Calculation
+    // 3. Pricing Calculation (Driven directly by Admin Settings in Database)
     const wholesaleCostUsd = successResponse.costUsd || 0.50;
-    const finalPriceUsd = calculateFinalRetailPrice(wholesaleCostUsd, discountPercentage, serviceName || serviceId);
+    
+    const { data: appSettings } = await supabaseAdmin
+      .from('settings')
+      .select('exchange_rate, brand_pricing')
+      .eq('id', 1)
+      .single();
+    const exchangeRate = appSettings?.exchange_rate || 1500;
+    const brandPricing = appSettings?.brand_pricing || null;
+
+    const finalPriceNgn = calculateFinalRetailPrice(
+      wholesaleCostUsd,
+      exchangeRate,
+      'NGN',
+      discountPercentage,
+      serviceName || serviceId,
+      brandPricing
+    );
+    const finalPriceUsd = calculateFinalRetailPrice(
+      wholesaleCostUsd,
+      exchangeRate,
+      'USD',
+      discountPercentage,
+      serviceName || serviceId,
+      brandPricing
+    );
 
     // 4. Balance Deduction Check
     if (currency === 'NGN') {
-      const { data: apiSettings } = await supabaseAdmin.from('api_settings').select('exchange_rate').single();
-      const rate = apiSettings?.exchange_rate || 1500;
-      const finalPriceNgn = finalPriceUsd * rate;
-
       if ((wallet.balance_ngn || 0) < finalPriceNgn) {
         return NextResponse.json({ 
-          error: `Insufficient NGN Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${wallet.balance_ngn.toLocaleString(undefined, { maximumFractionDigits: 2 })}.` 
+          error: `Insufficient NGN Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${(wallet.balance_ngn || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}.` 
         }, { status: 402 });
       }
 

@@ -39,13 +39,15 @@ interface Rental {
 }
 
 const POPULAR_QUICK_SERVICES = [
-  { id: "wa", name: "WhatsApp" },
-  { id: "tg", name: "Telegram" },
-  { id: "lf", name: "TikTok" },
-  { id: "go", name: "Google" },
-  { id: "oi", name: "Tinder" },
-  { id: "ig", name: "Instagram" },
-  { id: "ds", name: "Discord" }
+  { id: "whatsapp", name: "WhatsApp" },
+  { id: "telegram", name: "Telegram" },
+  { id: "tinder", name: "Tinder" },
+  { id: "bumble", name: "Bumble" },
+  { id: "paypal", name: "PayPal" },
+  { id: "tiktok", name: "TikTok" },
+  { id: "openai", name: "OpenAI" },
+  { id: "google", name: "Google" },
+  { id: "instagram", name: "Instagram" }
 ];
 
 let globalTimestampSec = typeof window !== "undefined" ? Math.floor(Date.now() / 1000) : 0;

@@ -25,35 +25,115 @@ export class ProviderLowBalanceError extends Error {
 export type ProviderCode = '5sim' | 'grizzly';
 
 export function mapServiceToProvider(serviceName: string, provider: ProviderCode): string {
-  const normalized = serviceName.toLowerCase().replace(/[^a-z0-9]/g, ''); // "WhatsApp" -> "whatsapp"
+  const normalized = serviceName.toLowerCase().replace(/[^a-z0-9]/g, ''); // "WhatsApp" -> "whatsapp", "Match.com" -> "matchcom"
   
   if (provider === '5sim') {
-    return normalized;
+    // 5SIM exact product mapping aliases
+    const fiveSimAlias: Record<string, string> = {
+      'matchcom': 'match',
+      'plentyoffishpof': 'pof',
+      'plentyoffish': 'pof',
+      'googlehotmailyoutube': 'google',
+      'googlegmailyoutube': 'google',
+      'gmail': 'google',
+      'appleidiclouid': 'apple',
+      'appleid': 'apple',
+      'icloud': 'apple',
+      'microsoftoutlook': 'microsoft',
+      'outlook': 'microsoft',
+      'yahoomail': 'yahoo',
+      'twitterx': 'twitter',
+      'x': 'twitter',
+      'openaichatgpt': 'openai',
+      'chatgpt': 'openai',
+      'wisetransferwise': 'wise',
+      'transferwise': 'wise'
+    };
+    return fiveSimAlias[normalized] || normalized;
   }
   
   if (provider === 'grizzly') {
-    // Grizzly uses shortcodes for major apps
+    // Grizzly SMS 2-letter / 3-letter protocol shortcodes
     const grizzlyMap: Record<string, string> = {
+      // Social & Messaging
       'whatsapp': 'wa',
       'telegram': 'tg',
+      'tiktok': 'lf',
       'instagram': 'ig',
       'facebook': 'fb',
-      'google': 'go',
-      'tinder': 'oi',
-      'tiktok': 'lf',
       'twitter': 'tw',
+      'twitterx': 'tw',
       'x': 'tw',
+      'snapchat': 'fu',
       'discord': 'ds',
-      'apple': 'wx',
-      'netflix': 'nf',
-      'openai': 'dr',
-      'chatgpt': 'dr',
-      'uber': 'ub',
-      'amazon': 'am',
-      'steam': 'mt',
+      'wechat': 'wb',
       'linkedin': 'ms',
+      'reddit': 'rl',
+      'signal': 'sig',
+      'viber': 'vi',
+      'threads': 'ig',
+
+      // Dating Apps (High Demand)
+      'tinder': 'oi',
+      'bumble': 'mo',
+      'hinge': 'vz',
+      'badoo': 'we',
+      'match': 'fq',
+      'matchcom': 'fq',
+      'okcupid': 'vm',
+      'pof': 'pf',
+      'plentyoffish': 'pf',
+      'plentyoffishpof': 'pf',
+      'grindr': 'yw',
+      'tagged': 'al',
+
+      // Fintech & Payments
+      'paypal': 'ts',
+      'cashapp': 'it',
+      'wise': 'bz',
+      'wisetransferwise': 'bz',
+      'transferwise': 'bz',
+      'stripe': 'nu',
+      'skrill': 'sv',
+      'payoneer': 'po',
+      'revolut': 're',
+      'venmo': 'yy',
+
+      // Freelancing
+      'upwork': 'cl',
+      'fiverr': 'rr',
+
+      // AI
+      'openai': 'dr',
+      'openaichatgpt': 'dr',
+      'chatgpt': 'dr',
+      'claude': 'dr',
+
+      // Tech Ecosystems & Email
+      'google': 'go',
+      'gmail': 'go',
+      'googlegmailyoutube': 'go',
+      'apple': 'wx',
+      'appleid': 'wx',
+      'appleidiclouid': 'wx',
+      'icloud': 'wx',
       'microsoft': 'mm',
-      'yahoo': 'mb'
+      'microsoftoutlook': 'mm',
+      'outlook': 'mm',
+      'yahoo': 'mb',
+      'yahoomail': 'mb',
+
+      // Entertainment, Shopping & Travel
+      'netflix': 'nf',
+      'spotify': 'pm',
+      'steam': 'mt',
+      'roblox': 'rb',
+      'amazon': 'am',
+      'ebay': 'dh',
+      'aliexpress': 'hx',
+      'uber': 'ub',
+      'bolt': 'tx',
+      'airbnb': 'ah'
     };
     return grizzlyMap[normalized] || normalized;
   }
@@ -66,19 +146,62 @@ export function mapCountryToProvider(countryStr: string, provider: ProviderCode)
   const normalized = countryStr.toLowerCase().trim();
   
   if (provider === '5sim') {
-    if (normalized === '1' || normalized === 'usa' || normalized === 'us') return 'usa';
-    if (normalized === 'canada' || normalized === 'ca') return 'canada';
-    if (normalized === 'uk' || normalized === 'gb' || normalized === 'united kingdom') return 'england';
+    if (normalized === '1' || normalized === 'usa' || normalized === 'us' || normalized === 'united states') return 'usa';
+    if (normalized === '2' || normalized === 'uk' || normalized === 'gb' || normalized === 'england' || normalized === 'united kingdom') return 'england';
+    if (normalized === '3' || normalized === 'canada' || normalized === 'ca') return 'canada';
     return normalized;
   }
 
   if (provider === 'grizzly') {
-    if (normalized === '1' || normalized === 'usa' || normalized === 'us') return '12'; // Grizzly USA is 12
-    if (normalized === 'canada' || normalized === 'ca') return '16'; // Grizzly Canada is 16
-    if (normalized === 'uk' || normalized === 'gb' || normalized === 'united kingdom') return '18';
-    if (normalized === 'nigeria' || normalized === 'ng') return '19';
-    if (normalized === 'germany' || normalized === 'de') return '43';
-    return '12'; // Default fallback to USA
+    // Grizzly SMS integer country codes for all 45 platform countries
+    const grizzlyCountryMap: Record<string, string> = {
+      '1': '12', 'usa': '12', 'us': '12', 'united states': '12',
+      '2': '18', 'uk': '18', 'gb': '18', 'england': '18', 'united kingdom': '18',
+      '3': '16', 'canada': '16', 'ca': '16',
+      '4': '0',  'russia': '0', 'ru': '0',
+      '5': '1',  'ukraine': '1', 'ua': '1',
+      '6': '2',  'kazakhstan': '2', 'kz': '2',
+      '7': '3',  'china': '3', 'cn': '3',
+      '8': '4',  'philippines': '4', 'ph': '4',
+      '9': '5',  'myanmar': '5', 'mm': '5',
+      '10': '6', 'indonesia': '6', 'id': '6',
+      '11': '7', 'malaysia': '7', 'my': '7',
+      '12': '10', 'vietnam': '10', 'vn': '10',
+      '13': '52', 'thailand': '52', 'th': '52',
+      '14': '22', 'india': '22', 'in': '22',
+      '15': '73', 'brazil': '73', 'br': '73',
+      '16': '54', 'mexico': '54', 'mx': '54',
+      '17': '39', 'argentina': '39', 'ar': '39',
+      '18': '33', 'colombia': '33', 'co': '33',
+      '19': '43', 'germany': '43', 'de': '43',
+      '20': '78', 'france': '78', 'fr': '78',
+      '21': '56', 'spain': '56', 'es': '56',
+      '22': '86', 'italy': '86', 'it': '86',
+      '23': '48', 'netherlands': '48', 'nl': '48',
+      '24': '15', 'poland': '15', 'pl': '15',
+      '25': '32', 'romania': '32', 'ro': '32',
+      '26': '62', 'turkey': '62', 'tr': '62',
+      '27': '21', 'egypt': '21', 'eg': '21',
+      '28': '31', 'southafrica': '31', 'za': '31', 'south africa': '31',
+      '29': '19', 'nigeria': '19', 'ng': '19',
+      '30': '8',  'kenya': '8', 'ke': '8',
+      '31': '159', 'ghana': '159', 'gh': '159',
+      '32': '37', 'morocco': '37', 'ma': '37',
+      '33': '176', 'australia': '176', 'au': '176',
+      '34': '67', 'newzealand': '67', 'nz': '67', 'new zealand': '67',
+      '35': '182', 'japan': '182', 'jp': '182',
+      '36': '190', 'southkorea': '190', 'kr': '190', 'south korea': '190',
+      '37': '114', 'taiwan': '114', 'tw': '114',
+      '38': '14', 'hongkong': '14', 'hk': '14', 'hong kong': '14',
+      '39': '53', 'saudiarabia': '53', 'sa': '53', 'saudi arabia': '53',
+      '40': '95', 'uae': '95', 'ae': '95', 'united arab emirates': '95',
+      '41': '66', 'pakistan': '66', 'pk': '66',
+      '42': '60', 'bangladesh': '60', 'bd': '60',
+      '43': '64', 'srilanka': '64', 'lk': '64', 'sri lanka': '64',
+      '44': '81', 'nepal': '81', 'np': '81'
+    };
+
+    return grizzlyCountryMap[normalized] || '12';
   }
 
   return normalized;

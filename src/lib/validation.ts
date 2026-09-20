@@ -13,10 +13,9 @@ export const marketplaceBuySchema = z.object({
 export const adminSettingsSchema = z.object({
   profit_margin: z.number().nonnegative('Profit margin must be zero or greater').optional(),
   affiliate_percentage: z.number().nonnegative('Affiliate percentage must be zero or greater').optional(),
-  brand_pricing: z.record(z.string(), z.object({
-    minPriceUsd: z.coerce.number().nonnegative(),
-    multiplier: z.coerce.number().nonnegative(),
-  })).optional(),
+  brand_pricing: z.record(z.string(), z.any()).optional(),
+  promo_multiplier: z.number().nonnegative().optional(),
+  baseline_floor_ngn: z.number().nonnegative().optional(),
   rental_min_floor_usd: z.number().nonnegative().optional(),
   rental_daily_rate_usd: z.number().nonnegative().optional(),
   rental_margin_percent: z.number().nonnegative().optional(),
@@ -24,6 +23,8 @@ export const adminSettingsSchema = z.object({
   data.profit_margin !== undefined || 
   data.affiliate_percentage !== undefined || 
   data.brand_pricing !== undefined ||
+  data.promo_multiplier !== undefined ||
+  data.baseline_floor_ngn !== undefined ||
   data.rental_min_floor_usd !== undefined ||
   data.rental_daily_rate_usd !== undefined ||
   data.rental_margin_percent !== undefined, {
