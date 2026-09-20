@@ -218,7 +218,7 @@ export default function DeveloperApiPage() {
     if (activeCategory === "numbers") {
       if (selectedEndpoint === "rent_number") {
         if (activeLang === "curl") {
-          return `curl -X POST https://smsdigitals.vercel.app/api/v1/user/rent \\
+          return `curl -X POST https://www.smsdigital.fun/api/v1/user/rent \\
   -H "Authorization: Bearer ${sampleApiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{"country": "usa", "service": "wa", "currency": "USD"}';`;
@@ -226,7 +226,7 @@ export default function DeveloperApiPage() {
         if (activeLang === "python") {
           return `import requests
 
-url = "https://smsdigitals.vercel.app/api/v1/user/rent"
+url = "https://www.smsdigital.fun/api/v1/user/rent"
 headers = {
     "Authorization": "Bearer ${sampleApiKey}",
     "Content-Type": "application/json"
@@ -243,7 +243,7 @@ print(res.json())`;
           return `const fetch = require('node-fetch');
 
 async function buyVirtualNumber() {
-  const res = await fetch('https://smsdigitals.vercel.app/api/v1/user/rent', {
+  const res = await fetch('https://www.smsdigital.fun/api/v1/user/rent', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ${sampleApiKey}',
@@ -259,7 +259,7 @@ async function buyVirtualNumber() {
 buyVirtualNumber();`;
         }
         return `<?php
-$ch = curl_init('https://smsdigitals.vercel.app/api/v1/user/rent');
+$ch = curl_init('https://www.smsdigital.fun/api/v1/user/rent');
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Authorization: Bearer ${sampleApiKey}',
     'Content-Type: application/json'
@@ -273,12 +273,12 @@ echo $response;
       }
 
       if (activeLang === "curl") {
-        return `curl -X GET "https://smsdigitals.vercel.app/api/v1/user/check?order_id=ord_894102" \\
+        return `curl -X GET "https://www.smsdigital.fun/api/v1/user/check?order_id=ord_894102" \\
   -H "Authorization: Bearer ${sampleApiKey}"`;
       }
       return `import requests
 
-url = "https://smsdigitals.vercel.app/api/v1/user/check?order_id=ord_894102"
+url = "https://www.smsdigital.fun/api/v1/user/check?order_id=ord_894102"
 headers = {"Authorization": "Bearer ${sampleApiKey}"}
 
 res = requests.get(url, headers=headers)
@@ -288,27 +288,27 @@ print(res.json())`;
     if (activeCategory === "marketplace") {
       if (selectedEndpoint === "mkt_catalog") {
         if (activeLang === "curl") {
-          return `curl -X GET https://smsdigitals.vercel.app/api/v1/marketplace/catalog \\
+          return `curl -X GET https://www.smsdigital.fun/api/v1/marketplace/catalog \\
   -H "Authorization: Bearer ${sampleApiKey}"`;
         }
         return `import requests
 
 res = requests.get(
-    "https://smsdigitals.vercel.app/api/v1/marketplace/catalog",
+    "https://www.smsdigital.fun/api/v1/marketplace/catalog",
     headers={"Authorization": "Bearer ${sampleApiKey}"}
 )
 print(res.json())`;
       }
 
       if (activeLang === "curl") {
-        return `curl -X POST https://smsdigitals.vercel.app/api/v1/marketplace/buy \\
+        return `curl -X POST https://www.smsdigital.fun/api/v1/marketplace/buy \\
   -H "Authorization: Bearer ${sampleApiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{"item_id": "mkt_fb_01", "quantity": 1}';`;
       }
       return `import requests
 
-url = "https://smsdigitals.vercel.app/api/v1/marketplace/buy"
+url = "https://www.smsdigital.fun/api/v1/marketplace/buy"
 headers = {
     "Authorization": "Bearer ${sampleApiKey}",
     "Content-Type": "application/json"
@@ -320,13 +320,13 @@ print(res.json())`;
     }
 
     if (activeCategory === "longterm") {
-      return `curl -X POST https://smsdigitals.vercel.app/api/sms/long-term/rent \\
+      return `curl -X POST https://www.smsdigital.fun/api/sms/long-term/rent \\
   -H "Authorization: Bearer ${sampleApiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{"country": "us", "days": 30, "service": "wa"}';`;
     }
 
-    return `curl -X GET https://smsdigitals.vercel.app/api/v1/user/balance \\
+    return `curl -X GET https://www.smsdigital.fun/api/v1/user/balance \\
   -H "Authorization: Bearer ${sampleApiKey}"`;
   };
 
@@ -376,7 +376,7 @@ print(res.json())`;
   "credentials": [
     "login: password123 | 2fa_key: JBSWY3DPEHPK3PXP"
   ],
-  "download_url": "https://smsdigitals.com/api/marketplace/download?order=mkt_ord_90412"
+  "download_url": "https://www.smsdigital.fun/api/marketplace/download?order=mkt_ord_90412"
 }`;
     }
 

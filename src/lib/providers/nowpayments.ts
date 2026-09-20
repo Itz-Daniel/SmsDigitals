@@ -18,7 +18,7 @@ export class NowPaymentsApi {
       };
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://smsdigitals.vercel.app";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun";
 
     try {
       const response = await fetch(`${this.baseUrl}/invoice`, {

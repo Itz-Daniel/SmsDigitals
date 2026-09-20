@@ -91,6 +91,13 @@ function LoginContent() {
       setError(error.message);
       setLoading(false);
     } else {
+      // Trigger login notification (fire-and-forget)
+      fetch("/api/auth/notify-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).catch(() => {});
+
       // Set initial activity timestamp cookie on client for immediate hydration
       document.cookie = `sms_last_active=${Date.now()}; path=/; max-age=2592000; SameSite=Lax`;
       window.location.href = "/dashboard";

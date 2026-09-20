@@ -45,8 +45,8 @@ export async function POST(req: Request) {
             quantity: 1,
           },
         ],
-        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard?payment=success`,
-        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard/fund`,
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.smsdigital.fun'}/dashboard?payment=success`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.smsdigital.fun'}/dashboard/fund`,
         metadata: {
           user_id: user.id, // Very important for the webhook
         },
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       const originHeader = req.headers.get("origin") || req.headers.get("referer");
       const cleanOrigin = originHeader 
         ? originHeader.split("/dashboard")[0].replace(/\/$/, "")
-        : (process.env.NEXT_PUBLIC_SITE_URL || "https://smsdigitals.vercel.app").replace(/\/$/, "");
+        : (process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "");
 
       const returnPath = originHeader?.includes("/dashboard/fund") ? "/dashboard/fund" : "/dashboard";
       const callback_url = `${cleanOrigin}${returnPath}?payment=success`;

@@ -98,7 +98,7 @@ export async function enforceActiveAccount(userId: string): Promise<NextResponse
       { 
         error: statusCheck.reason,
         account_status: statusCheck.status,
-        help_url: "https://smsdigitals.vercel.app/dashboard/support"
+        help_url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "")}/dashboard/support`
       }, 
       { status: 403 }
     );

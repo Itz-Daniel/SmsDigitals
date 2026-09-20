@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SmsDigitals | Premium Virtual Numbers",
     description: "Receive SMS verifications instantly. Real SIM numbers from 44+ countries.",
-    url: "https://smsdigitals.com",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun",
     siteName: "SmsDigitals",
     locale: "en_US",
     type: "website",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     shortcut: "/icon.svg?v=2",
     apple: "/icon.svg?v=2",
   },
-  metadataBase: new URL("https://smsdigitals.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun"),
 };
 
 export default function RootLayout({

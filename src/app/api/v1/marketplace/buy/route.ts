@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       credentials: [
         "login: password123 | 2fa_key: JBSWY3DPEHPK3PXP | cookies: [{name: 'sessionid', value: 'xyz...'}]"
       ],
-      download_url: "https://smsdigitals.vercel.app/api/marketplace/download?order=mkt_ord_102",
+      download_url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "")}/api/marketplace/download?order=mkt_ord_102`,
       delivered_at: new Date().toISOString()
     });
 

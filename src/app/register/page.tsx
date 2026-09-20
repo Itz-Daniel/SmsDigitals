@@ -121,6 +121,13 @@ export default function RegisterPage() {
         }),
       }).catch((err) => console.error("Failed to trigger admin alert:", err));
 
+      // Trigger User Welcome Email (fire and forget)
+      fetch("/api/auth/notify-register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).catch((err) => console.error("Failed to trigger welcome email:", err));
+
       setSuccess(true);
       setLoading(false);
     }

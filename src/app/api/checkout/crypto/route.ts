@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       pay_currency: coin || "usdttrc20",
       order_id: orderId,
       order_description: `Wallet Funding for ${user.email}`,
-      ipn_callback_url: "https://smsdigitals.vercel.app/api/webhooks/nowpayments"
+      ipn_callback_url: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "")}/api/webhooks/nowpayments`
     });
 
     return NextResponse.json({

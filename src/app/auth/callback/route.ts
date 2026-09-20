@@ -62,6 +62,21 @@ export async function GET(request: Request) {
           } catch (e) {
             console.error("Failed to load resend module:", e);
           }
+        } else {
+          // Existing user logging in via OAuth
+          try {
+            const { sendLoginAlertEmail } = await import('@/lib/resend');
+            const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                       request.headers.get("x-real-ip") || undefined;
+            const userAgent = request.headers.get("user-agent") || undefined;
+            sendLoginAlertEmail({
+              userEmail: user.email,
+              ipAddress: ip,
+              userAgent,
+            }).catch(e => console.error("Login alert email error:", e));
+          } catch (e) {
+            console.error("Failed to load resend module for login alert:", e);
+          }
         }
       }
 

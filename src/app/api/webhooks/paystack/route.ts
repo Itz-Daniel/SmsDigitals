@@ -116,6 +116,28 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error("Affiliate Payout Error:", err);
       }
+
+      // 6. Dispatch Deposit Confirmation Email to Customer
+      try {
+        let userEmail = event.data?.customer?.email;
+        if (!userEmail) {
+          const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+          userEmail = authUser?.user?.email;
+        }
+
+        if (userEmail) {
+          const { sendDepositConfirmationEmail } = await import("@/lib/resend");
+          sendDepositConfirmationEmail({
+            userEmail,
+            amount: amountInNgn,
+            currency: "NGN",
+            reference,
+            gateway: "Paystack",
+          }).catch((e) => console.error("Failed to dispatch deposit confirmation email:", e));
+        }
+      } catch (emailErr) {
+        console.error("Deposit confirmation email dispatch error:", emailErr);
+      }
     }
 
     return NextResponse.json({ success: true });

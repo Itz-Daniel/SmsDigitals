@@ -111,6 +111,24 @@ export async function POST(req: Request) {
                 method: `Crypto (${pay_currency?.toUpperCase() || 'USDT'})`,
                 reference: order_id
               });
+
+              // Dispatch Deposit Confirmation Email to Customer
+              try {
+                const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(matchedUser.id);
+                const customerEmail = authUser?.user?.email;
+                if (customerEmail) {
+                  const { sendDepositConfirmationEmail } = await import("@/lib/resend");
+                  sendDepositConfirmationEmail({
+                    userEmail: customerEmail,
+                    amount: creditAmountUsd,
+                    currency: "USD",
+                    reference: order_id,
+                    gateway: `Crypto (${pay_currency?.toUpperCase() || 'USDT'})`,
+                  }).catch((e) => console.error("Failed to dispatch crypto deposit confirmation email:", e));
+                }
+              } catch (emailErr) {
+                console.error("Crypto deposit email error:", emailErr);
+              }
             }
           }
         }
