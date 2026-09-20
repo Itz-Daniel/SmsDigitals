@@ -1,17 +1,52 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next') ?? '/dashboard';
+  const oauthError = requestUrl.searchParams.get('error_description') || requestUrl.searchParams.get('error');
+
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin).replace(/\/$/, '');
+
+  if (oauthError) {
+    console.error("OAuth Provider Error:", oauthError);
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(oauthError)}`, origin));
+  }
 
   if (code) {
-    const supabase = await createClient();
+    const response = NextResponse.redirect(new URL(next, origin));
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
+      // Stamp activity timestamp so middleware knows session is active
+      const now = Date.now().toString();
+      response.cookies.set('sms_last_active', now, {
+        path: '/',
+        maxAge: 365 * 24 * 60 * 60,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
+
       const { data: { user } } = await supabase.auth.getUser();
 
       // Process Affiliate Link immediately on auth success
@@ -80,12 +115,13 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(new URL(next, requestUrl.origin));
+      return response;
     }
     
     console.error("Auth callback error:", error.message);
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, origin));
   }
 
   // If there's an error or no code, redirect to login with an error
-  return NextResponse.redirect(new URL('/login?error=Auth%20failed', requestUrl.origin));
+  return NextResponse.redirect(new URL('/login?error=Auth%20failed%20-%20no%20code%20received', origin));
 }

@@ -51,9 +51,13 @@ export async function middleware(request: NextRequest) {
         isExpired = true
       }
     } else {
-      // User is logged in according to Supabase, but the last active cookie was deleted or expired (>30 days).
-      // For account security, this prolonged inactivity MUST expire the session!
-      isExpired = true
+      // Check if user recently signed in (e.g. fresh OAuth login) before expiring
+      const lastSignInTime = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0
+      if (lastSignInTime && now - lastSignInTime <= maxInactivityMs) {
+        isExpired = false
+      } else {
+        isExpired = true
+      }
     }
 
     if (isExpired) {

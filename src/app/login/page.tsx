@@ -25,11 +25,12 @@ import { Turnstile } from "@marsidev/react-turnstile";
 function LoginContent() {
   const searchParams = useSearchParams();
   const reason = searchParams?.get("reason");
+  const queryError = searchParams?.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(queryError || null);
   const [loginMode, setLoginMode] = useState<"password" | "magic_link">("password");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
