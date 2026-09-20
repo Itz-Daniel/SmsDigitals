@@ -48,7 +48,6 @@ const POPULAR_QUICK_SERVICES = [
 
 export default function CanaPurchasePage() {
   const { currency } = useCurrency();
-  const { isSandbox } = useSandboxMode();
 
   const [selectedService, setSelectedService] = useState(SERVICES[0].id);
   const [selectedServiceName, setSelectedServiceName] = useState(SERVICES[0].name);
@@ -214,8 +213,7 @@ export default function CanaPurchasePage() {
           serviceId: selectedService,
           serviceName: selectedServiceName,
           region: 'cana',
-          currency: currency,
-          isSandbox: isSandbox
+          currency: currency
         })
       });
 
@@ -245,7 +243,7 @@ export default function CanaPurchasePage() {
           isOpen: true,
           serviceName: selectedServiceName,
           phoneNumber: phoneNumber,
-          cost: isSandbox ? "$0.00 (Free Test)" : currency === 'USD' ? `$${costVal}` : `₦${costVal?.toLocaleString()}`,
+          cost: currency === 'USD' ? `$${costVal}` : `₦${costVal?.toLocaleString()}`,
           orderId: orderId
         });
 
@@ -431,14 +429,14 @@ export default function CanaPurchasePage() {
                   </span>
                 ) : (
                   <span className="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
-                    {isSandbox ? "$0.00" : currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
+                    {currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
                   </span>
                 )}
               </div>
 
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                {isSandbox ? "Sandbox Free" : "In Stock"}
+                In Stock
               </span>
             </div>
 
@@ -453,10 +451,8 @@ export default function CanaPurchasePage() {
             <button 
               type="button"
               onClick={handlePurchase}
-              disabled={isPurchasing || (isFetchingPrice && !isSandbox)}
-              className={`w-full text-white rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
-                isSandbox ? "bg-purple-600 hover:bg-purple-700 shadow-purple-500/25" : "bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
-              }`}
+              disabled={isPurchasing || isFetchingPrice || !isAvailable || livePrice === null}
+              className="w-full text-white rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
             >
               {isPurchasing ? (
                 <>
@@ -464,7 +460,7 @@ export default function CanaPurchasePage() {
                 </>
               ) : (
                 <>
-                  {isSandbox ? "Deploy Test Number (Free)" : "Deploy Server 1 Number"} <ArrowRight weight="bold" size={16} />
+                  Deploy Server 1 Number <ArrowRight weight="bold" size={16} />
                 </>
               )}
             </button>
@@ -512,7 +508,7 @@ export default function CanaPurchasePage() {
                             {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
                           </h4>
                           <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-mono">
-                            Server 1 Line {rental.order_id.startsWith('sandbox-') && '· Test'}
+                            Server 1 Dedicated Line
                           </span>
                         </div>
                       </div>
