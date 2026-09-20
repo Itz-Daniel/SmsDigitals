@@ -210,10 +210,29 @@ export function mapCountryToProvider(countryStr: string, provider: ProviderCode)
 // ==========================================
 // 5SIM PROVIDER (PRIMARY)
 // ==========================================
-class FiveSimImpl {
+export class FiveSimApi {
   readonly name = '5sim';
 
-  async getPrice(country: string, serviceName: string): Promise<{ cost: number | null }> {
+  getPrice(country: string, serviceName: string) {
+    return FiveSimApi.getPrice(country, serviceName);
+  }
+  buyNumber(country: string, serviceId: string, serviceName: string = "") {
+    return FiveSimApi.buyNumber(country, serviceId, serviceName);
+  }
+  rentNumber(country: string, serviceId: string, serviceName: string = "") {
+    return FiveSimApi.rentNumber(country, serviceId, serviceName);
+  }
+  checkCode(orderId: string) {
+    return FiveSimApi.checkCode(orderId);
+  }
+  cancelOrder(orderId: string) {
+    return FiveSimApi.cancelOrder(orderId);
+  }
+  getBalance() {
+    return FiveSimApi.getBalance();
+  }
+
+  static async getPrice(country: string, serviceName: string): Promise<{ cost: number | null }> {
     try {
       const mappedService = mapServiceToProvider(serviceName, '5sim');
       const mappedCountry = mapCountryToProvider(country, '5sim');
@@ -242,7 +261,7 @@ class FiveSimImpl {
     }
   }
 
-  async buyNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
+  static async buyNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
     const apiKey = process.env.FIVESIM_API_KEY;
     if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
 
@@ -271,17 +290,17 @@ class FiveSimImpl {
         phoneNumber: data.phone,
         cost: price,
         costUsd: price,
-        success: true
+        success: true 
       };
     }
     throw new Error("5Sim: No number returned");
   }
 
-  async rentNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
+  static async rentNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
     return this.buyNumber(country, serviceId, serviceName);
   }
 
-  async checkCode(orderId: string): Promise<CheckCodeResponse> {
+  static async checkCode(orderId: string): Promise<CheckCodeResponse> {
     const apiKey = process.env.FIVESIM_API_KEY;
     if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
 
@@ -302,7 +321,7 @@ class FiveSimImpl {
     return { status: 'Waiting', code: null };
   }
 
-  async cancelOrder(orderId: string): Promise<boolean> {
+  static async cancelOrder(orderId: string): Promise<boolean> {
     const apiKey = process.env.FIVESIM_API_KEY;
     if (!apiKey) return false;
 
@@ -312,7 +331,7 @@ class FiveSimImpl {
     return res.ok;
   }
 
-  async getBalance(): Promise<number> {
+  static async getBalance(): Promise<number> {
     const apiKey = process.env.FIVESIM_API_KEY;
     if (!apiKey) return 0;
 
@@ -328,10 +347,29 @@ class FiveSimImpl {
 // ==========================================
 // GRIZZLY SMS PROVIDER (SECONDARY / BACKUP)
 // ==========================================
-class GrizzlyImpl {
+export class GrizzlyApi {
   readonly name = 'grizzly';
 
-  async getPrice(country: string, serviceName: string): Promise<{ cost: number | null }> {
+  getPrice(country: string, serviceName: string) {
+    return GrizzlyApi.getPrice(country, serviceName);
+  }
+  buyNumber(country: string, serviceId: string, serviceName: string = "") {
+    return GrizzlyApi.buyNumber(country, serviceId, serviceName);
+  }
+  rentNumber(country: string, serviceId: string, serviceName: string = "") {
+    return GrizzlyApi.rentNumber(country, serviceId, serviceName);
+  }
+  checkCode(orderId: string) {
+    return GrizzlyApi.checkCode(orderId);
+  }
+  cancelOrder(orderId: string) {
+    return GrizzlyApi.cancelOrder(orderId);
+  }
+  getBalance() {
+    return GrizzlyApi.getBalance();
+  }
+
+  static async getPrice(country: string, serviceName: string): Promise<{ cost: number | null }> {
     try {
       const apiKey = process.env.GRIZZLYSMS_API_KEY;
       if (!apiKey) return { cost: null };
@@ -365,7 +403,7 @@ class GrizzlyImpl {
     }
   }
 
-  async buyNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
+  static async buyNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
     const apiKey = process.env.GRIZZLYSMS_API_KEY;
     if (!apiKey) throw new Error("GRIZZLYSMS_API_KEY missing");
 
@@ -399,11 +437,11 @@ class GrizzlyImpl {
     throw new Error(`Grizzly Error: ${text}`);
   }
 
-  async rentNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
+  static async rentNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
     return this.buyNumber(country, serviceId, serviceName);
   }
 
-  async checkCode(orderId: string): Promise<CheckCodeResponse> {
+  static async checkCode(orderId: string): Promise<CheckCodeResponse> {
     const apiKey = process.env.GRIZZLYSMS_API_KEY;
     if (!apiKey) throw new Error("GRIZZLYSMS_API_KEY missing");
 
@@ -420,7 +458,7 @@ class GrizzlyImpl {
     return { status: 'Waiting', code: null };
   }
 
-  async cancelOrder(orderId: string): Promise<boolean> {
+  static async cancelOrder(orderId: string): Promise<boolean> {
     const apiKey = process.env.GRIZZLYSMS_API_KEY;
     if (!apiKey) return false;
 
@@ -429,7 +467,7 @@ class GrizzlyImpl {
     return res.ok;
   }
 
-  async getBalance(): Promise<number> {
+  static async getBalance(): Promise<number> {
     const apiKey = process.env.GRIZZLYSMS_API_KEY;
     if (!apiKey) return 0;
 
@@ -444,14 +482,3 @@ class GrizzlyImpl {
     return 0;
   }
 }
-
-// Dual export: usable as singleton object (FiveSimApi.getPrice) AND as constructor (new FiveSimApi())
-export const FiveSimApi: any = Object.assign(
-  function () { return new FiveSimImpl(); },
-  new FiveSimImpl()
-);
-
-export const GrizzlyApi: any = Object.assign(
-  function () { return new GrizzlyImpl(); },
-  new GrizzlyImpl()
-);
