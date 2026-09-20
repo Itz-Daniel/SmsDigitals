@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { rental_id, simulate_code } = await req.json();
+    const { rental_id } = await req.json();
 
     if (!rental_id) {
       return NextResponse.json({ error: "Missing rental_id parameter." }, { status: 400 });
@@ -29,31 +29,6 @@ export async function POST(req: Request) {
 
     if (fetchError || !rental) {
       return NextResponse.json({ error: "Rental not found." }, { status: 404 });
-    }
-
-    // 🛡️ ADMIN-ONLY SIMULATION GUARD
-    if (simulate_code) {
-      const isAdmin = user.user_metadata?.role === 'admin' || 
-                      user.app_metadata?.role === 'admin' ||
-                      user.email?.toLowerCase().includes('admin');
-
-      if (!isAdmin) {
-        return NextResponse.json({ error: "Forbidden: Admin privileges required." }, { status: 403 });
-      }
-
-      const codeToSet = simulate_code || Math.floor(100000 + Math.random() * 900000).toString();
-      const supabaseAdmin = createAdminClient();
-
-      await supabaseAdmin
-        .from('rentals')
-        .update({ 
-          status: 'Received', 
-          sms_code: codeToSet,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', rental.id);
-
-      return NextResponse.json({ status: 'Received', code: codeToSet, message: '🧪 Admin Test Code Simulated!' });
     }
 
     // If it's already received or expired, return current status

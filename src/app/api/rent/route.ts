@@ -21,63 +21,13 @@ export async function POST(req: Request) {
     const accountBlock = await enforceActiveAccount(user.id);
     if (accountBlock) return accountBlock;
 
-    const { serviceId, serviceName = "", country, region, currency = 'USD', isSandbox = false } = await req.json();
+    const { serviceId, serviceName = "", country, region, currency = 'USD' } = await req.json();
 
     if (!serviceId || !country) {
       return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
     }
 
     const supabaseAdmin = createAdminClient();
-
-    // --- SANDBOX DEMO MODE (ADMIN ONLY FOR FREE TESTING) ---
-    if (isSandbox) {
-      const isAdmin = user.user_metadata?.role === 'admin' || 
-                      user.app_metadata?.role === 'admin' || 
-                      user.email?.toLowerCase().includes('admin');
-
-      if (!isAdmin) {
-        return NextResponse.json({ error: "Forbidden: Sandbox Mode is restricted to Admin accounts." }, { status: 403 });
-      }
-
-      const mockOrderId = `sandbox-${Date.now()}`;
-      const mockPhone = `+1 (332) ${Math.floor(100 + Math.random() * 900)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
-
-      const { data: mockRental, error: mockError } = await supabaseAdmin
-        .from('rentals')
-        .insert({
-          user_id: user.id,
-          order_id: mockOrderId,
-          phone_number: mockPhone,
-          service: serviceId,
-          provider: 'sandbox-node',
-          region: region || 'usa',
-          status: 'Waiting',
-          cost: 0,
-          currency: currency,
-          expires_at: expiresAt
-        })
-        .select()
-        .single();
-
-      if (mockError) {
-        console.error("Sandbox rental creation error:", mockError);
-        return NextResponse.json({ error: "Failed to create sandbox test number." }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        rental: mockRental,
-        order_id: mockOrderId,
-        phone_number: mockPhone,
-        service: serviceId,
-        cost: 0,
-        currency: currency,
-        expires_at: expiresAt,
-        isSandbox: true,
-        message: "⚡ Sandbox Number Procured (0ms Admin Free Testing)"
-      });
-    }
 
     // 1. Fetch User Wallet and VIP Tier Discount
     const { data: wallet } = await supabaseAdmin

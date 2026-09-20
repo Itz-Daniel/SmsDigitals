@@ -20,7 +20,6 @@ import Link from "next/link";
 import { SERVICES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { useCurrency } from "@/components/CurrencyContext";
-import { SandboxToggle, useSandboxMode } from "@/components/SandboxToggle";
 import { PurchaseSuccessModal } from "@/components/PurchaseSuccessModal";
 
 interface Rental {
@@ -138,6 +137,32 @@ export default function CanaPurchasePage() {
       }
     };
   }, [fetchRentals]);
+
+  // Active Code Polling for any Waiting lines (polls every 3.5s for instant SMS delivery)
+  useEffect(() => {
+    const waitingRentals = rentals.filter(r => r.status === 'Waiting');
+    if (waitingRentals.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const r of waitingRentals) {
+        try {
+          const res = await fetch('/api/check-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rental_id: r.id })
+          });
+          const data = await res.json();
+          if (data.status === 'Received' || data.status === 'Expired') {
+            fetchRentals();
+          }
+        } catch {
+          // ignore transient error
+        }
+      }
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [rentals, fetchRentals]);
 
   useEffect(() => {
     let isMounted = true;
@@ -267,7 +292,6 @@ export default function CanaPurchasePage() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <SandboxToggle />
           <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-white/50 hidden md:inline">
             Carrier Routing
           </span>

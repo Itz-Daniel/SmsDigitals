@@ -20,7 +20,6 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { SERVICES, COUNTRIES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
-import { AILineFixerWidget } from "@/components/sms/AILineFixerWidget";
 import { PurchaseConfirmationModal } from "@/components/PurchaseConfirmationModal";
 import { useCurrency } from "@/components/CurrencyContext";
 
@@ -169,6 +168,32 @@ export default function GlobalPurchasePage() {
     };
   }, [fetchRentals]);
 
+  // Active Code Polling for any Waiting lines (polls every 3.5s for instant SMS delivery)
+  useEffect(() => {
+    const waitingRentals = rentals.filter(r => r.status === 'Waiting');
+    if (waitingRentals.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const r of waitingRentals) {
+        try {
+          const res = await fetch('/api/check-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rental_id: r.id })
+          });
+          const data = await res.json();
+          if (data.status === 'Received' || data.status === 'Expired') {
+            fetchRentals();
+          }
+        } catch {
+          // ignore transient error
+        }
+      }
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [rentals, fetchRentals]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -233,23 +258,6 @@ export default function GlobalPurchasePage() {
       setError((err as Error).message || "An unexpected error occurred.");
     } finally {
       setIsPurchasing(false);
-    }
-  };
-
-  const handleSimulateSms = async (rentalId: string) => {
-    try {
-      const res = await fetch('/api/check-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rental_id: rentalId, simulate_code: "948201" })
-      });
-      const data = await res.json();
-      if (data.status === 'Received') {
-        fetchRentals();
-      }
-    } catch {
-      // silently handle
-    }
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -610,15 +618,6 @@ export default function GlobalPurchasePage() {
                               Listening for incoming code...
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              {isAdminUser && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSimulateSms(rental.id)}
-                                  className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold transition-all flex items-center gap-1"
-                                >
-                                  🧪 Simulate SMS
-                                </button>
-                              )}
                               <CancelOrderButton 
                                 rentalId={rental.id} 
                                 createdAt={rental.created_at} 
@@ -628,15 +627,6 @@ export default function GlobalPurchasePage() {
                               />
                             </div>
                           </div>
-
-                          {/* AI Smart Line Fixer Widget */}
-                          {currentSec > 0 && Math.floor(currentSec - new Date(rental.created_at).getTime() / 1000) >= 60 && (
-                            <AILineFixerWidget 
-                              rentalId={rental.id} 
-                              provider={rental.provider} 
-                              onFixSuccess={fetchRentals} 
-                            />
-                          )}
                         </div>
                       ) : rental.status === 'Received' ? (
                         <div className="flex flex-col gap-3 w-full">

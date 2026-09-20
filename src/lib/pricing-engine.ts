@@ -96,9 +96,9 @@ export function calculateFinalRetailPrice(
   const promo = typeof activePromo === 'number' && activePromo > 0 ? activePromo : 1.0;
   let finalNgn = Math.round(baseNgn * promo);
 
-  // 3. Absolute Safety Margin: Ensure we NEVER sell below wholesale cost + 20%
+  // 3. Absolute Safety Margin: Ensure we NEVER sell below wholesale cost + 70%
   const wholesaleCostNgn = Math.ceil((rawCostUsd || 0.15) * exchangeRate);
-  const absoluteSafetyFloorNgn = Math.ceil(wholesaleCostNgn * 1.20);
+  const absoluteSafetyFloorNgn = Math.ceil(wholesaleCostNgn * 1.70);
   if (finalNgn < absoluteSafetyFloorNgn) {
     finalNgn = absoluteSafetyFloorNgn;
   }
