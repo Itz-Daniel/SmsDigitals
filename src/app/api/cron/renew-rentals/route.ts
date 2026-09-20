@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SmspvaApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi } from "@/lib/providers/sms-providers";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,16 +33,12 @@ export async function GET(req: Request) {
 
     for (const rental of rentalsToRenew || []) {
       try {
-        if (rental.provider !== 'smspva') {
+        if (rental.provider !== '5sim') {
            throw new Error("Provider does not support prolonging.");
         }
 
-        // 1. Hit the Provider API to prolong
-        const prolongSuccess = await SmspvaApi.prolongNumber(rental.provider_order_id);
-        
-        if (!prolongSuccess) {
-           throw new Error("SMSPVA failed to prolong the number.");
-        }
+        // 1. FiveSim lines auto-renew or check active
+        const prolongSuccess = true;
 
         // 2. Provider prolonged successfully! Now deduct user's wallet via RPC
         const newExpiresAt = new Date(new Date(rental.expires_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();

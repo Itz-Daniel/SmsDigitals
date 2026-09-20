@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, TextVerifiedApi, SmsManApi, SmspvaApi, ProviderResponse } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, ProviderResponse } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { notifyTelegramAdmin } from "@/lib/telegram-admin";
 import { enforceActiveAccount } from "@/lib/fraud-guard";
@@ -92,13 +92,10 @@ export async function POST(req: Request) {
 
     const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
 
-    // 2. Multi-Provider Fallback Cascade Sequence
+    // 2. Multi-Provider Fallback Cascade Sequence (Primary: 5SIM, Backup: Grizzly SMS)
     const providers = [
       new FiveSimApi(),
-      new GrizzlyApi(),
-      new TextVerifiedApi(),
-      new SmsManApi(),
-      new SmspvaApi()
+      new GrizzlyApi()
     ];
 
     let successResponse: ProviderResponse | null = null;
@@ -106,7 +103,7 @@ export async function POST(req: Request) {
 
     for (const provider of providers) {
       try {
-        const res = await provider.rentNumber(country, serviceId);
+        const res = await provider.rentNumber(country, serviceId, serviceName);
         if (res && res.success && res.phoneNumber) {
           successResponse = res;
           usedProviderName = provider.name;
@@ -219,7 +216,7 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     console.error("Number procurement API error:", err);
     const msg = (err as Error)?.message || "";
-    const isProviderErr = /5sim|grizzly|smspva|textverified|smsman|provider|api/i.test(msg);
+    const isProviderErr = /5sim|grizzly|provider|api/i.test(msg);
     const safeError = isProviderErr
       ? "This line is currently out of stock. Please try again in a few moments or select another country."
       : (msg || "Temporary server error while procuring number.");

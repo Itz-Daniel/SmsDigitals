@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, SmsManApi, TextVerifiedApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
 
 /**
  * 🔄 DUAL-LAYER AUTO-REFUND ENGINE
@@ -27,16 +27,10 @@ export async function processExpiredOrdersRefund(): Promise<number> {
       console.log(`[Auto-Refund Engine] Processing expired order ${rental.id} (${rental.provider})...`);
 
       try {
-        if (rental.provider === "5sim") {
+        if (rental.provider === "5sim" || rental.provider?.toLowerCase().includes("5sim")) {
           await FiveSimApi.cancelOrder(rental.order_id);
-        } else if (rental.provider === "grizzly") {
+        } else if (rental.provider === "grizzly" || rental.provider?.toLowerCase().includes("grizzly")) {
           await GrizzlyApi.cancelOrder(rental.order_id);
-        } else if (rental.provider === "smspva") {
-          await SmspvaApi.cancelOrder(rental.order_id, rental.country || "us", rental.service || "wa");
-        } else if (rental.provider === "smsman") {
-          await SmsManApi.cancelOrder(rental.order_id);
-        } else if (rental.provider === "textverified") {
-          await TextVerifiedApi.cancelOrder(rental.order_id);
         }
       } catch (apiError) {
         console.error(`[Auto-Refund Engine] Provider Cancellation Warning [${rental.provider}]:`, apiError);

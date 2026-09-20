@@ -24,9 +24,6 @@ export function getOptimalCarrierRoute(country: string = 'us', service: string =
   let routes: CarrierRouteScore[] = [
     { provider: '5sim', confidenceScore: 99.4, avgArrivalSeconds: 11, status: 'OPTIMAL' },
     { provider: 'grizzly', confidenceScore: 98.2, avgArrivalSeconds: 14, status: 'OPTIMAL' },
-    { provider: 'smspva', confidenceScore: 96.8, avgArrivalSeconds: 18, status: 'GOOD' },
-    { provider: 'textverified', confidenceScore: 95.5, avgArrivalSeconds: 22, status: 'GOOD' },
-    { provider: 'smsman', confidenceScore: 93.1, avgArrivalSeconds: 28, status: 'DEGRADED' },
   ];
 
   // Specific service optimizations

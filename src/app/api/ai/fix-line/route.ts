@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, ProviderResponse } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, ProviderResponse } from "@/lib/providers/sms-providers";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,14 +52,9 @@ export async function POST(req: Request) {
     const oldProvider = rental.provider || '5sim';
     try {
       if (oldProvider.toLowerCase().includes('5sim')) {
-        const api = new FiveSimApi();
-        await api.cancelOrder(rental.order_id);
+        await FiveSimApi.cancelOrder(rental.order_id);
       } else if (oldProvider.toLowerCase().includes('grizzly')) {
-        const api = new GrizzlyApi();
-        await api.cancelOrder(rental.order_id);
-      } else if (oldProvider.toLowerCase().includes('smspva')) {
-        const api = new SmspvaApi();
-        await api.cancelOrder(rental.order_id);
+        await GrizzlyApi.cancelOrder(rental.order_id);
       }
     } catch (e) {
       console.warn("AI Line Fixer: Old provider cancel warning:", e);
@@ -71,10 +66,7 @@ export async function POST(req: Request) {
 
     const backupProviders = [
       new GrizzlyApi(),
-      new FiveSimApi(),
-      new TextVerifiedApi(),
-      new SmsManApi(),
-      new SmspvaApi()
+      new FiveSimApi()
     ];
 
     let freshResponse: ProviderResponse | null = null;

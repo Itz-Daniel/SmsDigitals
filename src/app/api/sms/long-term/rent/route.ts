@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SmspvaApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 import { enforceActiveAccount } from "@/lib/fraud-guard";
 
@@ -54,10 +54,10 @@ export async function POST(req: Request) {
     let purchasedNumber;
 
     try {
-      // Long-term rentals via SMSPVA rent api for auto-renew support
-      purchasedNumber = await SmspvaApi.rentNumber(country, serviceId, serviceName);
+      // Long-term rentals via 5SIM rent API
+      purchasedNumber = await FiveSimApi.rentNumber(country, serviceId, serviceName);
     } catch (e: any) {
-      console.error(`SMSPVA rent failed:`, e.message || e);
+      console.error(`5SIM rent failed:`, e.message || e);
       return NextResponse.json({ error: "Number out of stock or renting failed. Please try again later." }, { status: 404 });
     }
 
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
 
     const { data: rentData, error: rentError } = await supabaseAdmin.rpc('buy_long_term_rental', {
       p_user_id: user.id,
-      p_provider: 'smspva',
+      p_provider: '5sim',
       p_provider_order_id: purchasedNumber.orderId,
       p_phone_number: purchasedNumber.phone,
       p_service: serviceName || serviceId,
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
 
     if (rentError || (rentData && !rentData.success)) {
       console.error("Database rent error:", rentError || rentData?.error);
-      await SmspvaApi.cancelOrder(purchasedNumber.orderId, country, serviceId);
+      await FiveSimApi.cancelOrder(purchasedNumber.orderId);
       return NextResponse.json({ error: rentData?.error || "Insufficient balance or transaction failed." }, { status: 400 });
     }
 

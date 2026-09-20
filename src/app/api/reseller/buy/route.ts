@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 
 export const dynamic = 'force-dynamic';
@@ -37,13 +37,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Reseller wallet inactive." }, { status: 400 });
     }
 
-    // 3. Multi-Provider Number Procurement Cascade
+    // 3. Multi-Provider Number Procurement Cascade (5SIM & Grizzly)
     const providers = [
       new FiveSimApi(),
-      new GrizzlyApi(),
-      new TextVerifiedApi(),
-      new SmsManApi(),
-      new SmspvaApi()
+      new GrizzlyApi()
     ];
 
     let successResponse: any = null;
@@ -51,7 +48,7 @@ export async function POST(req: Request) {
 
     for (const provider of providers) {
       try {
-        const res = await provider.rentNumber(country, serviceId);
+        const res = await provider.rentNumber(country, serviceId, serviceName);
         if (res && res.success && res.phoneNumber) {
           successResponse = res;
           usedProviderName = provider.name;

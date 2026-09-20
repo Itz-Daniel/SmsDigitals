@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, TextVerifiedApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
 import { enforceActiveAccount } from "@/lib/fraud-guard";
 

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { FiveSimApi, GrizzlyApi, TextVerifiedApi, SmsManApi, SmspvaApi } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
 import { notifyLowBalanceAlert, notifyProviderOfflineAlert } from "@/lib/telegram-admin";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const results: Record<string, { status: string; balance?: number; error?: string }> = {};
 
@@ -30,18 +30,6 @@ export async function GET(req: Request) {
     } catch (e: any) {
       results['grizzly'] = { status: 'OFFLINE', error: e.message || 'API error' };
       await notifyProviderOfflineAlert('grizzly', e.message || 'API Connection Failed');
-    }
-
-    // 3. Check SMS-Man
-    try {
-      const bMan = await SmsManApi.getBalance();
-      results['smsman'] = { status: bMan < 5 ? 'LOW_BALANCE' : 'ONLINE', balance: bMan };
-      if (bMan < 5) {
-        await notifyLowBalanceAlert('smsman', bMan);
-      }
-    } catch (e: any) {
-      results['smsman'] = { status: 'OFFLINE', error: e.message || 'API error' };
-      await notifyProviderOfflineAlert('smsman', e.message || 'API Connection Failed');
     }
 
     return NextResponse.json({

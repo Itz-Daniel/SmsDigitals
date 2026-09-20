@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FiveSimApi, GrizzlyApi, SmspvaApi, TextVerifiedApi, SmsManApi, CheckCodeResponse } from "@/lib/providers/sms-providers";
+import { FiveSimApi, GrizzlyApi, CheckCodeResponse } from "@/lib/providers/sms-providers";
 import { processExpiredOrdersRefund } from "@/lib/refund-engine";
 
 export async function POST(req: Request) {
@@ -99,16 +99,10 @@ export async function POST(req: Request) {
     let providerRes: CheckCodeResponse | null = null;
 
     try {
-      if (rental.provider === "textverified") {
-        providerRes = await TextVerifiedApi.checkCode(rental.order_id);
-      } else if (rental.provider === "5sim") {
+      if (rental.provider === "5sim" || rental.provider?.toLowerCase().includes("5sim")) {
         providerRes = await FiveSimApi.checkCode(rental.order_id);
-      } else if (rental.provider === "grizzly") {
+      } else if (rental.provider === "grizzly" || rental.provider?.toLowerCase().includes("grizzly")) {
         providerRes = await GrizzlyApi.checkCode(rental.order_id);
-      } else if (rental.provider === "smsman") {
-        providerRes = await SmsManApi.checkCode(rental.order_id);
-      } else if (rental.provider === "smspva") {
-        providerRes = await SmspvaApi.checkCode(rental.order_id, rental.country || "us", rental.service);
       }
     } catch (apiError) {
       console.error(`Provider API Error [${rental.provider}]:`, apiError);
