@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
   Spinner, 
   CaretDown, 
+  CaretLeft,
+  CaretRight,
   MagnifyingGlass, 
   WarningCircle, 
   Clock, 
@@ -63,6 +65,14 @@ export default function CanaPurchasePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [rentals, setRentals] = useState<Rental[]>([]);
+  const popularScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollPopular = (direction: 'left' | 'right') => {
+    if (popularScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      popularScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   // Purchase Success Modal State
   const [successModalData, setSuccessModalData] = useState<{
@@ -314,11 +324,41 @@ export default function CanaPurchasePage() {
 
             {/* Quick Popular Services Row */}
             <div className="flex flex-col gap-2">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
-                Popular Services
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                  Popular Services
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => scrollPopular('left')}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 dark:text-white/50 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Scroll left"
+                    aria-label="Scroll left"
+                  >
+                    <CaretLeft size={12} weight="bold" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollPopular('right')}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 dark:text-white/50 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Scroll right"
+                    aria-label="Scroll right"
+                  >
+                    <CaretRight size={12} weight="bold" />
+                  </button>
+                </div>
+              </div>
 
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div 
+                ref={popularScrollRef}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0 && popularScrollRef.current) {
+                    popularScrollRef.current.scrollLeft += e.deltaY;
+                  }
+                }}
+                className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-smooth [scrollbar-width:thin] select-none"
+              >
                 {POPULAR_QUICK_SERVICES.map((s) => {
                   const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
                   const isSelected = selectedServiceName.toLowerCase().includes(s.name.toLowerCase());

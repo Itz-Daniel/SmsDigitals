@@ -21,17 +21,27 @@ export const metadata: Metadata = {
   description: "Receive SMS verifications instantly. Get virtual phone numbers from 44+ countries routed through real SIM networks for WhatsApp, Telegram, Google, and more.",
   keywords: ["virtual numbers", "sms verification", "temporary phone number", "receive sms online", "SmsDigitals", "non-voip numbers"],
   openGraph: {
-    title: "SmsDigitals | Premium Virtual Numbers",
-    description: "Receive SMS verifications instantly. Real SIM numbers from 44+ countries.",
+    title: "SmsDigitals | Premium Virtual Numbers & SMS Verification",
+    description: "Receive SMS verifications instantly. Get virtual phone numbers from 44+ countries routed through real SIM networks for WhatsApp, Telegram, Google, and more.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun",
     siteName: "SmsDigitals",
     locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: "https://www.smsdigital.fun/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SmsDigitals - Instant Virtual Phone Numbers & SMS Verification",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SmsDigitals | Premium Virtual Numbers",
-    description: "Receive SMS verifications instantly. Real SIM numbers from 44+ countries.",
+    title: "SmsDigitals | Premium Virtual Numbers & SMS Verification",
+    description: "Receive SMS verifications instantly. Real SIM numbers from 44+ countries for WhatsApp, Telegram, Google, and more.",
+    images: ["https://www.smsdigital.fun/og-image.png"],
   },
   icons: {
     icon: [
