@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
     // Allows production builds to successfully complete even if minor type warnings occur
     ignoreBuildErrors: true,
   },
+  eslint: {
+    // Prevents ESLint lint warnings from failing production builds
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

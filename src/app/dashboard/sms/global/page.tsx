@@ -258,6 +258,7 @@ export default function GlobalPurchasePage() {
       setError((err as Error).message || "An unexpected error occurred.");
     } finally {
       setIsPurchasing(false);
+    }
   };
 
   const copyToClipboard = (text: string, id: string) => {
