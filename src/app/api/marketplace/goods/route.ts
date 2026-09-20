@@ -13,23 +13,25 @@ export async function GET() {
     // 1. Resilient Supabase lookups (non-blocking)
     try {
       const supabase = await createClient();
-      const [authRes, settingsRes] = await Promise.all([
-        supabase.auth.getUser().catch(() => ({ data: { user: null } })),
-        supabase.from('settings').select('exchange_rate').single().catch(() => ({ data: { exchange_rate: 1500 } }))
-      ]);
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
 
-      if (settingsRes?.data?.exchange_rate) {
-        exchangeRate = settingsRes.data.exchange_rate;
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('exchange_rate')
+        .eq('id', 1)
+        .single();
+
+      if (settingsData?.exchange_rate) {
+        exchangeRate = settingsData.exchange_rate;
       }
 
-      const user = authRes?.data?.user;
       if (user) {
         const { data: wallet } = await supabase
           .from('wallets')
           .select('lifetime_deposits_usd')
           .eq('user_id', user.id)
-          .single()
-          .catch(() => ({ data: null }));
+          .single();
 
         if (wallet?.lifetime_deposits_usd) {
           userDiscount = calculateUserDiscount(wallet.lifetime_deposits_usd);

@@ -82,11 +82,14 @@ export async function POST(req: Request) {
       .from('settings')
       .upsert(updateData, { onConflict: 'id' });
 
-    // Also upsert into api_settings table fallback
-    await supabaseAdmin
-      .from('api_settings')
-      .upsert({ ...updateData, id: '00000000-0000-0000-0000-000000000001' }, { onConflict: 'id' })
-      .catch(() => {});
+    // Also upsert into api_settings table fallback safely
+    try {
+      await supabaseAdmin
+        .from('api_settings')
+        .upsert({ ...updateData, id: '00000000-0000-0000-0000-000000000001' }, { onConflict: 'id' });
+    } catch {
+      // ignore fallback if table does not exist
+    }
 
     if (settingsErr) {
       console.error("Supabase settings update error:", settingsErr);
