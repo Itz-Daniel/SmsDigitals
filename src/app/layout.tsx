@@ -40,6 +40,9 @@ export const metadata: Metadata = {
     shortcut: "/icon.svg?v=2",
     apple: "/icon.svg?v=2",
   },
+  verification: {
+    google: "googleb63dca589aca6fe2",
+  },
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun"),
 };
 
