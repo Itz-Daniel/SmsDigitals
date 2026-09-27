@@ -14,6 +14,14 @@ export interface CheckCodeResponse {
   isVoiceCall?: boolean;
 }
 
+export interface RentalSmsMessage {
+  id: string | number;
+  sender: string;
+  text: string;
+  code?: string | null;
+  date: string;
+}
+
 export class ProviderLowBalanceError extends Error {
   constructor(providerName: string) {
     super(`Provider ${providerName} is out of balance.`);
@@ -297,7 +305,67 @@ export class FiveSimApi {
   }
 
   static async rentNumber(country: string, serviceId: string, serviceName: string = ""): Promise<ProviderResponse> {
+    const apiKey = process.env.FIVESIM_API_KEY;
+    if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
+
+    const targetService = serviceName || serviceId;
+    const mappedService = mapServiceToProvider(targetService, '5sim');
+    const mappedCountry = mapCountryToProvider(country, '5sim');
+
+    // Attempt 1: Try dedicated hosting / rental line on 5SIM
+    try {
+      const res = await fetch(`https://5sim.net/v1/user/buy/hosting/${mappedCountry}/any/${mappedService}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.id && data.phone) {
+          const price = data.price || 1.0;
+          return {
+            orderId: data.id.toString(),
+            phone: data.phone,
+            phoneNumber: data.phone,
+            cost: price,
+            costUsd: price,
+            success: true
+          };
+        }
+      }
+    } catch (_e) {
+      // Hosting attempt failed, fallback to activation
+    }
+
+    // Attempt 2: Fallback to activation buyNumber
     return this.buyNumber(country, serviceId, serviceName);
+  }
+
+  static async getRentalMessages(orderId: string): Promise<{ status: string; messages: RentalSmsMessage[] }> {
+    const apiKey = process.env.FIVESIM_API_KEY;
+    if (!apiKey) throw new Error("FIVESIM_API_KEY missing");
+
+    const res = await fetch(`https://5sim.net/v1/user/check/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      throw new Error(`5Sim Error: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const rawSms = Array.isArray(data.sms) ? data.sms : [];
+    const messages: RentalSmsMessage[] = rawSms.map((msg: any) => ({
+      id: msg.id ? msg.id.toString() : `${Date.now()}_${Math.random()}`,
+      sender: msg.sender || data.product || 'SMS Verification',
+      text: msg.text || (msg.code ? `Verification Code: ${msg.code}` : 'SMS received'),
+      code: msg.code || null,
+      date: msg.date || msg.created_at || new Date().toISOString()
+    }));
+
+    return {
+      status: data.status || 'Active',
+      messages
+    };
   }
 
   static async checkCode(orderId: string): Promise<CheckCodeResponse> {
@@ -367,6 +435,9 @@ export class GrizzlyApi {
   }
   getBalance() {
     return GrizzlyApi.getBalance();
+  }
+  getRentalMessages(orderId: string) {
+    return GrizzlyApi.getRentalMessages(orderId);
   }
 
   static async getPrice(country: string, serviceName: string): Promise<{ cost: number | null }> {
@@ -480,5 +551,23 @@ export class GrizzlyApi {
       return isNaN(bal) ? 0 : bal;
     }
     return 0;
+  }
+
+  static async getRentalMessages(orderId: string): Promise<{ status: string; messages: RentalSmsMessage[] }> {
+    const res = await this.checkCode(orderId);
+    const messages: RentalSmsMessage[] = [];
+    if (res.code) {
+      messages.push({
+        id: `grizzly_${orderId}_${Date.now()}`,
+        sender: 'SMS Verification',
+        text: `Verification Code: ${res.code}`,
+        code: res.code,
+        date: new Date().toISOString()
+      });
+    }
+    return {
+      status: res.status,
+      messages
+    };
   }
 }

@@ -2,9 +2,34 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ClockCounterClockwise, Plus, Phone, Spinner, CheckCircle, WarningCircle, CaretDown, Calendar, Tag, ShieldCheck } from "@phosphor-icons/react";
+import { 
+  ClockCounterClockwise, 
+  Plus, 
+  Phone, 
+  Spinner, 
+  CheckCircle, 
+  WarningCircle, 
+  CaretDown, 
+  Calendar, 
+  Tag, 
+  ShieldCheck,
+  ChatCircleText,
+  Copy,
+  Check,
+  ArrowClockwise,
+  X,
+  EnvelopeSimple
+} from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCurrency } from "@/components/CurrencyContext";
+
+interface RentalMessage {
+  id: string | number;
+  sender: string;
+  text: string;
+  code?: string | null;
+  date: string;
+}
 
 interface LongTermRental {
   id: string;
@@ -18,6 +43,7 @@ interface LongTermRental {
   expires_at: string;
   auto_renew: boolean;
   status: string;
+  incoming_sms?: RentalMessage[];
 }
 
 const COMMON_SERVICES = [
@@ -72,6 +98,13 @@ export default function LongTermRentalsPage() {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
 
+  // SMS Inbox State
+  const [selectedRentalForInbox, setSelectedRentalForInbox] = useState<LongTermRental | null>(null);
+  const [inboxMessages, setInboxMessages] = useState<RentalMessage[]>([]);
+  const [isInboxLoading, setIsInboxLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -85,6 +118,15 @@ export default function LongTermRentalsPage() {
       fetchPrice();
     }
   }, [selectedService, selectedCountry, activeDays, isRenting, currency]);
+
+  // Live polling for open SMS inbox modal every 6 seconds
+  useEffect(() => {
+    if (!selectedRentalForInbox) return;
+    const interval = setInterval(() => {
+      fetchInboxMessages(selectedRentalForInbox.id, true);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [selectedRentalForInbox]);
 
   const fetchPrice = async () => {
     setIsPriceLoading(true);
@@ -150,9 +192,9 @@ export default function LongTermRentalsPage() {
       const data = await res.json();
       if (data.success) {
         setRentStatus('success');
-        setRentMessage(`🎉 Rented ${data.data.phone_number} for ${activeDays} days successfully!`);
+        setRentMessage(`🎉 Successfully rented ${data.data.phone_number} for ${activeDays} days!`);
         fetchRentals();
-        setTimeout(() => setIsRenting(false), 3000);
+        setTimeout(() => setIsRenting(false), 2500);
       } else {
         setRentStatus('error');
         setRentMessage(data.error || "Failed to rent number");
@@ -180,6 +222,45 @@ export default function LongTermRentalsPage() {
     }
   };
 
+  const openSmsInbox = (rental: LongTermRental) => {
+    setSelectedRentalForInbox(rental);
+    setInboxMessages(rental.incoming_sms || []);
+    fetchInboxMessages(rental.id);
+  };
+
+  const fetchInboxMessages = async (rentalId: string, silent: boolean = false) => {
+    if (!silent) setIsInboxLoading(true);
+    try {
+      const res = await fetch("/api/sms/long-term/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rental_id: rentalId })
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.messages)) {
+        setInboxMessages(data.messages);
+        setRentals(prev => prev.map(r => 
+          r.id === rentalId ? { ...r, incoming_sms: data.messages, status: data.status || r.status } : r
+        ));
+      }
+    } catch (err) {
+      console.error("Failed to check messages:", err);
+    } finally {
+      if (!silent) setIsInboxLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, type: 'code' | 'phone') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'code') {
+      setCopiedCode(text);
+      setTimeout(() => setCopiedCode(null), 2500);
+    } else {
+      setCopiedPhone(true);
+      setTimeout(() => setCopiedPhone(false), 2500);
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto p-4 md:p-8 space-y-8 pb-32 font-sans transition-colors">
       
@@ -195,12 +276,12 @@ export default function LongTermRentalsPage() {
             Dedicated SMS Rentals
           </h1>
           <p className="text-slate-300 dark:text-slate-400 max-w-xl text-xs md:text-sm leading-relaxed">
-            Rent dedicated lines for 1 day, 7 days, 30 days, or custom durations. Keep your numbers for WhatsApp, Telegram, or Discord as long as you need.
+            Rent dedicated virtual lines for 1 day, 7 days, 30 days, or custom durations. Keep your numbers for WhatsApp, Telegram, or Google as long as you need with real-time SMS code monitoring.
           </p>
         </div>
         <button
           onClick={() => { setIsRenting(true); setRentStatus('idle'); }}
-          className="relative z-10 bg-brand-blue hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-[0_4px_12px_rgba(0,112,243,0.3)] transition-all active:scale-95 text-sm shrink-0"
+          className="relative z-10 bg-brand-blue hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-[0_4px_12px_rgba(0,112,243,0.3)] transition-all active:scale-95 text-sm shrink-0 cursor-pointer"
         >
           <Plus size={20} weight="bold" />
           Rent New Number
@@ -209,7 +290,16 @@ export default function LongTermRentalsPage() {
 
       {/* Active Rentals Table - Responsive Dark & Light Mode Theme */}
       <div className="bg-white dark:bg-[#111] border border-black/5 dark:border-white/10 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden transition-colors">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Your Active Dedicated Rentals</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Your Active Dedicated Rentals</h2>
+          <button 
+            onClick={fetchRentals}
+            className="text-xs font-bold text-slate-500 hover:text-brand-blue flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowClockwise size={14} className={isLoading ? "animate-spin" : ""} />
+            <span>Refresh</span>
+          </button>
+        </div>
         
         {isLoading ? (
           <div className="py-20 flex justify-center">
@@ -227,6 +317,7 @@ export default function LongTermRentalsPage() {
                 <tr className="border-b border-black/5 dark:border-white/5 text-slate-500 dark:text-white/40 text-xs uppercase tracking-wider font-bold">
                   <th className="pb-4 px-4">Service & Number</th>
                   <th className="pb-4 px-4">Expires In</th>
+                  <th className="pb-4 px-4 text-center">SMS Inbox</th>
                   <th className="pb-4 px-4 text-center">Status</th>
                   <th className="pb-4 px-4 text-right">Auto Renew</th>
                 </tr>
@@ -235,6 +326,7 @@ export default function LongTermRentalsPage() {
                 {rentals.map((rental) => {
                   const daysLeft = Math.max(0, Math.ceil((new Date(rental.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
                   const isExpiringSoon = daysLeft <= 3 && rental.status === 'Active';
+                  const smsCount = rental.incoming_sms ? rental.incoming_sms.length : 0;
 
                   return (
                     <tr key={rental.id} className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
@@ -254,6 +346,23 @@ export default function LongTermRentalsPage() {
                           <span className="text-slate-400 text-sm">--</span>
                         )}
                       </td>
+                      
+                      {/* SMS INBOX BUTTON */}
+                      <td className="py-4 px-4 text-center">
+                        <button
+                          onClick={() => openSmsInbox(rental)}
+                          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-blue/10 hover:bg-brand-blue text-brand-blue hover:text-white dark:text-cyan-400 dark:hover:text-white border border-brand-blue/20 transition-all font-bold text-xs shadow-sm active:scale-95 cursor-pointer"
+                        >
+                          <ChatCircleText size={16} weight="bold" />
+                          <span>View SMS</span>
+                          {smsCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold ml-0.5">
+                              {smsCount}
+                            </span>
+                          )}
+                        </button>
+                      </td>
+
                       <td className="py-4 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
                           rental.status === 'Active' ? 'bg-brand-blue/10 text-brand-blue dark:text-cyan-400 border border-brand-blue/20' :
@@ -298,82 +407,71 @@ export default function LongTermRentalsPage() {
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
               className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl relative border border-black/10 dark:border-white/15 max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col gap-6 font-sans text-slate-900 dark:text-white"
             >
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <ClockCounterClockwise size={24} className="text-brand-blue" /> Select Rental Duration
-                </h2>
-                <button onClick={() => setIsRenting(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">
-                  ✕ Close
-                </button>
+              <div>
+                <h3 className="text-xl font-bold">Rent Dedicated Line</h3>
+                <p className="text-xs text-slate-500 dark:text-white/40 mt-1">Get an exclusive number reserved just for you for extended durations.</p>
               </div>
 
               {rentStatus === 'idle' || rentStatus === 'error' ? (
-                <div className="flex flex-col gap-5">
+                <div className="space-y-4">
                   
-                  {/* Service Selection */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Select Service</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full appearance-none bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
-                        value={selectedService.id}
-                        onChange={e => setSelectedService(COMMON_SERVICES.find(s => s.id === e.target.value) || COMMON_SERVICES[0])}
-                      >
-                        {COMMON_SERVICES.map(s => (
-                          <option key={s.id} value={s.id} className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">{s.name}</option>
-                        ))}
-                      </select>
-                      <CaretDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
-                    </div>
+                  {/* Select Service */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 dark:text-white/60">Service / Application</label>
+                    <select
+                      value={selectedService.id}
+                      onChange={(e) => setSelectedService(COMMON_SERVICES.find(s => s.id === e.target.value) || COMMON_SERVICES[0])}
+                      className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 px-4 py-3 rounded-2xl font-bold text-sm text-slate-900 dark:text-white outline-none focus:border-brand-blue"
+                    >
+                      {COMMON_SERVICES.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Country Selection */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Select Country</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full appearance-none bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3.5 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-brand-blue transition-all"
-                        value={selectedCountry.id}
-                        onChange={e => setSelectedCountry(COMMON_COUNTRIES.find(s => s.id === e.target.value) || COMMON_COUNTRIES[0])}
-                      >
-                        {COMMON_COUNTRIES.map(c => (
-                          <option key={c.id} value={c.id} className="bg-white dark:bg-[#111] text-slate-900 dark:text-white">{c.name}</option>
-                        ))}
-                      </select>
-                      <CaretDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
-                    </div>
+                  {/* Select Country */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 dark:text-white/60">Country</label>
+                    <select
+                      value={selectedCountry.id}
+                      onChange={(e) => setSelectedCountry(COMMON_COUNTRIES.find(c => c.id === e.target.value) || COMMON_COUNTRIES[0])}
+                      className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 px-4 py-3 rounded-2xl font-bold text-sm text-slate-900 dark:text-white outline-none focus:border-brand-blue"
+                    >
+                      {COMMON_COUNTRIES.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* FLEXIBLE RENTAL DURATION PICKER */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
-                      Rental Duration Choice
+                  {/* Duration Selection (Presets + Custom Input) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-600 dark:text-white/60">Rental Duration</label>
                       {discountPercent > 0 && (
-                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                          <Tag size={12} weight="fill" /> {discountPercent}% Bulk Discount
+                        <span className="text-[10px] font-extrabold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Tag size={12} weight="bold" />
+                          {discountPercent}% DURATION DISCOUNT
                         </span>
                       )}
-                    </label>
-
-                    {/* Preset Duration Chips */}
+                    </div>
+                    
                     <div className="grid grid-cols-3 gap-2">
                       {DURATION_PRESETS.map((preset) => (
                         <button
-                          type="button"
                           key={preset.days}
-                          onClick={() => {
-                            setSelectedDays(preset.days);
-                            setIsCustomDays(false);
-                          }}
-                          className={`p-3 rounded-2xl border text-left flex flex-col gap-0.5 transition-all ${
+                          type="button"
+                          onClick={() => { setSelectedDays(preset.days); setIsCustomDays(false); }}
+                          className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center transition-all ${
                             !isCustomDays && selectedDays === preset.days
                               ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-brand-blue/20"
-                              : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
+                              : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-brand-blue/40"
                           }`}
                         >
-                          <span className="text-xs font-extrabold">{preset.label}</span>
+                          <span>{preset.label}</span>
                           {preset.discount && (
-                            <span className={`text-[9px] font-bold ${!isCustomDays && selectedDays === preset.days ? "text-emerald-300" : "text-emerald-500"}`}>
+                            <span className={`text-[9px] font-extrabold mt-0.5 ${
+                              !isCustomDays && selectedDays === preset.days ? "text-cyan-200" : "text-emerald-500"
+                            }`}>
                               {preset.discount}
                             </span>
                           )}
@@ -455,14 +553,14 @@ export default function LongTermRentalsPage() {
                   <div className="flex gap-3 pt-2">
                     <button 
                       onClick={() => setIsRenting(false)}
-                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleRent}
                       disabled={isPriceLoading || price === null}
-                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-white bg-brand-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-blue/20 transition-all flex items-center justify-center gap-2"
+                      className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs text-white bg-brand-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-blue/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       Pay & Rent Number
                     </button>
@@ -483,6 +581,141 @@ export default function LongTermRentalsPage() {
                   )}
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SMS INBOX MODAL */}
+      <AnimatePresence>
+        {selectedRentalForInbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl w-full max-w-xl shadow-2xl relative border border-black/10 dark:border-white/15 max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col gap-6 text-slate-900 dark:text-white"
+            >
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-black/5 dark:border-white/10 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xl font-bold text-slate-900 dark:text-white tracking-wide">
+                      {selectedRentalForInbox.phone_number}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(selectedRentalForInbox.phone_number, 'phone')}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 hover:text-brand-blue transition-colors cursor-pointer"
+                      title="Copy phone number"
+                    >
+                      {copiedPhone ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-white/50 font-medium">
+                    <span className="uppercase font-bold tracking-wider">{selectedRentalForInbox.service}</span>
+                    <span>•</span>
+                    <span className="uppercase">{selectedRentalForInbox.country}</span>
+                    <span>•</span>
+                    <span className="text-brand-blue font-bold">
+                      Expires: {new Date(selectedRentalForInbox.expires_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedRentalForInbox(null)}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-500 dark:text-white transition-colors cursor-pointer"
+                >
+                  <X size={18} weight="bold" />
+                </button>
+              </div>
+
+              {/* Toolbar: Refresh & Auto-poll indicator */}
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-white/5 p-3 rounded-2xl border border-slate-200 dark:border-white/10 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-slate-600 dark:text-white/70 font-medium">
+                    Live SMS Monitoring Active
+                  </span>
+                </div>
+                <button
+                  onClick={() => fetchInboxMessages(selectedRentalForInbox.id)}
+                  disabled={isInboxLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-blue text-white font-bold text-xs hover:bg-blue-600 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                >
+                  <ArrowClockwise size={14} className={isInboxLoading ? "animate-spin" : ""} weight="bold" />
+                  <span>{isInboxLoading ? "Checking..." : "Refresh"}</span>
+                </button>
+              </div>
+
+              {/* Message List */}
+              <div className="space-y-3">
+                {inboxMessages.length === 0 ? (
+                  <div className="py-14 flex flex-col items-center justify-center text-center p-6 bg-slate-50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 dark:bg-brand-blue/20 flex items-center justify-center text-brand-blue mb-3">
+                      <EnvelopeSimple size={26} weight="duotone" />
+                    </div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">Waiting for incoming SMS...</h3>
+                    <p className="text-xs text-slate-500 dark:text-white/40 mt-1 max-w-sm">
+                      Send your verification code from <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedRentalForInbox.service}</span> to this number. It will appear here automatically.
+                    </p>
+                  </div>
+                ) : (
+                  inboxMessages.map((msg, idx) => (
+                    <div
+                      key={msg.id || idx}
+                      className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2.5 hover:border-brand-blue/40 transition-all"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-brand-blue dark:text-cyan-400 bg-brand-blue/10 px-2.5 py-1 rounded-lg">
+                          {msg.sender || selectedRentalForInbox.service}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} • {new Date(msg.date).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {msg.code && (
+                        <div className="flex items-center justify-between bg-white dark:bg-black/40 p-3 rounded-xl border border-black/5 dark:border-white/10">
+                          <div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Verification Code</div>
+                            <div className="font-mono text-2xl font-extrabold text-slate-900 dark:text-white tracking-widest">
+                              {msg.code}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(msg.code!, 'code')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs transition-all shadow-sm cursor-pointer"
+                          >
+                            {copiedCode === msg.code ? (
+                              <>
+                                <Check size={14} weight="bold" />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={14} weight="bold" />
+                                <span>Copy Code</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-mono leading-relaxed bg-white/50 dark:bg-white/5 p-2.5 rounded-lg border border-black/5 dark:border-white/5 break-words">
+                        {msg.text}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}

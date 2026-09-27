@@ -9,11 +9,11 @@ export const dynamic = 'force-dynamic';
 
 // Bulk Volume Discount Curve for Long-Term Rentals
 function getDurationDiscount(days: number): number {
-  if (days >= 60) return 0.70; // 70% Bulk Discount -> ~$9.00 USD (~₦13,500 NGN) for 60 days
-  if (days >= 30) return 0.65; // 65% Bulk Discount -> ~$5.25 USD (~₦7,875 NGN) for 30 days
-  if (days >= 14) return 0.50; // 50% Bulk Discount -> ~$3.50 USD (~₦5,250 NGN) for 14 days
-  if (days >= 7)  return 0.40; // 40% Bulk Discount -> ~$2.10 USD (~₦3,150 NGN) for 7 days
-  if (days >= 3)  return 0.15; // 15% Bulk Discount -> ~$1.27 USD (~₦1,900 NGN) for 3 days
+  if (days >= 60) return 0.70; // 70% Bulk Discount
+  if (days >= 30) return 0.65; // 65% Bulk Discount
+  if (days >= 14) return 0.50; // 50% Bulk Discount
+  if (days >= 7)  return 0.40; // 40% Bulk Discount
+  if (days >= 3)  return 0.15; // 15% Bulk Discount
   return 0;
 }
 
@@ -51,19 +51,9 @@ export async function POST(req: Request) {
     }
 
     const durationDays = Math.max(1, Math.min(365, parseInt(days) || 30));
-    let purchasedNumber;
-
-    try {
-      // Long-term rentals via 5SIM rent API
-      purchasedNumber = await FiveSimApi.rentNumber(country, serviceId, serviceName);
-    } catch (e: any) {
-      console.error(`5SIM rent failed:`, e.message || e);
-      return NextResponse.json({ error: "Number out of stock or renting failed. Please try again later." }, { status: 404 });
-    }
-
-    // --- CALCULATE DYNAMIC PRO-RATED DURATION PRICE WITH PROFIT FLOOR ---
     const supabaseAdmin = createAdminClient();
 
+    // 1. CALCULATE PRICING FIRST
     const { data: settings } = await supabaseAdmin
       .from('settings')
       .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
@@ -88,46 +78,115 @@ export async function POST(req: Request) {
     const baseUsdWithFloor = Math.max(min1DayFloorUsd, rawCalculatedUsd);
     const finalUsd = baseUsdWithFloor * (1 + marginPercent / 100);
 
-    const finalCost = calculateFinalRetailPrice(finalUsd, exchangeRate, currency);
+    const finalPriceNgn = calculateFinalRetailPrice(finalUsd, exchangeRate, 'NGN');
+    const finalPriceUsd = calculateFinalRetailPrice(finalUsd, exchangeRate, 'USD');
+    const finalCost = currency === 'USD' ? finalPriceUsd : finalPriceNgn;
+
+    // 2. CHECK USER WALLET IN 'wallets' BEFORE CONTACTING PROVIDER (ZERO MONEY RISK)
+    const { data: wallet, error: walletError } = await supabaseAdmin
+      .from('wallets')
+      .select('balance_usd, balance_ngn')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletError || !wallet) {
+      return NextResponse.json({ error: "Wallet not found. Please contact support." }, { status: 404 });
+    }
+
+    const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
+
+    if (totalAvailableNgn < finalPriceNgn) {
+      if (currency === 'USD') {
+        const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
+        return NextResponse.json({ 
+          error: `Insufficient Balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${availableUsd}. Please fund your account to continue.` 
+        }, { status: 402 });
+      } else {
+        return NextResponse.json({ 
+          error: `Insufficient Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${totalAvailableNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}. Please fund your account to continue.` 
+        }, { status: 402 });
+      }
+    }
+
+    // 3. NOW SAFELY PROVISION NUMBER FROM PROVIDER
+    let purchasedNumber;
+    try {
+      purchasedNumber = await FiveSimApi.rentNumber(country, serviceId, serviceName);
+    } catch (e: any) {
+      console.error(`5SIM rent failed:`, e.message || e);
+      return NextResponse.json({ error: "Number out of stock or renting failed. Please try again later or select another service." }, { status: 404 });
+    }
+
+    if (!purchasedNumber || !purchasedNumber.phone) {
+      return NextResponse.json({ error: "Provider returned an invalid number. Please try again." }, { status: 502 });
+    }
+
+    // 4. ATOMIC BALANCE DEDUCTION & PERSISTENCE
+    const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
+    const { error: deductError } = await supabaseAdmin
+      .from('wallets')
+      .update({
+        balance_ngn: newBalanceNgn,
+        balance_usd: 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+
+    if (deductError) {
+      console.error("Wallet deduction error:", deductError);
+      await FiveSimApi.cancelOrder(purchasedNumber.orderId);
+      return NextResponse.json({ error: "Failed to process payment. Please try again." }, { status: 500 });
+    }
 
     // Dynamic Expiration Timestamp (days * 24 hours)
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: rentData, error: rentError } = await supabaseAdmin.rpc('buy_long_term_rental', {
-      p_user_id: user.id,
-      p_provider: '5sim',
-      p_provider_order_id: purchasedNumber.orderId,
-      p_phone_number: purchasedNumber.phone,
-      p_service: serviceName || serviceId,
-      p_country: country,
-      p_cost: finalCost,
-      p_currency: currency,
-      p_expires_at: expiresAt,
-      p_auto_renew: autoRenew
-    });
+    // 5. INSERT RENTAL RECORD
+    const { data: newRental, error: rentalInsertError } = await supabaseAdmin
+      .from('long_term_rentals')
+      .insert({
+        user_id: user.id,
+        provider: '5sim',
+        provider_order_id: purchasedNumber.orderId,
+        phone_number: purchasedNumber.phone,
+        service: serviceName || serviceId,
+        country: country,
+        price_paid: finalCost,
+        currency: currency,
+        expires_at: expiresAt,
+        auto_renew: autoRenew,
+        status: 'Active',
+        incoming_sms: []
+      })
+      .select()
+      .single();
 
-    if (rentError || (rentData && !rentData.success)) {
-      console.error("Database rent error:", rentError || rentData?.error);
+    if (rentalInsertError) {
+      console.error("Rental insertion error:", rentalInsertError);
+      // Rollback wallet balance
+      await supabaseAdmin
+        .from('wallets')
+        .update({ balance_ngn: totalAvailableNgn })
+        .eq('user_id', user.id);
       await FiveSimApi.cancelOrder(purchasedNumber.orderId);
-      return NextResponse.json({ error: rentData?.error || "Insufficient balance or transaction failed." }, { status: 400 });
+      return NextResponse.json({ error: "Failed to activate rental in database. Your balance has been preserved." }, { status: 500 });
     }
 
-    // Record Transaction
+    // 6. RECORD TRANSACTION LEDGER
     await supabaseAdmin.from('transactions').insert({
       user_id: user.id,
       type: 'Purchase',
       amount: finalCost,
       currency: currency,
       status: 'Success',
-      reference: purchasedNumber.orderId,
-      description: `Rented ${serviceName || serviceId} (${country.toUpperCase()}) line for ${durationDays} Days`
+      reference: `rent_lt_${purchasedNumber.orderId}`,
+      description: `Dedicated ${durationDays}-Day Rental: ${serviceName || serviceId} (${purchasedNumber.phone})`
     });
 
-    // Success!
     return NextResponse.json({
       success: true,
       data: {
-        rental_id: rentData.rental_id,
+        rental_id: newRental.id,
         phone_number: purchasedNumber.phone,
         service: serviceName || serviceId,
         country: country,
