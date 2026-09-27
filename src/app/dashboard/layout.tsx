@@ -26,9 +26,34 @@ export default async function DashboardLayout({
   // Fetch avatar URL and account status from profiles
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("avatar_url, account_status, flag_reason")
+    .select("avatar_url, account_status, flag_reason, referred_by")
     .eq("id", user.id)
     .single();
+
+  // Automatic referral linking if ref_code cookie is present and user not yet linked
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const refCode = cookieStore.get("ref_code")?.value;
+    if (refCode && !profileData?.referred_by) {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const supabaseAdmin = createAdminClient();
+      const { data: referrer } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("referral_code", refCode)
+        .maybeSingle();
+
+      if (referrer && referrer.id !== user.id) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ referred_by: referrer.id })
+          .eq("id", user.id);
+      }
+    }
+  } catch (refErr) {
+    console.error("DashboardLayout referral link error:", refErr);
+  }
 
   const avatarUrl = profileData?.avatar_url || null;
   const accountStatus = profileData?.account_status || "active";

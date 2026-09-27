@@ -114,6 +114,19 @@ export async function POST(req: Request) {
                   description: `Crypto ${statusLabel} ($${creditAmountUsd.toFixed(2)} USDT / ₦${creditAmountNgn.toLocaleString()})`
                 });
 
+              // Process Affiliate Payout
+              try {
+                const { creditAffiliateCommission } = await import("@/lib/affiliate-engine");
+                await creditAffiliateCommission({
+                  userId: matchedUser.id,
+                  depositAmountNgn: creditAmountNgn,
+                  reference: order_id,
+                  gateway: "Crypto",
+                });
+              } catch (affiliateErr) {
+                console.error("Crypto Affiliate Payout Error:", affiliateErr);
+              }
+
               // Notify Admin via Telegram
               await notifyDepositAlert({
                 userEmail: matchedUser.full_name || matchedUser.id,

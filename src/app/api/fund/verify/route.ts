@@ -108,6 +108,19 @@ export async function POST(req: Request) {
       finalBalance = creditResult.new_balance;
     }
 
+    // Process Affiliate Commission
+    try {
+      const { creditAffiliateCommission } = await import("@/lib/affiliate-engine");
+      await creditAffiliateCommission({
+        userId: user.id,
+        depositAmountNgn: amountNgn,
+        reference,
+        gateway: "Paystack",
+      });
+    } catch (err) {
+      console.error("Fund Verify Affiliate Error:", err);
+    }
+
     // Trigger WhatsApp Admin Alert in the background (fire and forget)
     fetch(new URL('/api/admin-alert', req.url), {
       method: "POST",

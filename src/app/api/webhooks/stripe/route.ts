@@ -103,6 +103,19 @@ export async function POST(req: Request) {
 
       console.log(`Successfully funded $${amountInDollars} USD (₦${amountInNgn}) for user ${userId}`);
 
+      // 6. Process Affiliate Payout
+      try {
+        const { creditAffiliateCommission } = await import("@/lib/affiliate-engine");
+        await creditAffiliateCommission({
+          userId,
+          depositAmountNgn: amountInNgn,
+          reference: paymentIntentId,
+          gateway: "Stripe",
+        });
+      } catch (err) {
+        console.error("Stripe Affiliate Payout Error:", err);
+      }
+
     } catch (dbError: unknown) {
       console.error("Database Update Error:", dbError.message);
       return NextResponse.json({ error: "Database error" }, { status: 500 });

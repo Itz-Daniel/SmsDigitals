@@ -107,12 +107,13 @@ export async function POST(req: Request) {
 
       // 5. Process Affiliate Payout
       try {
-        await supabase.rpc('process_affiliate_payout', {
-          p_user_id: userId,
-          p_deposit_amount: amountInNgn,
-          p_reference: reference
+        const { creditAffiliateCommission } = await import("@/lib/affiliate-engine");
+        await creditAffiliateCommission({
+          userId,
+          depositAmountNgn: amountInNgn,
+          reference,
+          gateway: "Paystack",
         });
-        console.log(`Processed affiliate payout (if any) for user ${userId}`);
       } catch (err) {
         console.error("Affiliate Payout Error:", err);
       }
