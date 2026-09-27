@@ -38,17 +38,6 @@ export default function SMSDashboardPage() {
       flag: "🌍",
       icon: Globe,
       color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
-    },
-    {
-      id: "server-4",
-      name: "Server 4",
-      badge: "LONG-TERM RENTALS",
-      coverage: "Dedicated 1-365 Days",
-      desc: "Exclusive dedicated virtual lines with real-time SMS inbox monitoring and auto-renew.",
-      href: "/dashboard/sms/long-term",
-      flag: "⏳",
-      icon: ClockCounterClockwise,
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
     }
   ];
 
@@ -68,18 +57,18 @@ export default function SMSDashboardPage() {
             SMS Verification Servers
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">
-            Choose a dedicated server infrastructure that matches your desired country and duration.
+            Choose a dedicated server infrastructure that matches your desired country and platform.
           </p>
         </div>
 
         <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          All 4 Servers Operational
+          All 3 Servers Operational
         </span>
       </div>
 
-      {/* ── Server Cards Grid ──────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* ── Server Cards Grid (Short-Term Servers 1, 2, 3) ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {servers.map((srv, idx) => {
           const Icon = srv.icon;
           return (
@@ -126,6 +115,40 @@ export default function SMSDashboardPage() {
         })}
       </div>
 
+      {/* ── Long-Term Rentals Callout Banner ────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.25 }}
+        className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-sm"
+      >
+        <div className="flex items-start sm:items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+            <ClockCounterClockwise size={24} weight="duotone" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">
+                Extended Validity
+              </span>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                Looking for Long-Term Number Rentals?
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60 max-w-xl">
+              Keep exclusive, dedicated phone numbers active for days, weeks, or months with real-time SMS inbox monitoring and auto-renewal.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/sms/long-term"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 hover:scale-[1.02] shrink-0"
+        >
+          <span>Go to Long-Term Rentals</span>
+          <ArrowRight size={14} weight="bold" />
+        </Link>
+      </motion.div>
+
       {/* ── Quick Guide Section ────────────────────────────── */}
       <div className="flex flex-col gap-3">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40 px-1">
@@ -140,7 +163,7 @@ export default function SMSDashboardPage() {
               </span>
               <div>
                 <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">USA & Canada Numbers</p>
-                <p className="text-[11px] text-slate-500 dark:text-white/40">Broad coverage with fast fallback for general apps.</p>
+                <p className="text-[11px] text-slate-500 dark:text-white/40">Broad coverage with fast fallback for North American platforms.</p>
               </div>
             </div>
             <Link
@@ -184,24 +207,6 @@ export default function SMSDashboardPage() {
               className="text-xs font-bold text-brand-blue hover:underline shrink-0"
             >
               Use Server 3 →
-            </Link>
-          </div>
-
-          <div className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center text-xs font-bold font-mono">
-                4
-              </span>
-              <div>
-                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Long-Term Dedicated Rentals</p>
-                <p className="text-[11px] text-slate-500 dark:text-white/40">Multi-day exclusive numbers (1–365 days) with real-time SMS inbox & auto-renew.</p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/sms/long-term"
-              className="text-xs font-bold text-brand-blue hover:underline shrink-0"
-            >
-              Use Server 4 →
             </Link>
           </div>
         </div>
