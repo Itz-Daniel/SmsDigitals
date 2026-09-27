@@ -13,12 +13,14 @@ export default async function FundWalletPage() {
   }
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
+  const isAdmin = user.app_metadata?.role === 'admin';
 
   return (
     <FundWalletClient
       userEmail={user.email || ""}
       publicKey={publicKey}
       userId={user.id}
+      isAdmin={isAdmin}
     />
   );
 }

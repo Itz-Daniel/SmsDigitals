@@ -21,11 +21,13 @@ export default function FundWalletClient({
   publicKey,
   userId,
   initialTxRef,
+  isAdmin = false,
 }: {
   userEmail?: string;
   publicKey?: string;
   userId?: string;
   initialTxRef?: string;
+  isAdmin?: boolean;
 }) {
   const { currency } = useCurrency(); // User's active currency preference (USD or NGN)
   const [activeMethod, setActiveMethod] = useState<"bank" | "crypto" | "voucher">("bank");
@@ -312,7 +314,13 @@ export default function FundWalletClient({
                 : "text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
-            <Coins size={16} weight="bold" /> Crypto (USD)
+            <Coins size={16} weight="bold" />
+            <span>Crypto (USD)</span>
+            {!isAdmin && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono font-extrabold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 uppercase ml-0.5 tracking-wider">
+                SOON
+              </span>
+            )}
           </button>
 
           <button
@@ -394,7 +402,8 @@ export default function FundWalletClient({
 
         {/* METHOD 2: USDT & CRYPTO GATEWAY */}
         {activeMethod === "crypto" && (
-          <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
+          isAdmin ? (
+            <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <CurrencyBtc size={20} className="text-amber-500" /> Automated Crypto Deposit
@@ -549,9 +558,53 @@ export default function FundWalletClient({
                 )}
 
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-8 sm:p-10 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col items-center text-center gap-5 relative overflow-hidden">
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/10">
+                <CurrencyBtc size={32} weight="duotone" />
+              </div>
 
-          </div>
+              <div className="flex flex-col gap-2 max-w-md">
+                <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold font-mono uppercase self-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  Coming Soon
+                </div>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1">
+                  Automated Crypto Deposits
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-white/60 leading-relaxed">
+                  We are finalizing our multi-chain crypto payment gateways for instant, automated wallet top-ups via <strong>USDT (TRC20 & BEP20)</strong>, <strong>Bitcoin</strong>, <strong>Ethereum</strong>, and <strong>Solana</strong>.
+                </p>
+              </div>
+
+              {/* Supported Networks Preview */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                {CRYPTO_COINS.map(c => (
+                  <span key={c.id} className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-white/70 text-xs font-semibold flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-amber-500">{c.icon}</span> {c.name}
+                    <span className="text-[10px] text-slate-400 dark:text-white/40">({c.network.split(' ')[0]})</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Action Button to switch to Card & Bank */}
+              <div className="w-full max-w-sm pt-4 border-t border-slate-200/80 dark:border-white/5 flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveMethod("bank")}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-brand-blue hover:bg-blue-600 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-brand-blue/20 transition-all"
+                >
+                  <Bank size={18} weight="bold" />
+                  <span>Use Card & Bank Transfer</span>
+                  <ArrowRight size={16} weight="bold" />
+                </button>
+                <span className="text-[11px] text-slate-400 dark:text-white/40">
+                  Instant credit via Debit Card & Virtual Bank Transfer
+                </span>
+              </div>
+            </div>
+          )
         )}
 
         {/* METHOD 3: GIFT CARD / PROMO VOUCHER REDEEMER */}

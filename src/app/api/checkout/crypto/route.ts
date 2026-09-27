@@ -11,6 +11,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (user.app_metadata?.role !== 'admin') {
+      return NextResponse.json({ 
+        error: "Crypto deposits are currently undergoing maintenance and will be available soon." 
+      }, { status: 403 });
+    }
+
     const { amountUsd, coin } = await req.json();
 
     if (!amountUsd || amountUsd < 1) {
