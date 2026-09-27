@@ -58,13 +58,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Wallet not found." }, { status: 404 });
     }
 
-    const { data: appSettings } = await supabase
-      .from('settings')
-      .select('exchange_rate')
-      .eq('id', 1)
-      .single();
-    const exchangeRate = appSettings?.exchange_rate || 1500;
-
     const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
     const finalPriceUsd = calculateFinalRetailPrice(wholesalePriceUsd, discountPercentage, product.name);
     const finalPriceNgn = Math.round(finalPriceUsd * exchangeRate);

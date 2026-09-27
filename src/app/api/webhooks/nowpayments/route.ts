@@ -56,6 +56,7 @@ export async function POST(req: Request) {
 
           const matchedUser = userProfiles?.find(p => p.id.substring(0, 6) === userIdShort);
 
+          if (matchedUser) {
             // Fetch live exchange rate for unified master wallet
             const { data: appSettings } = await supabaseAdmin
               .from('settings')
