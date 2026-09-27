@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, LockKey, Spinner, CheckCircle, WarningCircle, Gear, Eye, EyeSlash, ClockCountdown, ShieldCheck, SignOut, Code } from "@phosphor-icons/react";
+import { User, LockKey, Spinner, CheckCircle, WarningCircle, Gear, Eye, EyeSlash, ClockCountdown, ShieldCheck, SignOut, Code, BookOpen } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrency } from "@/components/CurrencyContext";
 import { motion } from "motion/react";
@@ -395,6 +395,40 @@ export default function SettingsPage() {
                           💡 Enable Developer API above to access the API Portal and documentation.
                         </p>
                       )}
+                    </div>
+
+                    {/* Interactive Platform Guide */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-widest">
+                        Interactive Platform Guide
+                      </label>
+                      <div className="p-4 border border-black/10 dark:border-white/10 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-white/[0.02]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-brand-blue/10 flex items-center justify-center text-brand-blue shrink-0">
+                            <BookOpen size={20} weight="duotone" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                              Platform Tutorial & Instructions
+                            </span>
+                            <span className="text-xs text-slate-500 dark:text-white/40 leading-relaxed max-w-md">
+                              Revisit the step-by-step guide on wallet funding, server selection, and the 100% 20-minute auto-refund guarantee.
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== "undefined") {
+                              window.dispatchEvent(new CustomEvent("open-platform-guide"));
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-brand-blue hover:bg-brand-blue-hover text-white shadow-sm shadow-brand-blue/20 active:scale-95 shrink-0 flex items-center gap-1.5"
+                        >
+                          <BookOpen size={14} weight="bold" />
+                          <span>Open Guide</span>
+                        </button>
+                      </div>
                     </div>
 
                     {profileMsg && (

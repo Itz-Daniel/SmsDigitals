@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Headset, List, X, SignOut, Gear, Sun, Moon } from "@phosphor-icons/react";
+import { Headset, List, X, SignOut, Gear, Sun, Moon, BookOpen } from "@phosphor-icons/react";
 import { NotificationBell } from "./NotificationBell";
 import { navGroups } from "./Sidebar";
 import clsx from "clsx";
@@ -148,6 +148,18 @@ export function Header({
                     <Gear size={16} className="text-brand-blue" />
                     <span>Profile Settings</span>
                   </Link>
+                  <button
+                    onClick={() => {
+                      setIsAvatarMenuOpen(false);
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("open-platform-guide"));
+                      }
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
+                  >
+                    <BookOpen size={16} className="text-brand-blue" />
+                    <span>Platform Guide</span>
+                  </button>
                 </div>
 
                 <div className="border-t border-black/5 dark:border-white/5 pt-1">
@@ -273,11 +285,25 @@ export function Header({
                 )})}
               </div>
 
-              {/* Drawer Footer (Only Logout, no duplicate Profile Settings) */}
-              <div className="p-4 border-t border-black/5 dark:border-white/5 bg-slate-50 dark:bg-[#050505]">
+              {/* Drawer Footer */}
+              <div className="p-4 border-t border-black/5 dark:border-white/5 bg-slate-50 dark:bg-[#050505] space-y-1">
+                <button 
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(new CustomEvent("open-platform-guide"));
+                    }
+                  }}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-700 dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors w-full text-left font-medium"
+                >
+                  <div className="w-6 h-6 rounded-full bg-white dark:bg-[#111] flex items-center justify-center border border-black/5 dark:border-white/5 text-brand-blue">
+                    <BookOpen className="text-sm" weight="bold" />
+                  </div>
+                  Platform Guide
+                </button>
                 <button 
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors w-full text-left"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors w-full text-left"
                 >
                   <div className="w-6 h-6 rounded-full bg-white dark:bg-[#111] flex items-center justify-center border border-black/5 dark:border-white/5">
                     <SignOut className="text-lg" />
