@@ -56,22 +56,31 @@ export async function POST(req: Request) {
 
           const matchedUser = userProfiles?.find(p => p.id.substring(0, 6) === userIdShort);
 
-          if (matchedUser) {
+            // Fetch live exchange rate for unified master wallet
+            const { data: appSettings } = await supabaseAdmin
+              .from('settings')
+              .select('exchange_rate')
+              .eq('id', 1)
+              .single();
+            const exchangeRate = appSettings?.exchange_rate || 1500;
+            const creditAmountNgn = Math.round(creditAmountUsd * exchangeRate);
+
             // Atomic Wallet Update
             const { data: wallet } = await supabaseAdmin
               .from("wallets")
-              .select("balance_usd, lifetime_deposits_usd")
+              .select("balance_ngn, balance_usd, lifetime_deposits_usd")
               .eq("user_id", matchedUser.id)
               .single();
 
             if (wallet) {
-              const newUsdBalance = (wallet.balance_usd || 0) + creditAmountUsd;
-              const newLifetimeDeposits = (wallet.lifetime_deposits_usd || 0) + creditAmountUsd;
+              const newNgnBalance = (Number(wallet.balance_ngn) || 0) + creditAmountNgn;
+              const newLifetimeDeposits = (Number(wallet.lifetime_deposits_usd) || 0) + creditAmountUsd;
 
               await supabaseAdmin
                 .from("wallets")
                 .update({
-                  balance_usd: newUsdBalance,
+                  balance_ngn: newNgnBalance,
+                  balance_usd: 0,
                   lifetime_deposits_usd: newLifetimeDeposits
                 })
                 .eq("user_id", matchedUser.id);
@@ -85,11 +94,11 @@ export async function POST(req: Request) {
                 .insert({
                   user_id: matchedUser.id,
                   type: "deposit",
-                  amount: creditAmountUsd,
-                  currency: "USD",
+                  amount: creditAmountNgn,
+                  currency: "NGN",
                   status: "Completed",
                   reference: order_id,
-                  description: `Crypto ${statusLabel} (${pay_currency?.toUpperCase() || 'USDT'})`
+                  description: `Crypto ${statusLabel} ($${creditAmountUsd.toFixed(2)} USDT / ₦${creditAmountNgn.toLocaleString()})`
                 });
 
               await supabaseAdmin
@@ -97,11 +106,11 @@ export async function POST(req: Request) {
                 .insert({
                   user_id: matchedUser.id,
                   type: "Deposit",
-                  amount: creditAmountUsd,
-                  currency: "USD",
+                  amount: creditAmountNgn,
+                  currency: "NGN",
                   status: "Success",
                   reference: order_id,
-                  description: `Crypto ${statusLabel} (${pay_currency?.toUpperCase() || 'USDT'})`
+                  description: `Crypto ${statusLabel} ($${creditAmountUsd.toFixed(2)} USDT / ₦${creditAmountNgn.toLocaleString()})`
                 });
 
               // Notify Admin via Telegram

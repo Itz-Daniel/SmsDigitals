@@ -21,6 +21,14 @@ export async function processExpiredOrdersRefund(): Promise<number> {
       return 0;
     }
 
+    // Fetch live exchange rate for unified conversion
+    const { data: appSettings } = await supabaseAdmin
+      .from('settings')
+      .select('exchange_rate')
+      .eq('id', 1)
+      .single();
+    const exchangeRate = appSettings?.exchange_rate || 1500;
+
     let refundedCount = 0;
 
     for (const rental of expiredRentals) {
@@ -36,40 +44,32 @@ export async function processExpiredOrdersRefund(): Promise<number> {
         console.error(`[Auto-Refund Engine] Provider Cancellation Warning [${rental.provider}]:`, apiError);
       }
 
-      // Attempt RPC Refund first
-      const { error: refundError } = await supabaseAdmin.rpc('refund_number', {
-        p_rental_id: rental.id,
-        p_status: 'Expired'
-      });
+      // Mark order as Expired
+      await supabaseAdmin
+        .from('rentals')
+        .update({ status: 'Expired', updated_at: new Date().toISOString() })
+        .eq('id', rental.id);
 
-      // Bulletproof Direct JS Wallet Refund Fallback
-      if (refundError) {
-        console.warn("[Auto-Refund Engine] RPC fallback executed:", refundError.message);
+      // Unified wallet refund
+      const refundNgn = rental.currency === 'USD' 
+        ? Math.round(Number(rental.cost) * exchangeRate)
+        : Number(rental.cost);
 
+      const { data: wallet } = await supabaseAdmin
+        .from('wallets')
+        .select('balance_usd, balance_ngn')
+        .eq('user_id', rental.user_id)
+        .single();
+
+      if (wallet) {
+        const currentNgn = Number(wallet.balance_ngn) || 0;
         await supabaseAdmin
-          .from('rentals')
-          .update({ status: 'Expired', updated_at: new Date().toISOString() })
-          .eq('id', rental.id);
-
-        const { data: wallet } = await supabaseAdmin
           .from('wallets')
-          .select('balance_usd, balance_ngn')
-          .eq('user_id', rental.user_id)
-          .single();
-
-        if (wallet) {
-          if (rental.currency === 'NGN') {
-            await supabaseAdmin
-              .from('wallets')
-              .update({ balance_ngn: (wallet.balance_ngn || 0) + rental.cost })
-              .eq('user_id', rental.user_id);
-          } else {
-            await supabaseAdmin
-              .from('wallets')
-              .update({ balance_usd: (wallet.balance_usd || 0) + rental.cost })
-              .eq('user_id', rental.user_id);
-          }
-        }
+          .update({ 
+            balance_ngn: currentNgn + refundNgn,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', rental.user_id);
       }
 
       refundedCount++;

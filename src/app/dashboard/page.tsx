@@ -18,7 +18,8 @@ import {
   Receipt, 
   ArrowDownLeft, 
   ArrowUpRight, 
-  Plus 
+  Plus,
+  PlusCircle
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -28,7 +29,6 @@ import { useCurrency } from "@/components/CurrencyContext";
 const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
   ssr: false,
 });
-import ConvertModal from "@/components/dashboard/ConvertModal";
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 
 interface Transaction {
@@ -50,7 +50,6 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
 
   // Services Rail Scroll Controls
   const servicesRailRef = useRef<HTMLDivElement>(null);
@@ -96,15 +95,26 @@ export default function DashboardPage() {
         setProfile({ full_name: profileRes.data.full_name, email: user.email!, created_at: user.created_at });
       }
 
+      const activeRate = settingsRes.data?.exchange_rate || 1500;
+      setExchangeRate(activeRate);
+
       if (walletRes.data) {
+        let ngnBal = Number(walletRes.data.balance_ngn) || 0;
+        const usdBal = Number(walletRes.data.balance_usd) || 0;
+
+        // Auto-merge legacy separate USD balance if any exists into master Naira balance
+        if (usdBal > 0) {
+          const mergedNgn = Math.round(ngnBal + (usdBal * activeRate));
+          ngnBal = mergedNgn;
+          // Silently sync to DB
+          supabase.from("wallets").update({ balance_ngn: mergedNgn, balance_usd: 0 }).eq("id", walletRes.data.id).then();
+        }
+
         setWallet({
           ...walletRes.data,
-          balance_usd: walletRes.data.balance_usd || 0
+          balance_ngn: ngnBal,
+          balance_usd: 0
         });
-      }
-
-      if (settingsRes.data && settingsRes.data.exchange_rate) {
-        setExchangeRate(settingsRes.data.exchange_rate);
       }
 
       if (txRes.data) {
@@ -394,7 +404,7 @@ export default function DashboardPage() {
                     className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums flex items-baseline gap-1"
                   >
                     <span className="text-slate-400 dark:text-white/40 font-normal">₦</span>
-                    <span>{showBalance ? wallet?.balance_ngn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
+                    <span>{showBalance ? (wallet?.balance_ngn || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -406,7 +416,7 @@ export default function DashboardPage() {
                     className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums flex items-baseline gap-1"
                   >
                     <span className="text-slate-400 dark:text-white/40 font-normal">$</span>
-                    <span>{showBalance ? wallet?.balance_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
+                    <span>{showBalance ? ((wallet?.balance_ngn || 0) / (exchangeRate || 1500)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '••••••'}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -433,13 +443,13 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div key="act-usd" className="w-full sm:w-auto">
-                    <button
-                      onClick={() => setIsConvertModalOpen(true)}
+                    <Link
+                      href="/dashboard/fund"
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-blue text-white text-xs sm:text-sm font-bold tracking-wide hover:bg-blue-600 active:scale-95 transition-all shadow-sm shadow-brand-blue/20"
                     >
-                      <ArrowsLeftRight weight="bold" size={16} />
-                      Convert to USD
-                    </button>
+                      <PlusCircle weight="bold" size={16} />
+                      Fund Account
+                    </Link>
                   </div>
                 )}
               </AnimatePresence>
@@ -744,20 +754,6 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Currency Convert Modal */}
-      <ConvertModal
-        isOpen={isConvertModalOpen}
-        onClose={() => setIsConvertModalOpen(false)}
-        ngnBalance={wallet?.balance_ngn || 0}
-        usdBalance={wallet?.balance_usd || 0}
-        exchangeRate={exchangeRate}
-        onConvertSuccess={(newNgn, newUsd) => {
-          setWallet(prev => prev ? { ...prev, balance_ngn: newNgn, balance_usd: newUsd } : prev);
-          setSuccessMsg("Successfully converted to USD!");
-          setTimeout(() => setSuccessMsg(null), 4000);
-          setIsConvertModalOpen(false);
-        }}
-      />
     </div>
   );
 }

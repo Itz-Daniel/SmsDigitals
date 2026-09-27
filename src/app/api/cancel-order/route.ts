@@ -100,46 +100,44 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. GUARANTEED LOCAL WALLET REFUND & STATUS UPDATE
+    // 4. GUARANTEED UNIFIED WALLET REFUND & STATUS UPDATE
     const supabaseAdmin = createAdminClient();
     const finalStatus = elapsedSeconds >= 1200 ? 'Expired' : 'Cancelled';
 
-    // Attempt RPC Refund first
-    const { error: refundError } = await supabaseAdmin.rpc('refund_number', {
-      p_rental_id: rental.id,
-      p_status: finalStatus
-    });
+    // Fetch exchange rate for exact unified currency conversion
+    const { data: appSettings } = await supabaseAdmin
+      .from('settings')
+      .select('exchange_rate')
+      .eq('id', 1)
+      .single();
+    const exchangeRate = appSettings?.exchange_rate || 1500;
 
-    // Bulletproof Fallback Guard: If RPC fails or missing, perform direct atomic JS wallet credit
-    if (refundError) {
-      console.warn("RPC refund_number fallback executed:", refundError.message);
+    const refundNgn = rental.currency === 'USD' 
+      ? Math.round(Number(rental.cost) * exchangeRate)
+      : Number(rental.cost);
 
-      // Mark order as Cancelled/Expired
+    // Mark order as Cancelled/Expired
+    await supabaseAdmin
+      .from('rentals')
+      .update({ status: finalStatus, updated_at: new Date().toISOString() })
+      .eq('id', rental.id);
+
+    // Credit User Unified Wallet (Master balance in NGN)
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('balance_usd, balance_ngn')
+      .eq('user_id', user.id)
+      .single();
+
+    if (wallet) {
+      const currentNgn = Number(wallet.balance_ngn) || 0;
       await supabaseAdmin
-        .from('rentals')
-        .update({ status: finalStatus, updated_at: new Date().toISOString() })
-        .eq('id', rental.id);
-
-      // Credit User Wallet
-      const { data: wallet } = await supabaseAdmin
         .from('wallets')
-        .select('balance_usd, balance_ngn')
-        .eq('user_id', user.id)
-        .single();
-
-      if (wallet) {
-        if (rental.currency === 'NGN') {
-          await supabaseAdmin
-            .from('wallets')
-            .update({ balance_ngn: (wallet.balance_ngn || 0) + rental.cost })
-            .eq('user_id', user.id);
-        } else {
-          await supabaseAdmin
-            .from('wallets')
-            .update({ balance_usd: (wallet.balance_usd || 0) + rental.cost })
-            .eq('user_id', user.id);
-        }
-      }
+        .update({ 
+          balance_ngn: currentNgn + refundNgn,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
     }
 
     // Record Refund Transaction Ledger
@@ -156,7 +154,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       status: finalStatus,
-      message: `🎉 Order cancelled successfully! ${rental.currency === 'USD' ? '$' : '₦'}${rental.cost} refunded to your wallet.`
+      message: `🎉 Order cancelled successfully! ${rental.currency === 'USD' ? `$${rental.cost} (₦${refundNgn.toLocaleString()})` : `₦${refundNgn.toLocaleString()}`} refunded to your wallet.`
     });
 
   } catch (error: unknown) {

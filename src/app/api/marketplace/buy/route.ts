@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     // 2. Fetch User Wallet & Calculate Retail Price with VIP Discounts
     const { data: wallet } = await supabase
       .from('wallets')
-      .select('balance_usd, lifetime_deposits_usd')
+      .select('balance_ngn, balance_usd, lifetime_deposits_usd')
       .eq('user_id', user.id)
       .single();
 
@@ -58,12 +58,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Wallet not found." }, { status: 404 });
     }
 
+    const { data: appSettings } = await supabase
+      .from('settings')
+      .select('exchange_rate')
+      .eq('id', 1)
+      .single();
+    const exchangeRate = appSettings?.exchange_rate || 1500;
+
     const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
     const finalPriceUsd = calculateFinalRetailPrice(wholesalePriceUsd, discountPercentage, product.name);
+    const finalPriceNgn = Math.round(finalPriceUsd * exchangeRate);
 
-    if (wallet.balance_usd < finalPriceUsd) {
+    const totalAvailableNgn = (Number(wallet.balance_ngn) || 0) + ((Number(wallet.balance_usd) || 0) * exchangeRate);
+
+    if (totalAvailableNgn < finalPriceNgn) {
+      const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
       return NextResponse.json({ 
-        error: `Insufficient balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${wallet.balance_usd.toFixed(2)}` 
+        error: `Insufficient balance. Required: $${finalPriceUsd.toFixed(2)} (₦${finalPriceNgn.toLocaleString()}), Available: $${availableUsd}. Please fund your account.` 
       }, { status: 400 });
     }
 
@@ -74,10 +85,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: result.error || "Failed to purchase digital asset from supplier." }, { status: 500 });
     }
 
-    // 4. Deduct User Wallet Balance
+    // 4. Deduct User Wallet Balance from Master NGN Balance
+    const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
     await supabase
       .from('wallets')
-      .update({ balance_usd: wallet.balance_usd - finalPriceUsd })
+      .update({ 
+        balance_ngn: newBalanceNgn,
+        balance_usd: 0 
+      })
       .eq('user_id', user.id);
 
     // 5. Store Purchased Item in User Inventory

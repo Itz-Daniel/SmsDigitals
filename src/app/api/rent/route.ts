@@ -99,34 +99,34 @@ export async function POST(req: Request) {
       brandPricing
     );
 
-    // 4. Balance Deduction Check
-    if (currency === 'NGN') {
-      if ((wallet.balance_ngn || 0) < finalPriceNgn) {
+    // 4. Unified Balance Deduction Check (Single Master Balance in NGN)
+    const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
+
+    if (totalAvailableNgn < finalPriceNgn) {
+      if (currency === 'USD') {
+        const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
         return NextResponse.json({ 
-          error: `Insufficient NGN Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${(wallet.balance_ngn || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}.` 
+          error: `Insufficient Balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${availableUsd}. Please fund your account to continue.` 
+        }, { status: 402 });
+      } else {
+        return NextResponse.json({ 
+          error: `Insufficient Balance. Required: ₦${finalPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${totalAvailableNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}. Please fund your account to continue.` 
         }, { status: 402 });
       }
-
-      // Deduct NGN Balance
-      await supabaseAdmin
-        .from('wallets')
-        .update({ balance_ngn: wallet.balance_ngn - finalPriceNgn })
-        .eq('user_id', user.id);
-    } else {
-      if ((wallet.balance_usd || 0) < finalPriceUsd) {
-        return NextResponse.json({ 
-          error: `Insufficient USD Balance. Required: $${finalPriceUsd.toFixed(2)}, Available: $${(wallet.balance_usd || 0).toFixed(2)}.` 
-        }, { status: 402 });
-      }
-
-      // Deduct USD Balance
-      await supabaseAdmin
-        .from('wallets')
-        .update({ balance_usd: wallet.balance_usd - finalPriceUsd })
-        .eq('user_id', user.id);
     }
 
+    // Deduct from master NGN balance (absorbing any legacy USD)
+    const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
+    await supabaseAdmin
+      .from('wallets')
+      .update({ 
+        balance_ngn: newBalanceNgn,
+        balance_usd: 0 
+      })
+      .eq('user_id', user.id);
+
     // 5. Record Rental Order in Supabase
+    const purchaseCost = currency === 'USD' ? finalPriceUsd : finalPriceNgn;
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
     const { data: newRental, error: rentalError } = await supabaseAdmin
       .from('rentals')
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
         provider: usedProviderName,
         region: region || country,
         status: 'Waiting',
-        cost: finalPriceUsd,
+        cost: purchaseCost,
         currency: currency,
         expires_at: expiresAt
       })
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     await supabaseAdmin.from('transactions').insert({
       user_id: user.id,
       type: 'Purchase',
-      amount: finalPriceUsd,
+      amount: purchaseCost,
       currency: currency,
       status: 'Success',
       reference: successResponse.orderId,
@@ -169,7 +169,7 @@ export async function POST(req: Request) {
         service: serviceId,
         region: region || country,
         status: 'Waiting',
-        cost: finalPriceUsd,
+        cost: purchaseCost,
         currency: currency,
         expires_at: expiresAt,
         created_at: newRental?.created_at || new Date().toISOString()
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
       order_id: successResponse.orderId,
       phone_number: successResponse.phoneNumber,
       service: serviceId,
-      cost: finalPriceUsd,
+      cost: purchaseCost,
       currency: currency,
       expires_at: expiresAt,
       message: "Virtual Number Procured Successfully!"

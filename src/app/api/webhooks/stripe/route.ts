@@ -54,24 +54,34 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, message: "Already processed" });
       }
 
-      // 4. Update the USD Wallet
-      // Note: We use a Supabase RPC to ensure atomic increments safely.
-      // Since we don't have an RPC for raw funding yet, we can fetch, add, and update,
-      // but an RPC is safer. For now, we will do an RLS-bypassed update since webhooks are singular.
+      // 4. Update the Unified Master Wallet (NGN)
+      const { data: appSettings } = await supabase
+        .from('settings')
+        .select('exchange_rate')
+        .eq('id', 1)
+        .single();
+      const exchangeRate = appSettings?.exchange_rate || 1500;
+      const amountInNgn = Math.round(amountInDollars * exchangeRate);
 
       const { data: wallet, error: walletError } = await supabase
         .from("wallets")
-        .select("balance_usd")
+        .select("balance_ngn, balance_usd, lifetime_deposits_usd")
         .eq("user_id", userId)
         .single();
 
       if (walletError || !wallet) throw new Error("Wallet not found");
 
-      const newBalance = Number(wallet.balance_usd) + amountInDollars;
+      const newNgnBalance = (Number(wallet.balance_ngn) || 0) + amountInNgn;
+      const newLifetimeDeposits = (Number(wallet.lifetime_deposits_usd) || 0) + amountInDollars;
 
       const { error: updateError } = await supabase
         .from("wallets")
-        .update({ balance_usd: newBalance, updated_at: new Date().toISOString() })
+        .update({ 
+          balance_ngn: newNgnBalance, 
+          balance_usd: 0,
+          lifetime_deposits_usd: newLifetimeDeposits,
+          updated_at: new Date().toISOString() 
+        })
         .eq("user_id", userId);
 
       if (updateError) throw updateError;
@@ -82,16 +92,16 @@ export async function POST(req: Request) {
         .insert({
           user_id: userId,
           type: "Funding",
-          amount: amountInDollars,
-          currency: "USD",
+          amount: amountInNgn,
+          currency: "NGN",
           status: "Success",
           reference: paymentIntentId,
-          description: "Stripe Wallet Funding",
+          description: `Stripe Wallet Funding ($${amountInDollars.toFixed(2)} USD / ₦${amountInNgn.toLocaleString()})`,
         });
 
       if (txError) throw txError;
 
-      console.log(`Successfully funded ${amountInDollars} USD for user ${userId}`);
+      console.log(`Successfully funded $${amountInDollars} USD (₦${amountInNgn}) for user ${userId}`);
 
     } catch (dbError: unknown) {
       console.error("Database Update Error:", dbError.message);

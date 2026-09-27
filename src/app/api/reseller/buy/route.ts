@@ -74,30 +74,22 @@ export async function POST(req: Request) {
     // Retail price displayed to End Customer
     const customerRetailUsd = wholesaleCostUsd * (1 + resellerMarkupPercent / 100);
 
-    // 5. Deduct Wholesale Balance from Reseller's Wallet
-    if (currency === 'NGN') {
-      const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
-      const exchangeRate = settings?.exchange_rate || 1500;
-      const wholesaleNgn = wholesaleCostUsd * exchangeRate;
+    // 5. Deduct Wholesale Balance from Reseller's Unified Master Wallet
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
+    const exchangeRate = settings?.exchange_rate || 1500;
+    const wholesaleNgn = Math.round(wholesaleCostUsd * exchangeRate);
 
-      if ((resellerWallet.balance_ngn || 0) < wholesaleNgn) {
-        return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
-      }
+    const totalResellerNgn = (Number(resellerWallet.balance_ngn) || 0) + ((Number(resellerWallet.balance_usd) || 0) * exchangeRate);
 
-      await supabaseAdmin
-        .from('wallets')
-        .update({ balance_ngn: resellerWallet.balance_ngn - wholesaleNgn })
-        .eq('user_id', store.user_id);
-    } else {
-      if ((resellerWallet.balance_usd || 0) < wholesaleCostUsd) {
-        return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
-      }
-
-      await supabaseAdmin
-        .from('wallets')
-        .update({ balance_usd: resellerWallet.balance_usd - wholesaleCostUsd })
-        .eq('user_id', store.user_id);
+    if (totalResellerNgn < wholesaleNgn) {
+      return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
     }
+
+    const newResellerNgn = Math.max(0, totalResellerNgn - wholesaleNgn);
+    await supabaseAdmin
+      .from('wallets')
+      .update({ balance_ngn: newResellerNgn, balance_usd: 0 })
+      .eq('user_id', store.user_id);
 
     // 6. Record Rental in Database
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();

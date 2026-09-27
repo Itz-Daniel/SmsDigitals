@@ -22,13 +22,13 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // Fetch user wallet
-    const { data: wallet } = await supabaseAdmin
-      .from('wallets')
-      .select('user_id, balance_usd')
-      .limit(1)
-      .single();
+    // Fetch user wallet and exchange rate
+    const [{ data: wallet }, { data: appSettings }] = await Promise.all([
+      supabaseAdmin.from('wallets').select('user_id, balance_usd, balance_ngn').limit(1).single(),
+      supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single()
+    ]);
 
+    const exchangeRate = appSettings?.exchange_rate || 1500;
     const userId = wallet?.user_id;
 
     if (!userId) {
@@ -44,18 +44,23 @@ export async function POST(req: Request) {
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
 
     const wholesaleCost = 0.50;
-    const finalCost = calculateFinalRetailPrice(wholesaleCost, 0, service);
+    const finalCostUsd = calculateFinalRetailPrice(wholesaleCost, 0, service);
+    const finalCostNgn = Math.round(finalCostUsd * exchangeRate);
 
-    if ((wallet.balance_usd || 0) < finalCost) {
+    const totalAvailableNgn = (Number(wallet?.balance_ngn) || 0) + ((Number(wallet?.balance_usd) || 0) * exchangeRate);
+
+    if (totalAvailableNgn < finalCostNgn) {
+      const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
       return NextResponse.json({
-        error: `Insufficient balance. Required: $${finalCost.toFixed(2)}, Available: $${(wallet.balance_usd || 0).toFixed(2)}.`
+        error: `Insufficient balance. Required: $${finalCostUsd.toFixed(2)}, Available: $${availableUsd}.`
       }, { status: 402 });
     }
 
-    // Deduct balance
+    // Deduct balance from master balance
+    const newBalNgn = Math.max(0, totalAvailableNgn - finalCostNgn);
     await supabaseAdmin
       .from('wallets')
-      .update({ balance_usd: wallet.balance_usd - finalCost })
+      .update({ balance_ngn: newBalNgn, balance_usd: 0 })
       .eq('user_id', userId);
 
     // Save rental
