@@ -11,11 +11,36 @@ import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
-export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: string | null; isAdmin?: boolean; email?: string }) {
+export function Header({ 
+  avatarUrl, 
+  isAdmin = false, 
+  email,
+  isDeveloperApiEnabled = false 
+}: { 
+  avatarUrl?: string | null; 
+  isAdmin?: boolean; 
+  email?: string;
+  isDeveloperApiEnabled?: boolean;
+}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const [devApiEnabled, setDevApiEnabled] = useState(isDeveloperApiEnabled);
+
+  useEffect(() => {
+    setDevApiEnabled(isDeveloperApiEnabled);
+  }, [isDeveloperApiEnabled]);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (typeof e.detail?.enabled === "boolean") {
+        setDevApiEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener("developer-api-toggled", handler);
+    return () => window.removeEventListener("developer-api-toggled", handler);
+  }, []);
 
   const avatarRef = useRef<HTMLDivElement>(null);
 
@@ -181,6 +206,7 @@ export function Header({ avatarUrl, isAdmin = false, email }: { avatarUrl?: stri
                 {navGroups.map((group) => {
                   const filteredItems = group.items.filter(item => {
                     if ((item.name === "Admin Support" || item.name === "Admin Overview") && !isAdmin) return false;
+                    if (item.name === "Developer API" && !isAdmin && !devApiEnabled) return false;
                     return true;
                   });
 

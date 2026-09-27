@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Storefront, ArrowRight, Spinner, CheckCircle, WarningCircle, Copy, Check, Gear, CurrencyDollar, Link as LinkIcon, Sparkle } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface StorefrontConfig {
   id: string;
@@ -27,6 +29,7 @@ export default function ResellerManagementPage() {
   const [profitMargin, setProfitMargin] = useState("20");
 
   const [copiedLink, setCopiedLink] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     fetchStoreConfig();
@@ -35,6 +38,22 @@ export default function ResellerManagementPage() {
   const fetchStoreConfig = async () => {
     setLoading(true);
     try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      const isAdmin = user.user_metadata?.role === 'admin' || 
+                      user.app_metadata?.role === 'admin' ||
+                      user.email?.toLowerCase().includes('admin');
+
+      if (!isAdmin && !user.user_metadata?.developer_api_enabled) {
+        router.push("/dashboard/settings?highlight=developer_api");
+        return;
+      }
+
       const res = await fetch("/api/reseller/store");
       const data = await res.json();
       if (data.success && data.store) {

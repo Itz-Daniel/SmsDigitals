@@ -50,6 +50,18 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isDeveloperApiEnabled, setIsDeveloperApiEnabled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (typeof e.detail?.enabled === "boolean") {
+        setIsDeveloperApiEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener("developer-api-toggled", handler);
+    return () => window.removeEventListener("developer-api-toggled", handler);
+  }, []);
 
   // Services Rail Scroll Controls
   const servicesRailRef = useRef<HTMLDivElement>(null);
@@ -94,6 +106,9 @@ export default function DashboardPage() {
       if (profileRes.data) {
         setProfile({ full_name: profileRes.data.full_name, email: user.email!, created_at: user.created_at });
       }
+
+      setIsAdmin(user.app_metadata?.role === 'admin');
+      setIsDeveloperApiEnabled(Boolean(user.user_metadata?.developer_api_enabled));
 
       const activeRate = settingsRes.data?.exchange_rate || 1500;
       setExchangeRate(activeRate);
@@ -313,7 +328,10 @@ export default function DashboardPage() {
       isFlag: false,
       color: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20"
     }
-  ];
+  ].filter(action => {
+    if (action.id === "api" && !isAdmin && !isDeveloperApiEnabled) return false;
+    return true;
+  });
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans overflow-x-hidden">

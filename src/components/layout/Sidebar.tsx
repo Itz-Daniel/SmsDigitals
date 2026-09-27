@@ -43,13 +43,40 @@ export const navGroups = [
   },
 ];
 
-export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email: string; initials: string; avatarUrl?: string | null; isAdmin?: boolean }) {
+export function Sidebar({ 
+  email, 
+  initials, 
+  avatarUrl, 
+  isAdmin = false,
+  isDeveloperApiEnabled = false 
+}: { 
+  email: string; 
+  initials: string; 
+  avatarUrl?: string | null; 
+  isAdmin?: boolean;
+  isDeveloperApiEnabled?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const [adminOpenTicketsCount, setAdminOpenTicketsCount] = useState(0);
   const [userOpenTicketsCount, setUserOpenTicketsCount] = useState(0);
   const [hasUnreadReply, setHasUnreadReply] = useState(false);
+  const [devApiEnabled, setDevApiEnabled] = useState(isDeveloperApiEnabled);
+
+  useEffect(() => {
+    setDevApiEnabled(isDeveloperApiEnabled);
+  }, [isDeveloperApiEnabled]);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (typeof e.detail?.enabled === "boolean") {
+        setDevApiEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener("developer-api-toggled", handler);
+    return () => window.removeEventListener("developer-api-toggled", handler);
+  }, []);
 
   useEffect(() => {
     // 1. Fetch user's own ticket stats
@@ -130,6 +157,11 @@ export function Sidebar({ email, initials, avatarUrl, isAdmin = false }: { email
               </span>
 
               {group.items.map((item) => {
+                // Hide Developer API if user is not admin and developer API is not enabled
+                if (item.name === "Developer API" && !isAdmin && !devApiEnabled) {
+                  return null;
+                }
+
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 const isDisabled = (item as any).disabled;

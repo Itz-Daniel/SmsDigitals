@@ -34,16 +34,17 @@ export default async function DashboardLayout({
   const accountStatus = profileData?.account_status || "active";
   const flagReason = profileData?.flag_reason || null;
   const isAdmin = user?.app_metadata?.role === 'admin';
+  const isDeveloperApiEnabled = Boolean(user?.user_metadata?.developer_api_enabled);
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background text-foreground transition-colors duration-500 font-sans">
       {/* Desktop Sidebar (Only visible on xl screens >= 1280px) */}
       <div className="hidden lg:block">
-        <Sidebar email={email} initials={initials} avatarUrl={avatarUrl} isAdmin={isAdmin} />
+        <Sidebar email={email} initials={initials} avatarUrl={avatarUrl} isAdmin={isAdmin} isDeveloperApiEnabled={isDeveloperApiEnabled} />
       </div>
       <CurrencyProvider>
         <main className="flex-1 flex flex-col h-full relative overflow-y-auto overflow-x-hidden pb-28 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <Header avatarUrl={avatarUrl} isAdmin={isAdmin} email={email} />
+          <Header avatarUrl={avatarUrl} isAdmin={isAdmin} email={email} isDeveloperApiEnabled={isDeveloperApiEnabled} />
           <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full flex-1">
             <AccountStatusBanner status={accountStatus} reason={flagReason} />
             {children}

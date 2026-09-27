@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TwoFactorVerifyModal } from "@/components/TwoFactorVerifyModal";
 import { ApiKeyViewModal } from "@/components/ApiKeyViewModal";
 
@@ -41,6 +42,7 @@ type ServiceCategory = "numbers" | "marketplace" | "longterm" | "wallet";
 type Language = "curl" | "python" | "node" | "php";
 
 export default function DeveloperApiPage() {
+  const router = useRouter();
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("numbers");
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>("rent_number");
@@ -90,6 +92,13 @@ export default function DeveloperApiPage() {
           setIsAdminUser(true);
           setIsFunded(true);
           setCheckingWallet(false);
+          return;
+        }
+
+        // Check if user has enabled Developer API in Settings
+        const isDevApiEnabled = Boolean(user.user_metadata?.developer_api_enabled);
+        if (!isDevApiEnabled) {
+          router.push('/dashboard/settings?highlight=developer_api');
           return;
         }
 

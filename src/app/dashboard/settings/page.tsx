@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, LockKey, Spinner, CheckCircle, WarningCircle, Gear, Eye, EyeSlash, ClockCountdown, ShieldCheck, SignOut } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { User, LockKey, Spinner, CheckCircle, WarningCircle, Gear, Eye, EyeSlash, ClockCountdown, ShieldCheck, SignOut, Code } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrency } from "@/components/CurrencyContext";
 import { motion } from "motion/react";
@@ -18,6 +19,11 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error", text: string } | null>(null);
 
+  // Developer API State
+  const [developerApiEnabled, setDeveloperApiEnabled] = useState(false);
+  const [togglingDevApi, setTogglingDevApi] = useState(false);
+  const [isHighlighted, setIsHighlighted] = useState(false);
+
   // Security State
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,8 +35,23 @@ export default function SettingsPage() {
   const [isSigningOutAll, setIsSigningOutAll] = useState(false);
 
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
+    // Check for highlight parameter in URL
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("highlight") === "developer_api") {
+        setIsHighlighted(true);
+        setTimeout(() => {
+          const el = document.getElementById("developer-api-setting");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 300);
+      }
+    }
+
     // Load session timeout preference from localStorage or cookie
     if (typeof window !== "undefined") {
       const storedTimeout = localStorage.getItem("sms_session_timeout_days");
@@ -44,6 +65,7 @@ export default function SettingsPage() {
       if (!user) return;
 
       setEmail(user.email || "");
+      setDeveloperApiEnabled(Boolean(user.user_metadata?.developer_api_enabled));
 
       const { data } = await supabase
         .from("profiles")
@@ -59,6 +81,33 @@ export default function SettingsPage() {
 
     loadProfile();
   }, []);
+
+  const handleToggleDeveloperApi = async () => {
+    setTogglingDevApi(true);
+    const nextState = !developerApiEnabled;
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { developer_api_enabled: nextState }
+      });
+      if (error) throw error;
+      setDeveloperApiEnabled(nextState);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("developer-api-toggled", { detail: { enabled: nextState } }));
+      }
+      router.refresh();
+      setProfileMsg({
+        type: "success",
+        text: nextState
+          ? "Developer API enabled! The API section is now visible in your navigation."
+          : "Developer API disabled. The API section has been hidden from your navigation."
+      });
+      setTimeout(() => setProfileMsg(null), 4000);
+    } catch (err: any) {
+      setProfileMsg({ type: "error", text: err.message || "Failed to update Developer API setting." });
+    } finally {
+      setTogglingDevApi(false);
+    }
+  };
 
   const handleTimeoutChange = (days: number) => {
     setSessionTimeoutDays(days);
@@ -295,6 +344,57 @@ export default function SettingsPage() {
                         </label>
                       </div>
                       <p className="text-[10px] text-slate-400 dark:text-white/30 mt-1">Changes instantly apply across the entire dashboard.</p>
+                    </div>
+
+                    {/* Developer Mode & API Access */}
+                    <div className="flex flex-col gap-2" id="developer-api-setting">
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-widest">
+                        Developer Mode & API Access
+                      </label>
+                      <div className={clsx(
+                        "p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300",
+                        isHighlighted 
+                          ? "ring-2 ring-purple-500 border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/10" 
+                          : "border-black/10 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02]"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                            <Code size={20} weight="bold" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                              Developer API Portal
+                              {developerApiEnabled && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/20">
+                                  ACTIVE
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-xs text-slate-500 dark:text-white/40 leading-relaxed max-w-md">
+                              Unlock API keys, automated balance endpoints, webhook forwarders, and developer documentation in your navigation.
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleToggleDeveloperApi}
+                          disabled={togglingDevApi}
+                          className={clsx(
+                            "px-4 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 flex items-center gap-2",
+                            developerApiEnabled
+                              ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20 hover:bg-purple-700 active:scale-95"
+                              : "bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white border-slate-300 dark:border-white/10 hover:bg-slate-300 dark:hover:bg-white/15 active:scale-95"
+                          )}
+                        >
+                          {togglingDevApi && <Spinner size={14} className="animate-spin" />}
+                          {developerApiEnabled ? "Enabled" : "Enable API"}
+                        </button>
+                      </div>
+                      {isHighlighted && (
+                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                          💡 Enable Developer API above to access the API Portal and documentation.
+                        </p>
+                      )}
                     </div>
 
                     {profileMsg && (
