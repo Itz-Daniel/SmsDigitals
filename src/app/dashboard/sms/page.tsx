@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Hash, MapPin, Globe, ArrowRight } from "@phosphor-icons/react";
+import { Hash, MapPin, Globe, ArrowRight, ClockCounterClockwise } from "@phosphor-icons/react";
 import Link from "next/link";
 
 export default function SMSDashboardPage() {
@@ -38,11 +38,22 @@ export default function SMSDashboardPage() {
       flag: "🌍",
       icon: Globe,
       color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+    },
+    {
+      id: "server-4",
+      name: "Server 4",
+      badge: "LONG-TERM RENTALS",
+      coverage: "Dedicated 1-365 Days",
+      desc: "Exclusive dedicated virtual lines with real-time SMS inbox monitoring and auto-renew.",
+      href: "/dashboard/sms/long-term",
+      flag: "⏳",
+      icon: ClockCounterClockwise,
+      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
     }
   ];
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-5xl text-slate-900 dark:text-white font-sans">
+    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans">
       
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
@@ -57,18 +68,18 @@ export default function SMSDashboardPage() {
             SMS Verification Servers
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-white/40 mt-1">
-            Choose a dedicated server infrastructure that matches your desired country.
+            Choose a dedicated server infrastructure that matches your desired country and duration.
           </p>
         </div>
 
         <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          All Servers Operational
+          All 4 Servers Operational
         </span>
       </div>
 
       {/* ── Server Cards Grid ──────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {servers.map((srv, idx) => {
           const Icon = srv.icon;
           return (
@@ -173,6 +184,24 @@ export default function SMSDashboardPage() {
               className="text-xs font-bold text-brand-blue hover:underline shrink-0"
             >
               Use Server 3 →
+            </Link>
+          </div>
+
+          <div className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center text-xs font-bold font-mono">
+                4
+              </span>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Long-Term Dedicated Rentals</p>
+                <p className="text-[11px] text-slate-500 dark:text-white/40">Multi-day exclusive numbers (1–365 days) with real-time SMS inbox & auto-renew.</p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/sms/long-term"
+              className="text-xs font-bold text-brand-blue hover:underline shrink-0"
+            >
+              Use Server 4 →
             </Link>
           </div>
         </div>

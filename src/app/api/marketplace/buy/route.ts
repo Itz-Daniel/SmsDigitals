@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { buyUltimateLogsService, getUltimateLogsServices } from "@/lib/providers/ultimatelogs";
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { marketplaceBuySchema, getFieldErrors } from "@/lib/validation";
@@ -38,17 +39,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Product is out of stock or unavailable." }, { status: 404 });
     }
 
+    const supabaseAdmin = createAdminClient();
+
     // Fetch exchange rate to properly convert NGN to USD
-    const { data: settings } = await supabase.from('settings').select('exchange_rate').eq('id', 1).single();
+    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
     const exchangeRate = settings?.exchange_rate || 1500;
 
     // Convert wholesale price to USD
     const wholesalePriceUsd = product.currency === 'USD' 
-      ? product.wholesale_price 
-      : product.wholesale_price / exchangeRate;
+      ? product.price 
+      : product.price / exchangeRate;
 
     // 2. Fetch User Wallet & Calculate Retail Price with VIP Discounts
-    const { data: wallet } = await supabase
+    const { data: wallet } = await supabaseAdmin
       .from('wallets')
       .select('balance_ngn, balance_usd, lifetime_deposits_usd')
       .eq('user_id', user.id)
@@ -71,62 +74,104 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 3. Purchase Item from Provider
-    const result = await buyUltimateLogsService(product.id.toString());
+    // 3. Purchase Item from Wholesale Provider
+    const result = await buyUltimateLogsService(Number(product.id));
 
-    if (!result.success || !result.accountData) {
+    if (!result.success || !result.data) {
       return NextResponse.json({ error: result.error || "Failed to purchase digital asset from supplier." }, { status: 500 });
+    }
+
+    // Format credentials/logs string for user delivery
+    let accountLogsText = "";
+    if (typeof result.data === 'string') {
+      accountLogsText = result.data;
+    } else if (result.data?.items && Array.isArray(result.data.items)) {
+      accountLogsText = result.data.items.join("\n");
+    } else if (result.data?.logs) {
+      accountLogsText = typeof result.data.logs === 'string' ? result.data.logs : JSON.stringify(result.data.logs, null, 2);
+    } else {
+      accountLogsText = JSON.stringify(result.data, null, 2);
     }
 
     // 4. Deduct User Wallet Balance from Master NGN Balance
     const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
-    await supabase
+    const { error: deductError } = await supabaseAdmin
       .from('wallets')
       .update({ 
         balance_ngn: newBalanceNgn,
-        balance_usd: 0 
+        balance_usd: 0,
+        updated_at: new Date().toISOString()
       })
       .eq('user_id', user.id);
 
-    // 5. Store Purchased Item in User Inventory
-    const { data: purchaseItem, error: dbError } = await supabase
-      .from('user_marketplace_purchases')
-      .insert({
-        user_id: user.id,
-        item_id: product.id.toString(),
-        item_name: product.name,
-        category: product.category,
-        account_data: result.accountData,
-        price_paid: finalPriceUsd,
-        currency: 'USD',
-        status: 'Completed',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error("DB Insert Error:", dbError);
+    if (deductError) {
+      console.error("Wallet deduction error:", deductError);
+      return NextResponse.json({ error: "Failed to process payment." }, { status: 500 });
     }
 
-    // Record Transaction
-    await supabase.from('transactions').insert({
+    // 5. Store Purchased Item in User Inventory (Insert into digital_orders for purchases history view)
+    let purchaseRecord = null;
+
+    const { data: orderItem, error: orderError } = await supabaseAdmin
+      .from('digital_orders')
+      .insert({
+        user_id: user.id,
+        provider_api_id: product.id.toString(),
+        product_name: product.name,
+        price_paid_usd: finalPriceUsd,
+        currency_used: 'USD',
+        account_logs: accountLogsText,
+        status: 'Completed',
+        purchased_at: new Date().toISOString()
+      })
+      .select()
+      .maybeSingle();
+
+    if (orderError) {
+      console.warn("digital_orders insert warning, attempting fallback table:", orderError.message);
+      // Fallback insert if table variant is user_marketplace_purchases
+      const { data: fallbackItem } = await supabaseAdmin
+        .from('user_marketplace_purchases')
+        .insert({
+          user_id: user.id,
+          item_id: product.id.toString(),
+          item_name: product.name,
+          category: product.category_name || 'Accounts',
+          account_data: accountLogsText,
+          price_paid: finalPriceUsd,
+          currency: 'USD',
+          status: 'Completed',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .maybeSingle();
+      purchaseRecord = fallbackItem;
+    } else {
+      purchaseRecord = orderItem;
+    }
+
+    // 6. Record Transaction Ledger
+    await supabaseAdmin.from('transactions').insert({
       user_id: user.id,
       type: 'Purchase',
       amount: finalPriceUsd,
       currency: 'USD',
       status: 'Success',
-      reference: `mkt_${Date.now()}`,
-      description: `Purchased ${product.name} (Marketplace)`
+      reference: `mkt_${product.id}_${Date.now()}`,
+      description: `Purchased ${product.name} (Digital Marketplace)`
     });
 
     return NextResponse.json({
       success: true,
-      message: "Purchase successful!",
-      item: purchaseItem || {
+      message: "Purchase successful! Your account credentials are ready.",
+      item: {
+        id: purchaseRecord?.id || `mkt_${Date.now()}`,
         item_name: product.name,
-        account_data: result.accountData,
-        price_paid: finalPriceUsd
+        product_name: product.name,
+        account_data: accountLogsText,
+        account_logs: accountLogsText,
+        price_paid: finalPriceUsd,
+        price_paid_usd: finalPriceUsd
       }
     });
 

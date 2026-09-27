@@ -147,6 +147,23 @@ export async function POST(req: Request) {
 
     if (rentalError) {
       console.error("Failed to insert rental into DB:", rentalError);
+      // Atomic rollback: restore user wallet balance
+      await supabaseAdmin
+        .from('wallets')
+        .update({ balance_ngn: totalAvailableNgn })
+        .eq('user_id', user.id);
+
+      try {
+        if (usedProviderName === '5sim') {
+          await FiveSimApi.cancelOrder(successResponse.orderId);
+        } else if (usedProviderName === 'grizzly') {
+          await GrizzlyApi.cancelOrder(successResponse.orderId);
+        }
+      } catch (_cancelErr) {}
+
+      return NextResponse.json({ 
+        error: "Failed to allocate number in system. Your wallet balance has been preserved." 
+      }, { status: 500 });
     }
 
     // 6. Record Transaction Ledger

@@ -42,12 +42,44 @@ export async function POST(req: Request) {
     const elapsedSeconds = (now - createdAt) / 1000;
 
     if (elapsedSeconds >= 1200) {
-      // Order has passed 20 minutes without an OTP code -> Auto-refund!
+      // Order has passed 20 minutes without an OTP code -> Auto-refund directly to wallet!
       const supabaseAdmin = createAdminClient();
-      await supabaseAdmin.rpc('refund_number', {
-        p_rental_id: rental.id,
-        p_status: 'Expired'
-      });
+
+      // Fetch exchange rate for exact currency conversion
+      const { data: appSettings } = await supabaseAdmin
+        .from('settings')
+        .select('exchange_rate')
+        .eq('id', 1)
+        .single();
+      const exchangeRate = appSettings?.exchange_rate || 1500;
+
+      const refundNgn = rental.currency === 'USD' 
+        ? Math.round(Number(rental.cost) * exchangeRate)
+        : Number(rental.cost);
+
+      // Mark order as Expired
+      await supabaseAdmin
+        .from('rentals')
+        .update({ status: 'Expired', updated_at: new Date().toISOString() })
+        .eq('id', rental.id);
+
+      // Credit User Unified Wallet (Master balance in NGN)
+      const { data: wallet } = await supabaseAdmin
+        .from('wallets')
+        .select('balance_ngn')
+        .eq('user_id', user.id)
+        .single();
+
+      if (wallet) {
+        const currentNgn = Number(wallet.balance_ngn) || 0;
+        await supabaseAdmin
+          .from('wallets')
+          .update({ 
+            balance_ngn: currentNgn + refundNgn,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      }
 
       // Record Refund Transaction Ledger
       await supabaseAdmin.from('transactions').insert({
@@ -56,14 +88,14 @@ export async function POST(req: Request) {
         amount: rental.cost,
         currency: rental.currency || 'USD',
         status: 'Success',
-        reference: `refund_auto_${rental.order_id}`,
+        reference: `refund_auto_${rental.order_id || rental.id}`,
         description: `Auto-refunded expired ${rental.service || 'SMS'} number order (${rental.phone_number})`
       });
 
       return NextResponse.json({ 
         status: 'Expired', 
         code: null,
-        message: '⏳ Order expired after 20 minutes with no SMS code. Cost refunded to your balance.' 
+        message: `⏳ Order expired after 20 minutes with no SMS code. ${rental.currency === 'USD' ? `$${rental.cost}` : `₦${refundNgn.toLocaleString()}`} refunded to your balance.` 
       });
     }
 
