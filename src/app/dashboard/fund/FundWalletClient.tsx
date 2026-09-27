@@ -558,8 +558,10 @@ export default function FundWalletClient({
                 )}
 
               </div>
-            </div>
-          ) : (
+            )}
+
+          </div>
+        ) : (
             <div className="w-full bg-white dark:bg-[#111111] rounded-3xl p-8 sm:p-10 border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col items-center text-center gap-5 relative overflow-hidden">
               <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/10">
                 <CurrencyBtc size={32} weight="duotone" />

@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // We must disable the default body parser to get the raw body for Stripe signature verification
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_for_build", {
   apiVersion: "2026-05-27.dahlia" as any,
 });
 

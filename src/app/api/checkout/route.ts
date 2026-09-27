@@ -4,7 +4,9 @@ import Stripe from "stripe";
 import { checkoutSchema, getFieldErrors } from "@/lib/validation";
 import { z } from "zod";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const dynamic = "force-dynamic";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_for_build", {
   apiVersion: "2026-05-27.dahlia" as any,
 });
 
