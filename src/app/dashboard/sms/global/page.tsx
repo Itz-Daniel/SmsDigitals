@@ -113,9 +113,8 @@ export default function GlobalPurchasePage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const isAdmin = user.user_metadata?.role === 'admin' || 
-                        user.app_metadata?.role === 'admin' || 
-                        user.email?.toLowerCase().includes('admin');
+        const isAdmin = user.app_metadata?.role === 'admin' || 
+                        user.email?.toLowerCase() === 'dannyhell96@gmail.com';
         setIsAdminUser(!!isAdmin);
       }
     };

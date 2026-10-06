@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { isUserAdmin } from '@/lib/admin-guard';
 
 export async function GET() {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || user.app_metadata?.role !== 'admin') {
+    if (!user || !isUserAdmin(user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,11 +22,11 @@ export async function GET() {
       .from('profiles')
       .select('*', { count: 'exact', head: true });
 
-    // 2. Total Funding Volume (Revenue)
+    // 2. Total Funding Volume (Revenue) - include both Funding and Deposit types
     const { data: transactions } = await supabaseAdmin
       .from('transactions')
       .select('amount')
-      .eq('type', 'Funding')
+      .in('type', ['Funding', 'Deposit'])
       .eq('status', 'Success');
 
     const totalRevenue = transactions?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;

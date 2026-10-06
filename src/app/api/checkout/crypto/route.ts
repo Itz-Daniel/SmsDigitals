@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Minimum deposit amount is $1.00." }, { status: 400 });
     }
 
-    const orderId = `crypto_${Date.now()}_${user.id.substring(0, 6)}`;
+    const orderId = `crypto_${Date.now()}_${user.id}`;
     const nowpayments = new NOWPaymentsApi();
 
     const payment = await nowpayments.createPayment({

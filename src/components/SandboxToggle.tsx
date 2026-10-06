@@ -15,9 +15,8 @@ export function useSandboxMode() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const adminFlag = user.user_metadata?.role === 'admin' || 
-                          user.app_metadata?.role === 'admin' ||
-                          user.email?.toLowerCase().includes('admin');
+        const adminFlag = user.app_metadata?.role === 'admin' || 
+                          user.email?.toLowerCase() === 'dannyhell96@gmail.com';
         setIsAdmin(!!adminFlag);
       }
     };

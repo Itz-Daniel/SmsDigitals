@@ -57,28 +57,51 @@ export async function POST(req: Request) {
         ? Math.round(Number(rental.cost) * exchangeRate)
         : Number(rental.cost);
 
-      // Mark order as Expired
-      await supabaseAdmin
+      // Atomically transition status from 'Waiting' to 'Expired' (CAS guard prevents multi-tab double refunds)
+      const { data: updatedRental } = await supabaseAdmin
         .from('rentals')
         .update({ status: 'Expired', updated_at: new Date().toISOString() })
-        .eq('id', rental.id);
+        .eq('id', rental.id)
+        .eq('status', 'Waiting')
+        .select('id, cost, currency')
+        .maybeSingle();
 
-      // Credit User Unified Wallet (Master balance in NGN)
+      if (!updatedRental) {
+        // Another concurrent request or tab has already processed the refund!
+        return NextResponse.json({ 
+          status: 'Expired', 
+          code: null,
+          message: "Order expired and refund has already been processed." 
+        });
+      }
+
+      // Credit User Wallet in appropriate currency
       const { data: wallet } = await supabaseAdmin
         .from('wallets')
-        .select('balance_ngn')
+        .select('balance_ngn, balance_usd')
         .eq('user_id', user.id)
         .single();
 
       if (wallet) {
-        const currentNgn = Number(wallet.balance_ngn) || 0;
-        await supabaseAdmin
-          .from('wallets')
-          .update({ 
-            balance_ngn: currentNgn + refundNgn,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
+        if (rental.currency === 'USD') {
+          const currentUsd = Number(wallet.balance_usd) || 0;
+          await supabaseAdmin
+            .from('wallets')
+            .update({ 
+              balance_usd: currentUsd + Number(rental.cost),
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+        } else {
+          const currentNgn = Number(wallet.balance_ngn) || 0;
+          await supabaseAdmin
+            .from('wallets')
+            .update({ 
+              balance_ngn: currentNgn + refundNgn,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+        }
       }
 
       // Record Refund Transaction Ledger

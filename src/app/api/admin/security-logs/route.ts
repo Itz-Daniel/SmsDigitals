@@ -2,17 +2,15 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { isUserAdmin } from "@/lib/admin-guard";
+
 export async function GET() {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Admin Role Check
-    const isAdmin = user?.user_metadata?.role === 'admin' || 
-                    user?.app_metadata?.role === 'admin' ||
-                    user?.email?.toLowerCase().includes('admin');
-
-    if (!user || !isAdmin) {
+    // Strict Admin Verification
+    if (!user || !isUserAdmin(user)) {
       return NextResponse.json({ error: "Forbidden: Admin access required." }, { status: 403 });
     }
 

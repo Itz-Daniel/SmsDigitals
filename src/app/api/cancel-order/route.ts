@@ -116,13 +116,22 @@ export async function POST(req: Request) {
       ? Math.round(Number(rental.cost) * exchangeRate)
       : Number(rental.cost);
 
-    // Mark order as Cancelled/Expired
-    await supabaseAdmin
+    // Atomically transition status from 'Waiting' to finalStatus (CAS guard prevents concurrent duplicate refunds)
+    const { data: updatedRental } = await supabaseAdmin
       .from('rentals')
       .update({ status: finalStatus, updated_at: new Date().toISOString() })
-      .eq('id', rental.id);
+      .eq('id', rental.id)
+      .eq('status', 'Waiting')
+      .select('id, cost, currency')
+      .maybeSingle();
 
-    // Credit User Unified Wallet (Master balance in NGN)
+    if (!updatedRental) {
+      return NextResponse.json({ 
+        error: "This order has already been cancelled, expired, or completed." 
+      }, { status: 400 });
+    }
+
+    // Credit User Wallet in appropriate currency
     const { data: wallet } = await supabaseAdmin
       .from('wallets')
       .select('balance_usd, balance_ngn')
@@ -130,14 +139,25 @@ export async function POST(req: Request) {
       .single();
 
     if (wallet) {
-      const currentNgn = Number(wallet.balance_ngn) || 0;
-      await supabaseAdmin
-        .from('wallets')
-        .update({ 
-          balance_ngn: currentNgn + refundNgn,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+      if (rental.currency === 'USD') {
+        const currentUsd = Number(wallet.balance_usd) || 0;
+        await supabaseAdmin
+          .from('wallets')
+          .update({ 
+            balance_usd: currentUsd + Number(rental.cost),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        const currentNgn = Number(wallet.balance_ngn) || 0;
+        await supabaseAdmin
+          .from('wallets')
+          .update({ 
+            balance_ngn: currentNgn + refundNgn,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      }
     }
 
     // Record Refund Transaction Ledger

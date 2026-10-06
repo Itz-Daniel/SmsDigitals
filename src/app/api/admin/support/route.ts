@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+import { isUserAdmin } from "@/lib/admin-guard";
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
@@ -9,9 +11,8 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // In a real app, verify admin role here. For MVP, we assume /api/admin is protected or we trust this call
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user || !isUserAdmin(user)) {
+      return NextResponse.json({ error: "Forbidden: Admin access required." }, { status: 403 });
     }
 
     const adminDb = createAdminClient();

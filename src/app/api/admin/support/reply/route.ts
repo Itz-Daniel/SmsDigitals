@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendTicketReplyEmail } from "@/lib/resend";
+import { isUserAdmin } from "@/lib/admin-guard";
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Verify admin role in a real app, for MVP assume route is protected
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user || !isUserAdmin(user)) {
+      return NextResponse.json({ error: "Forbidden: Admin access required." }, { status: 403 });
     }
 
     const { ticketId, replyText, userEmail, ticketSubject, attachmentUrl } = await request.json();

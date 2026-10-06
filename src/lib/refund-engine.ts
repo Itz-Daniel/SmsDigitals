@@ -44,13 +44,21 @@ export async function processExpiredOrdersRefund(): Promise<number> {
         console.error(`[Auto-Refund Engine] Provider Cancellation Warning [${rental.provider}]:`, apiError);
       }
 
-      // Mark order as Expired
-      await supabaseAdmin
+      // Atomically mark order as Expired (CAS guard prevents duplicate refunds)
+      const { data: updatedRental } = await supabaseAdmin
         .from('rentals')
         .update({ status: 'Expired', updated_at: new Date().toISOString() })
-        .eq('id', rental.id);
+        .eq('id', rental.id)
+        .eq('status', 'Waiting')
+        .select('id')
+        .maybeSingle();
 
-      // Unified wallet refund
+      if (!updatedRental) {
+        // Order was already cancelled or refunded concurrently
+        continue;
+      }
+
+      // Wallet refund in appropriate currency
       const refundNgn = rental.currency === 'USD' 
         ? Math.round(Number(rental.cost) * exchangeRate)
         : Number(rental.cost);
@@ -62,14 +70,25 @@ export async function processExpiredOrdersRefund(): Promise<number> {
         .single();
 
       if (wallet) {
-        const currentNgn = Number(wallet.balance_ngn) || 0;
-        await supabaseAdmin
-          .from('wallets')
-          .update({ 
-            balance_ngn: currentNgn + refundNgn,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', rental.user_id);
+        if (rental.currency === 'USD') {
+          const currentUsd = Number(wallet.balance_usd) || 0;
+          await supabaseAdmin
+            .from('wallets')
+            .update({ 
+              balance_usd: currentUsd + Number(rental.cost),
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', rental.user_id);
+        } else {
+          const currentNgn = Number(wallet.balance_ngn) || 0;
+          await supabaseAdmin
+            .from('wallets')
+            .update({ 
+              balance_ngn: currentNgn + refundNgn,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', rental.user_id);
+        }
       }
 
       refundedCount++;

@@ -93,13 +93,24 @@ export async function POST(req: Request) {
       accountLogsText = JSON.stringify(result.data, null, 2);
     }
 
-    // 4. Deduct User Wallet Balance from Master NGN Balance
-    const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
+    // 4. Deduct User Wallet Balance accurately without wiping USD
+    let newBalanceNgn = Number(wallet.balance_ngn) || 0;
+    let newBalanceUsd = Number(wallet.balance_usd) || 0;
+
+    if (newBalanceNgn >= finalPriceNgn) {
+      newBalanceNgn -= finalPriceNgn;
+    } else {
+      const deficitNgn = finalPriceNgn - newBalanceNgn;
+      const deficitUsd = deficitNgn / exchangeRate;
+      newBalanceNgn = 0;
+      newBalanceUsd = Math.max(0, newBalanceUsd - deficitUsd);
+    }
+
     const { error: deductError } = await supabaseAdmin
       .from('wallets')
       .update({ 
         balance_ngn: newBalanceNgn,
-        balance_usd: 0,
+        balance_usd: newBalanceUsd,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', user.id);

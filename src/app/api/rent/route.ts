@@ -29,20 +29,70 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Fetch User Wallet and VIP Tier Discount
-    const { data: wallet } = await supabaseAdmin
-      .from('wallets')
-      .select('balance_usd, balance_ngn, lifetime_deposits_usd')
-      .eq('user_id', user.id)
-      .single();
+    // 1. Fetch User Wallet, VIP Tier Discount, and Exchange Rate Settings FIRST
+    const [{ data: wallet }, { data: appSettings }] = await Promise.all([
+      supabaseAdmin
+        .from('wallets')
+        .select('balance_usd, balance_ngn, lifetime_deposits_usd')
+        .eq('user_id', user.id)
+        .single(),
+      supabaseAdmin
+        .from('settings')
+        .select('exchange_rate, brand_pricing')
+        .eq('id', 1)
+        .single()
+    ]);
 
     if (!wallet) {
       return NextResponse.json({ error: "Wallet not found. Please contact support." }, { status: 404 });
     }
 
+    const exchangeRate = appSettings?.exchange_rate || 1500;
+    const brandPricing = appSettings?.brand_pricing || null;
     const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
 
-    // 2. Multi-Provider Fallback Cascade Sequence (Primary: 5SIM, Backup: Grizzly SMS)
+    // 2. Pre-Check Available Funds BEFORE contacting upstream providers (Stops wholesale balance drain)
+    const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
+
+    if (totalAvailableNgn <= 0) {
+      return NextResponse.json({ 
+        error: "Insufficient Balance. Please fund your account to continue." 
+      }, { status: 402 });
+    }
+
+    // Check cached wholesale cost or conservative floor estimate ($0.20)
+    const { data: cachedPrice } = await supabaseAdmin
+      .from('cached_prices')
+      .select('lowest_raw_cost')
+      .eq('country', country)
+      .eq('service', serviceName || serviceId)
+      .maybeSingle();
+
+    const estimatedWholesale = cachedPrice?.lowest_raw_cost || 0.20;
+    const estimatedPriceNgn = calculateFinalRetailPrice(
+      estimatedWholesale,
+      exchangeRate,
+      'NGN',
+      discountPercentage,
+      serviceName || serviceId,
+      brandPricing
+    );
+
+    if (totalAvailableNgn < estimatedPriceNgn) {
+      if (currency === 'USD') {
+        const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
+        const estimatedUsd = (estimatedPriceNgn / exchangeRate).toFixed(2);
+        return NextResponse.json({ 
+          error: `Insufficient Balance. Estimated Required: $${estimatedUsd}, Available: $${availableUsd}. Please fund your account to continue.` 
+        }, { status: 402 });
+      } else {
+        return NextResponse.json({ 
+          error: `Insufficient Balance. Estimated Required: ₦${estimatedPriceNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}, Available: ₦${totalAvailableNgn.toLocaleString(undefined, { maximumFractionDigits: 2 })}. Please fund your account to continue.` 
+        }, { status: 402 });
+      }
+    }
+
+    // 3. Multi-Provider Fallback Cascade Sequence (Primary: 5SIM, Backup: Grizzly SMS)
     const providers = [
       new FiveSimApi(),
       new GrizzlyApi()
@@ -71,16 +121,8 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-    // 3. Pricing Calculation (Driven directly by Admin Settings in Database)
+    // 4. Exact Pricing Calculation
     const wholesaleCostUsd = successResponse.costUsd || 0.50;
-    
-    const { data: appSettings } = await supabaseAdmin
-      .from('settings')
-      .select('exchange_rate, brand_pricing')
-      .eq('id', 1)
-      .single();
-    const exchangeRate = appSettings?.exchange_rate || 1500;
-    const brandPricing = appSettings?.brand_pricing || null;
 
     const finalPriceNgn = calculateFinalRetailPrice(
       wholesaleCostUsd,
@@ -99,10 +141,17 @@ export async function POST(req: Request) {
       brandPricing
     );
 
-    // 4. Unified Balance Deduction Check (Single Master Balance in NGN)
-    const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
-
+    // Fail-safe check against actual final price
     if (totalAvailableNgn < finalPriceNgn) {
+      // IMMEDIATE ROLLBACK on provider to prevent loss of wholesale balance
+      try {
+        if (usedProviderName === '5sim') {
+          await FiveSimApi.cancelOrder(successResponse.orderId);
+        } else if (usedProviderName === 'grizzly') {
+          await GrizzlyApi.cancelOrder(successResponse.orderId);
+        }
+      } catch (_cancelErr) {}
+
       if (currency === 'USD') {
         const availableUsd = (totalAvailableNgn / exchangeRate).toFixed(2);
         return NextResponse.json({ 
@@ -115,13 +164,35 @@ export async function POST(req: Request) {
       }
     }
 
-    // Deduct from master NGN balance (absorbing any legacy USD)
-    const newBalanceNgn = Math.max(0, totalAvailableNgn - finalPriceNgn);
+    // Deduct accurately without zeroing out unspent foreign currency
+    let newBalanceNgn = wallet.balance_ngn || 0;
+    let newBalanceUsd = wallet.balance_usd || 0;
+
+    if (currency === 'USD') {
+      if (newBalanceUsd >= finalPriceUsd) {
+        newBalanceUsd -= finalPriceUsd;
+      } else {
+        const deficitUsd = finalPriceUsd - newBalanceUsd;
+        const deficitNgn = deficitUsd * exchangeRate;
+        newBalanceUsd = 0;
+        newBalanceNgn = Math.max(0, newBalanceNgn - deficitNgn);
+      }
+    } else {
+      if (newBalanceNgn >= finalPriceNgn) {
+        newBalanceNgn -= finalPriceNgn;
+      } else {
+        const deficitNgn = finalPriceNgn - newBalanceNgn;
+        const deficitUsd = deficitNgn / exchangeRate;
+        newBalanceNgn = 0;
+        newBalanceUsd = Math.max(0, newBalanceUsd - deficitUsd);
+      }
+    }
+
     await supabaseAdmin
       .from('wallets')
       .update({ 
         balance_ngn: newBalanceNgn,
-        balance_usd: 0 
+        balance_usd: newBalanceUsd 
       })
       .eq('user_id', user.id);
 
@@ -147,10 +218,13 @@ export async function POST(req: Request) {
 
     if (rentalError) {
       console.error("Failed to insert rental into DB:", rentalError);
-      // Atomic rollback: restore user wallet balance
+      // Atomic rollback: restore exact original wallet balances
       await supabaseAdmin
         .from('wallets')
-        .update({ balance_ngn: totalAvailableNgn })
+        .update({ 
+          balance_ngn: wallet.balance_ngn,
+          balance_usd: wallet.balance_usd
+        })
         .eq('user_id', user.id);
 
       try {

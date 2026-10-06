@@ -26,15 +26,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Reseller storefront not found." }, { status: 404 });
     }
 
-    // 2. Fetch Reseller Wallet Balance
-    const { data: resellerWallet } = await supabaseAdmin
-      .from('wallets')
-      .select('balance_usd, balance_ngn')
-      .eq('user_id', store.user_id)
-      .single();
+    // 2. Fetch Reseller Wallet Balance and Exchange Rate Settings FIRST
+    const [{ data: resellerWallet }, { data: settings }] = await Promise.all([
+      supabaseAdmin
+        .from('wallets')
+        .select('balance_usd, balance_ngn')
+        .eq('user_id', store.user_id)
+        .single(),
+      supabaseAdmin
+        .from('settings')
+        .select('exchange_rate')
+        .eq('id', 1)
+        .single()
+    ]);
 
     if (!resellerWallet) {
       return NextResponse.json({ error: "Reseller wallet inactive." }, { status: 400 });
+    }
+
+    const exchangeRate = settings?.exchange_rate || 1500;
+    const totalResellerNgn = (Number(resellerWallet.balance_ngn) || 0) + ((Number(resellerWallet.balance_usd) || 0) * exchangeRate);
+
+    // Pre-check balance before calling upstream providers (Stops wholesale balance drain)
+    if (totalResellerNgn <= 0) {
+      return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
     }
 
     // 3. Multi-Provider Number Procurement Cascade (5SIM & Grizzly)
@@ -73,27 +88,41 @@ export async function POST(req: Request) {
     const wholesaleCostUsd = calculateFinalRetailPrice(wholesaleUsd, 0, serviceName || serviceId);
     // Retail price displayed to End Customer
     const customerRetailUsd = wholesaleCostUsd * (1 + resellerMarkupPercent / 100);
-
-    // 5. Deduct Wholesale Balance from Reseller's Unified Master Wallet
-    const { data: settings } = await supabaseAdmin.from('settings').select('exchange_rate').eq('id', 1).single();
-    const exchangeRate = settings?.exchange_rate || 1500;
     const wholesaleNgn = Math.round(wholesaleCostUsd * exchangeRate);
 
-    const totalResellerNgn = (Number(resellerWallet.balance_ngn) || 0) + ((Number(resellerWallet.balance_usd) || 0) * exchangeRate);
-
     if (totalResellerNgn < wholesaleNgn) {
+      // Immediate cancellation on provider
+      try {
+        if (usedProviderName === '5sim') {
+          await FiveSimApi.cancelOrder(successResponse.orderId);
+        } else if (usedProviderName === 'grizzly') {
+          await GrizzlyApi.cancelOrder(successResponse.orderId);
+        }
+      } catch (_cErr) {}
       return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
     }
 
-    const newResellerNgn = Math.max(0, totalResellerNgn - wholesaleNgn);
+    // Deduct accurately without wiping unspent USD
+    let newResellerNgn = Number(resellerWallet.balance_ngn) || 0;
+    let newResellerUsd = Number(resellerWallet.balance_usd) || 0;
+
+    if (newResellerNgn >= wholesaleNgn) {
+      newResellerNgn -= wholesaleNgn;
+    } else {
+      const deficitNgn = wholesaleNgn - newResellerNgn;
+      const deficitUsd = deficitNgn / exchangeRate;
+      newResellerNgn = 0;
+      newResellerUsd = Math.max(0, newResellerUsd - deficitUsd);
+    }
+
     await supabaseAdmin
       .from('wallets')
-      .update({ balance_ngn: newResellerNgn, balance_usd: 0 })
+      .update({ balance_ngn: newResellerNgn, balance_usd: newResellerUsd })
       .eq('user_id', store.user_id);
 
     // 6. Record Rental in Database
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
-    const { data: newRental } = await supabaseAdmin
+    const { data: newRental, error: rentalError } = await supabaseAdmin
       .from('rentals')
       .insert({
         user_id: store.user_id, // Owned by Reseller account
@@ -110,6 +139,28 @@ export async function POST(req: Request) {
       })
       .select()
       .single();
+
+    if (rentalError) {
+      console.error("Reseller rental insertion failed:", rentalError);
+      // Rollback wallet balance
+      await supabaseAdmin
+        .from('wallets')
+        .update({ 
+          balance_ngn: resellerWallet.balance_ngn, 
+          balance_usd: resellerWallet.balance_usd 
+        })
+        .eq('user_id', store.user_id);
+
+      try {
+        if (usedProviderName === '5sim') {
+          await FiveSimApi.cancelOrder(successResponse.orderId);
+        } else if (usedProviderName === 'grizzly') {
+          await GrizzlyApi.cancelOrder(successResponse.orderId);
+        }
+      } catch (_cErr) {}
+
+      return NextResponse.json({ error: "Failed to record rental in database." }, { status: 500 });
+    }
 
     // 7. Log Reseller Passive Profit Transaction
     const profitUsd = customerRetailUsd - wholesaleCostUsd;

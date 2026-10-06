@@ -46,15 +46,30 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: true, message: "Order already processed." });
         }
 
-        // Extract user_id from order_id (format: crypto_timestamp_userIdShort)
-        const userIdShort = order_id.split("_")[2];
+        // Extract user_id from order_id (format: crypto_timestamp_userId)
+        const orderParts = order_id.split("_");
+        const userIdentifier = orderParts.slice(2).join("_");
 
-        if (userIdShort) {
-          const { data: userProfiles } = await supabaseAdmin
-            .from("profiles")
-            .select("id, full_name");
-
-          const matchedUser = userProfiles?.find(p => p.id.substring(0, 6) === userIdShort);
+        if (userIdentifier) {
+          // Look up user directly by exact UUID or prefix without downloading the entire profiles table
+          let matchedUser: { id: string; full_name?: string } | null = null;
+          
+          if (userIdentifier.length === 36) {
+            const { data } = await supabaseAdmin
+              .from("profiles")
+              .select("id, full_name")
+              .eq("id", userIdentifier)
+              .maybeSingle();
+            matchedUser = data;
+          } else {
+            const { data } = await supabaseAdmin
+              .from("profiles")
+              .select("id, full_name")
+              .ilike("id", `${userIdentifier}%`)
+              .limit(1)
+              .maybeSingle();
+            matchedUser = data;
+          }
 
           if (matchedUser) {
             // Fetch live exchange rate for unified master wallet
@@ -81,7 +96,7 @@ export async function POST(req: Request) {
                 .from("wallets")
                 .update({
                   balance_ngn: newNgnBalance,
-                  balance_usd: 0,
+                  balance_usd: wallet.balance_usd || 0,
                   lifetime_deposits_usd: newLifetimeDeposits
                 })
                 .eq("user_id", matchedUser.id);

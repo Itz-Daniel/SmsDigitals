@@ -45,9 +45,8 @@ export default function ResellerManagementPage() {
         return;
       }
 
-      const isAdmin = user.user_metadata?.role === 'admin' || 
-                      user.app_metadata?.role === 'admin' ||
-                      user.email?.toLowerCase().includes('admin');
+      const isAdmin = user.app_metadata?.role === 'admin' || 
+                      user.email?.toLowerCase() === 'dannyhell96@gmail.com';
 
       if (!isAdmin && !user.user_metadata?.developer_api_enabled) {
         router.push("/dashboard/settings?highlight=developer_api");

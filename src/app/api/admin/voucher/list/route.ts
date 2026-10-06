@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { isUserAdmin } from "@/lib/admin-guard";
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
@@ -9,7 +11,7 @@ export async function GET(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || user.app_metadata?.role !== 'admin') {
+    if (!user || !isUserAdmin(user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

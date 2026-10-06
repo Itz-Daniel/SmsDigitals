@@ -1,11 +1,32 @@
 import { NextResponse } from "next/server";
 
+const alertRateLimit = new Map<string, { count: number; expiresAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = alertRateLimit.get(ip);
+  if (!entry || entry.expiresAt < now) {
+    alertRateLimit.set(ip, { count: 1, expiresAt: now + 60000 });
+    return false;
+  }
+  if (entry.count >= 5) {
+    return true;
+  }
+  entry.count++;
+  return false;
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
+
     const { message, type } = await req.json();
 
-    if (!message) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    if (!message || typeof message !== "string" || message.length > 500) {
+      return NextResponse.json({ error: "Valid message string is required (max 500 chars)" }, { status: 400 });
     }
 
     const adminPhone = process.env.ADMIN_PHONE_NUMBER;

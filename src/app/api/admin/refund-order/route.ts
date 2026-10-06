@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+import { isUserAdmin } from "@/lib/admin-guard";
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
@@ -8,14 +10,8 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-    if (!ADMIN_EMAIL || user.email !== ADMIN_EMAIL) {
-       return NextResponse.json({ error: "Forbidden. Admins only." }, { status: 403 });
+    if (!user || !isUserAdmin(user)) {
+      return NextResponse.json({ error: "Forbidden. Admins only." }, { status: 403 });
     }
 
     const { orderId } = await req.json();

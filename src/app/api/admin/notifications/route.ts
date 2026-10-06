@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
+import { isUserAdmin } from "@/lib/admin-guard";
+
 // Helper to authenticate admin
 async function authenticateAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || user.app_metadata?.role !== 'admin') {
+  if (!user || !isUserAdmin(user)) {
     return { error: "Unauthorized", status: 401 };
   }
 

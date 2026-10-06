@@ -115,21 +115,13 @@ export default function DashboardPage() {
       setExchangeRate(activeRate);
 
       if (walletRes.data) {
-        let ngnBal = Number(walletRes.data.balance_ngn) || 0;
+        const ngnBal = Number(walletRes.data.balance_ngn) || 0;
         const usdBal = Number(walletRes.data.balance_usd) || 0;
-
-        // Auto-merge legacy separate USD balance if any exists into master Naira balance
-        if (usdBal > 0) {
-          const mergedNgn = Math.round(ngnBal + (usdBal * activeRate));
-          ngnBal = mergedNgn;
-          // Silently sync to DB
-          supabase.from("wallets").update({ balance_ngn: mergedNgn, balance_usd: 0 }).eq("id", walletRes.data.id).then();
-        }
 
         setWallet({
           ...walletRes.data,
           balance_ngn: ngnBal,
-          balance_usd: 0
+          balance_usd: usdBal
         });
       }
 
