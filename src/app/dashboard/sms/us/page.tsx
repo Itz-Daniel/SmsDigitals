@@ -14,7 +14,8 @@ import {
   CheckCircle, 
   Copy, 
   Check, 
-  Broadcast
+  Broadcast,
+  ShieldCheck
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -310,25 +311,24 @@ export default function USPurchasePage() {
         </div>
       </div>
 
-      {/* ── Main Stack: Order Form Full-Width on Top / Active Lines Down Below ─ */}
-      <div className="flex flex-col gap-8 w-full">
+      {/* ── Main Stack: Order Form on Top / Active Lines Down Below (Balanced Max-Width) ─ */}
+      <div className="flex flex-col gap-8 w-full max-w-5xl">
         
-        {/* Full-Width Order Control Card */}
+        {/* Order Control Card */}
         <div className="w-full flex flex-col gap-6">
           <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-8 flex flex-col gap-6 shadow-sm dark:shadow-none w-full">
             
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3.5">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
                 Deploy Number
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-brand-blue/10 text-brand-blue">
-                NON-VOIP
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+                NON-VOIP REAL SIM
               </span>
             </div>
 
-            {/* Quick Popular Services Row (Horizontal Scroll Rail on Mobile) */}
             {/* Quick Popular Services Row */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
                   Popular Services
@@ -362,7 +362,7 @@ export default function USPurchasePage() {
                     popularScrollRef.current.scrollLeft += e.deltaY;
                   }
                 }}
-                className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-smooth [scrollbar-width:thin] select-none"
+                className="flex items-center gap-2 overflow-x-auto pb-1 scroll-smooth select-none no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {POPULAR_QUICK_SERVICES.map((s) => {
                   const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
@@ -377,7 +377,7 @@ export default function USPurchasePage() {
                           setSelectedServiceName(matched.name);
                         }
                       }}
-                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
                         isSelected
                           ? "bg-brand-blue text-white border-brand-blue shadow-sm shadow-brand-blue/20"
                           : "bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10"
@@ -391,105 +391,113 @@ export default function USPurchasePage() {
               </div>
             </div>
 
-            {/* Target Application Dropdown Search */}
-            <div className="flex flex-col gap-2 relative">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
-                Target Application
-              </span>
+            {/* Balanced 2-Column Controls Grid for Desktop & Tablet */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
               
-              <div className="relative">
-                <button 
-                  type="button"
-                  onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <ServiceIcon name={selectedServiceName} size={20} />
-                    <span className="truncate font-bold text-sm">{selectedServiceName}</span>
-                  </div>
-                  <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
-                
-                <AnimatePresence>
-                  {isServiceDropdownOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setIsServiceDropdownOpen(false)} 
-                      />
-                      <motion.div 
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 6 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
-                      >
-                        <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
-                          <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
-                            <MagnifyingGlass size={15} className="text-slate-400" />
-                            <input 
-                              type="text"
-                              placeholder="Search 1,300+ services..."
-                              value={serviceSearchQuery}
-                              onChange={(e) => setServiceSearchQuery(e.target.value)}
-                              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
-                          {SERVICES.filter((s: ServiceItem) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
-                            .slice(0, 40)
-                            .map((service: ServiceItem) => (
-                              <button
-                                key={service.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedService(service.id);
-                                  setSelectedServiceName(service.name);
-                                  setIsServiceDropdownOpen(false);
-                                  setServiceSearchQuery("");
-                                }}
-                                className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <ServiceIcon name={service.name} size={18} />
-                                  <span className="truncate font-medium">{service.name}</span>
-                                </div>
-                              </button>
-                            ))}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Live Pricing & Stock Box */}
-            <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block">
-                  Unit Price
+              {/* Target Application Dropdown Search (Takes 7 columns on md/lg) */}
+              <div className="md:col-span-7 flex flex-col gap-2 relative">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                  Target Application
                 </span>
-                {isFetchingPrice ? (
-                  <span className="text-sm font-bold text-brand-blue animate-pulse">Checking price...</span>
-                ) : !isAvailable || livePrice === null ? (
-                  <span className="text-xs font-bold text-red-500 flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Out of Stock
-                  </span>
-                ) : (
-                  <span className="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
-                    {currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
-                  </span>
-                )}
+                
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                    className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2 hover:border-slate-300 dark:hover:border-white/20"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ServiceIcon name={selectedServiceName} size={20} />
+                      <span className="truncate font-bold text-sm">{selectedServiceName}</span>
+                    </div>
+                    <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isServiceDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsServiceDropdownOpen(false)} 
+                        />
+                        <motion.div 
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
+                        >
+                          <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
+                            <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
+                              <MagnifyingGlass size={15} className="text-slate-400" />
+                              <input 
+                                type="text"
+                                placeholder="Search 1,300+ services..."
+                                value={serviceSearchQuery}
+                                onChange={(e) => setServiceSearchQuery(e.target.value)}
+                                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
+                            {SERVICES.filter((s: ServiceItem) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
+                              .slice(0, 40)
+                              .map((service: ServiceItem) => (
+                                <button
+                                  key={service.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedService(service.id);
+                                    setSelectedServiceName(service.name);
+                                    setIsServiceDropdownOpen(false);
+                                    setServiceSearchQuery("");
+                                  }}
+                                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <ServiceIcon name={service.name} size={18} />
+                                    <span className="truncate font-medium">{service.name}</span>
+                                  </div>
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                In Stock
-              </span>
+              {/* Live Pricing & Stock Box (Takes 5 columns on md/lg, aligned with dropdown) */}
+              <div className="md:col-span-5 flex flex-col gap-2">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                  Pricing & Availability
+                </span>
+                
+                <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-between min-h-[52px]">
+                  <div>
+                    {isFetchingPrice ? (
+                      <span className="text-sm font-bold text-brand-blue animate-pulse">Checking price...</span>
+                    ) : !isAvailable || livePrice === null ? (
+                      <span className="text-xs font-bold text-red-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Out of Stock
+                      </span>
+                    ) : (
+                      <span className="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
+                        {currency === 'USD' ? `$${livePrice}` : `₦${livePrice?.toLocaleString()}`}
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    In Stock
+                  </span>
+                </div>
+              </div>
+
             </div>
 
             {error && (
@@ -499,23 +507,31 @@ export default function USPurchasePage() {
               </div>
             )}
 
-            {/* Order Action Button */}
-            <button 
-              type="button"
-              onClick={handlePurchase}
-              disabled={isPurchasing || isFetchingPrice || !isAvailable || livePrice === null}
-              className="w-full text-white rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
-            >
-              {isPurchasing ? (
-                <>
-                  <Spinner size={18} className="animate-spin" /> Provisioning Line...
-                </>
-              ) : (
-                <>
-                  Deploy USA Number <ArrowRight weight="bold" size={16} />
-                </>
-              )}
-            </button>
+            {/* Action Bar Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3.5 border-t border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-white/40">
+                <ShieldCheck size={16} weight="fill" className="text-emerald-500 shrink-0" />
+                <span>20-minute line window • 100% instant auto-refund guarantee</span>
+              </div>
+
+              {/* Order Action Button */}
+              <button 
+                type="button"
+                onClick={handlePurchase}
+                disabled={isPurchasing || isFetchingPrice || !isAvailable || livePrice === null}
+                className="w-full sm:w-auto sm:min-w-[240px] text-white rounded-2xl px-6 py-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
+              >
+                {isPurchasing ? (
+                  <>
+                    <Spinner size={18} className="animate-spin" /> Provisioning Line...
+                  </>
+                ) : (
+                  <>
+                    Deploy USA Number <ArrowRight weight="bold" size={16} />
+                  </>
+                )}
+              </button>
+            </div>
 
           </div>
         </div>

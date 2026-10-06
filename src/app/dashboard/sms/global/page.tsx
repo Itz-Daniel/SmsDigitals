@@ -16,7 +16,8 @@ import {
   Copy, 
   Check, 
   SpeakerHigh,
-  Broadcast
+  Broadcast,
+  ShieldCheck
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -281,7 +282,7 @@ export default function GlobalPurchasePage() {
   const selectedCountryObj = COUNTRIES.find((c: { iso: string; name: string }) => c.iso === globalCountry) || COUNTRIES[0];
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans overflow-x-hidden">
+    <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-5xl mx-auto text-slate-900 dark:text-white font-sans overflow-x-hidden">
       
       {/* ── Page Header ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
@@ -325,78 +326,6 @@ export default function GlobalPurchasePage() {
               </span>
             </div>
 
-            {/* Target Country Selector */}
-            <div className="flex flex-col gap-2 relative">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
-                Select Country
-              </span>
-              
-              <div className="relative">
-                <button 
-                  type="button"
-                  onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <CountryFlag country={selectedCountryObj.iso} size={22} />
-                    <span className="truncate font-bold text-sm">{selectedCountryObj.name}</span>
-                  </div>
-                  <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isCountryDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
-                
-                <AnimatePresence>
-                  {isCountryDropdownOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setIsCountryDropdownOpen(false)} 
-                      />
-                      <motion.div 
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 6 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
-                      >
-                        <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
-                          <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
-                            <MagnifyingGlass size={15} className="text-slate-400" />
-                            <input 
-                              type="text"
-                              placeholder="Search country..."
-                              value={countrySearchQuery}
-                              onChange={(e) => setCountrySearchQuery(e.target.value)}
-                              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
-                          {COUNTRIES.filter((c: { name: string; iso: string }) => c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()))
-                            .map((country: { name: string; iso: string }) => (
-                              <button
-                                key={country.iso}
-                                type="button"
-                                onClick={() => {
-                                  setGlobalCountry(country.iso);
-                                  setIsCountryDropdownOpen(false);
-                                  setCountrySearchQuery("");
-                                }}
-                                className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${globalCountry === country.iso ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
-                              >
-                                <CountryFlag country={country.iso} size={18} />
-                                <span className="truncate">{country.name}</span>
-                              </button>
-                            ))}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
             {/* Quick Popular Services Row */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
@@ -432,7 +361,7 @@ export default function GlobalPurchasePage() {
                     popularScrollRef.current.scrollLeft += e.deltaY;
                   }
                 }}
-                className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-smooth [scrollbar-width:thin] select-none"
+                className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scroll-smooth no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none"
               >
                 {POPULAR_QUICK_SERVICES.map((s) => {
                   const matched = SERVICES.find(srv => srv.name.toLowerCase().includes(s.name.toLowerCase()));
@@ -461,87 +390,162 @@ export default function GlobalPurchasePage() {
               </div>
             </div>
 
-            {/* Target Application Dropdown Search */}
-            <div className="flex flex-col gap-2 relative">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
-                Target Application
-              </span>
-              
-              <div className="relative">
-                <button 
-                  type="button"
-                  onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <ServiceIcon name={selectedServiceName} size={20} />
-                    <span className="truncate font-bold text-sm">{selectedServiceName}</span>
-                  </div>
-                  <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
+            {/* 2-Column Responsive Control Grid: Country (Left) + Target App (Right) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+              {/* Left Column: Target Country Selector */}
+              <div className="flex flex-col gap-2 relative">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                  Select Country
+                </span>
                 
-                <AnimatePresence>
-                  {isServiceDropdownOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setIsServiceDropdownOpen(false)} 
-                      />
-                      <motion.div 
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 6 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
-                      >
-                        <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
-                          <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
-                            <MagnifyingGlass size={15} className="text-slate-400" />
-                            <input 
-                              type="text"
-                              placeholder="Search 1,300+ services..."
-                              value={serviceSearchQuery}
-                              onChange={(e) => setServiceSearchQuery(e.target.value)}
-                              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
-                              autoFocus
-                            />
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                    className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <CountryFlag country={selectedCountryObj.iso} size={22} />
+                      <span className="truncate font-bold text-sm">{selectedCountryObj.name}</span>
+                    </div>
+                    <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isCountryDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isCountryDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsCountryDropdownOpen(false)} 
+                        />
+                        <motion.div 
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
+                        >
+                          <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
+                            <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
+                              <MagnifyingGlass size={15} className="text-slate-400" />
+                              <input 
+                                type="text"
+                                placeholder="Search country..."
+                                value={countrySearchQuery}
+                                onChange={(e) => setCountrySearchQuery(e.target.value)}
+                                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
+                                autoFocus
+                              />
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
-                          {SERVICES.filter((s: { id: string; name: string }) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
-                            .slice(0, 40)
-                            .map((service: { id: string; name: string }) => (
-                              <button
-                                key={service.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedService(service.id);
-                                  setSelectedServiceName(service.name);
-                                  setIsServiceDropdownOpen(false);
-                                  setServiceSearchQuery("");
-                                }}
-                                className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <ServiceIcon name={service.name} size={18} />
-                                  <span className="truncate font-medium">{service.name}</span>
-                                </div>
-                              </button>
-                            ))}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+                          
+                          <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
+                            {COUNTRIES.filter((c: { name: string; iso: string }) => c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()))
+                              .map((country: { name: string; iso: string }) => (
+                                <button
+                                  key={country.iso}
+                                  type="button"
+                                  onClick={() => {
+                                    setGlobalCountry(country.iso);
+                                    setIsCountryDropdownOpen(false);
+                                    setCountrySearchQuery("");
+                                  }}
+                                  className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${globalCountry === country.iso ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                                >
+                                  <CountryFlag country={country.iso} size={18} />
+                                  <span className="truncate">{country.name}</span>
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Right Column: Target Application Dropdown Search */}
+              <div className="flex flex-col gap-2 relative">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider">
+                  Target Application
+                </span>
+                
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                    className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ServiceIcon name={selectedServiceName} size={20} />
+                      <span className="truncate font-bold text-sm">{selectedServiceName}</span>
+                    </div>
+                    <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isServiceDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsServiceDropdownOpen(false)} 
+                        />
+                        <motion.div 
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[300px]"
+                        >
+                          <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-white/5 sticky top-0 z-10">
+                            <div className="flex items-center gap-2 bg-white dark:bg-black/40 rounded-xl px-3 py-1.5 border border-slate-200/80 dark:border-white/10">
+                              <MagnifyingGlass size={15} className="text-slate-400" />
+                              <input 
+                                type="text"
+                                placeholder="Search 1,300+ services..."
+                                value={serviceSearchQuery}
+                                onChange={(e) => setServiceSearchQuery(e.target.value)}
+                                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white placeholder:text-slate-400"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
+                            {SERVICES.filter((s: { id: string; name: string }) => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()))
+                              .slice(0, 40)
+                              .map((service: { id: string; name: string }) => (
+                                <button
+                                  key={service.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedService(service.id);
+                                    setSelectedServiceName(service.name);
+                                    setIsServiceDropdownOpen(false);
+                                    setServiceSearchQuery("");
+                                  }}
+                                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <ServiceIcon name={service.name} size={18} />
+                                    <span className="truncate font-medium">{service.name}</span>
+                                  </div>
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
-            {/* Live Pricing & Stock Box */}
-            <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-between">
+            {/* Pricing & Stock Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block">
-                  Unit Price
+                  Unit Price ({selectedCountryObj.name})
                 </span>
                 {isFetchingPrice ? (
                   <span className="text-sm font-bold text-brand-blue animate-pulse">Checking price...</span>
@@ -571,23 +575,30 @@ export default function GlobalPurchasePage() {
               </div>
             )}
 
-            {/* Order Action Button */}
-            <button 
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              disabled={isPurchasing || isFetchingPrice || isOutOfStock || livePrice === null}
-              className="w-full text-white rounded-2xl p-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25"
-            >
-              {isPurchasing ? (
-                <>
-                  <Spinner size={18} className="animate-spin" /> Provisioning Line...
-                </>
-              ) : (
-                <>
-                  Deploy {selectedCountryObj.name} Number <ArrowRight weight="bold" size={16} />
-                </>
-              )}
-            </button>
+            {/* Bottom Action Footer: Trust Badge on Left + Proportional Deploy CTA on Right */}
+            <div className="pt-4 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-white/50">
+                <ShieldCheck size={18} weight="fill" className="text-emerald-500 shrink-0" />
+                <span>20-minute line window • 100% instant auto-refund guarantee</span>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                disabled={isPurchasing || isFetchingPrice || isOutOfStock || livePrice === null}
+                className="w-full sm:w-auto sm:min-w-[240px] text-white rounded-2xl px-6 py-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-brand-blue hover:bg-blue-600 shadow-brand-blue/25 shrink-0"
+              >
+                {isPurchasing ? (
+                  <>
+                    <Spinner size={18} className="animate-spin" /> Provisioning Line...
+                  </>
+                ) : (
+                  <>
+                    Deploy {selectedCountryObj.name} Line <ArrowRight weight="bold" size={16} />
+                  </>
+                )}
+              </button>
+            </div>
 
           </div>
         </div>
