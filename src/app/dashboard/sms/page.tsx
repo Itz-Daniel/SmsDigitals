@@ -1,32 +1,31 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Hash, MapPin, Globe, ArrowRight, ClockCounterClockwise } from "@phosphor-icons/react";
+import { ArrowRight, ClockCounterClockwise } from "@phosphor-icons/react";
 import Link from "next/link";
+import { CountryFlag } from "@/components/CountryFlag";
 
 export default function SMSDashboardPage() {
   const servers = [
     {
       id: "server-1",
       name: "Server 1",
-      badge: "USA & CANADA",
-      coverage: "USA & Canada",
-      desc: "Instant virtual lines for North American platforms with area code routing.",
+      badge: "CANADA",
+      coverage: "Canada",
+      desc: "Instant virtual carrier lines for Canadian services with fast, automated routing.",
       href: "/dashboard/sms/cana",
-      flag: "🇺🇸 🇨🇦",
-      icon: Hash,
-      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+      country: "canada",
+      color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
     },
     {
       id: "server-2",
       name: "Server 2",
       badge: "USA DEDICATED",
       coverage: "USA Only",
-      desc: "Dedicated physical SIM carrier lines for high-security US services like WhatsApp and banks.",
+      desc: "Dedicated physical SIM carrier lines for high-security US services like WhatsApp, Telegram, and banks.",
       href: "/dashboard/sms/us",
-      flag: "🇺🇸",
-      icon: MapPin,
-      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+      country: "usa",
+      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
     },
     {
       id: "server-3",
@@ -35,8 +34,7 @@ export default function SMSDashboardPage() {
       coverage: "Worldwide",
       desc: "Global coverage spanning UK, Nigeria, Germany, India, Brazil, and 100+ regions.",
       href: "/dashboard/sms/global",
-      flag: "🌍",
-      icon: Globe,
+      country: "global",
       color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
     }
   ];
@@ -70,7 +68,6 @@ export default function SMSDashboardPage() {
       {/* ── Server Cards Grid (Short-Term Servers 1, 2, 3) ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {servers.map((srv, idx) => {
-          const Icon = srv.icon;
           return (
             <motion.div
               key={srv.id}
@@ -85,10 +82,11 @@ export default function SMSDashboardPage() {
                 {/* Top: Icon + Badge */}
                 <div className="flex items-start justify-between gap-3">
                   <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl shrink-0 group-hover:scale-105 transition-transform ${srv.color}`}>
-                    <Icon size={24} weight="duotone" />
+                    <CountryFlag country={srv.country} size={28} />
                   </div>
-                  <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-white/60">
-                    {srv.flag} {srv.badge}
+                  <span className="text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-white/60 flex items-center gap-1.5">
+                    <CountryFlag country={srv.country} size={13} />
+                    <span>{srv.badge}</span>
                   </span>
                 </div>
 
@@ -158,12 +156,12 @@ export default function SMSDashboardPage() {
         <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 divide-y divide-slate-100 dark:divide-white/5 overflow-hidden">
           <div className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
             <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center text-xs font-bold font-mono">
-                1
+              <span className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <CountryFlag country="canada" size={20} />
               </span>
               <div>
-                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">USA & Canada Numbers</p>
-                <p className="text-[11px] text-slate-500 dark:text-white/40">Broad coverage with fast fallback for North American platforms.</p>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Canada Dedicated Numbers</p>
+                <p className="text-[11px] text-slate-500 dark:text-white/40">Dedicated Canadian lines with fast fallback and high deliverability.</p>
               </div>
             </div>
             <Link
@@ -176,8 +174,8 @@ export default function SMSDashboardPage() {
 
           <div className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
             <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xs font-bold font-mono">
-                2
+              <span className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <CountryFlag country="usa" size={20} />
               </span>
               <div>
                 <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">USA Dedicated Lines</p>
@@ -194,8 +192,8 @@ export default function SMSDashboardPage() {
 
           <div className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
             <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-xs font-bold font-mono">
-                3
+              <span className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+                <CountryFlag country="global" size={20} />
               </span>
               <div>
                 <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Global Numbers (100+ Countries)</p>

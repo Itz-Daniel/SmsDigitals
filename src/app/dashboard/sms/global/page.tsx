@@ -24,6 +24,8 @@ import { SERVICES, COUNTRIES } from "@/lib/data/sms-data";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { PurchaseConfirmationModal } from "@/components/PurchaseConfirmationModal";
 import { useCurrency } from "@/components/CurrencyContext";
+import { ServiceIcon } from "@/components/ServiceIcon";
+import { CountryFlag } from "@/components/CountryFlag";
 
 interface Rental {
   id: string;
@@ -277,7 +279,7 @@ export default function GlobalPurchasePage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const selectedCountryObj = COUNTRIES.find((c: { iso: string; name: string; flag: string }) => c.iso === globalCountry) || COUNTRIES[0];
+  const selectedCountryObj = COUNTRIES.find((c: { iso: string; name: string }) => c.iso === globalCountry) || COUNTRIES[0];
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 pb-24 md:pb-32 w-full max-w-6xl text-slate-900 dark:text-white font-sans overflow-x-hidden">
@@ -293,7 +295,8 @@ export default function GlobalPurchasePage() {
           </Link>
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              <span>🌍</span> Global SMS Server 3
+              <CountryFlag country="global" size={26} />
+              <span>Global SMS Server 3</span>
             </h2>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -333,13 +336,13 @@ export default function GlobalPurchasePage() {
                 <button 
                   type="button"
                   onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center"
+                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="text-xl leading-none">{selectedCountryObj.flag}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CountryFlag country={selectedCountryObj.iso} size={22} />
                     <span className="truncate font-bold text-sm">{selectedCountryObj.name}</span>
                   </div>
-                  <CaretDown weight="bold" size={16} className={`transition-transform text-slate-400 ${isCountryDropdownOpen ? "rotate-180" : ""}`} />
+                  <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isCountryDropdownOpen ? "rotate-180" : ""}`} />
                 </button>
                 
                 <AnimatePresence>
@@ -371,8 +374,8 @@ export default function GlobalPurchasePage() {
                         </div>
                         
                         <div className="overflow-y-auto p-1.5 flex-1 divide-y divide-slate-100 dark:divide-white/5">
-                          {COUNTRIES.filter((c: { name: string; iso: string; flag: string }) => c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()))
-                            .map((country: { name: string; iso: string; flag: string }) => (
+                          {COUNTRIES.filter((c: { name: string; iso: string }) => c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()))
+                            .map((country: { name: string; iso: string }) => (
                               <button
                                 key={country.iso}
                                 type="button"
@@ -383,8 +386,8 @@ export default function GlobalPurchasePage() {
                                 }}
                                 className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${globalCountry === country.iso ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
                               >
-                                <span className="text-base">{country.flag}</span>
-                                <span>{country.name}</span>
+                                <CountryFlag country={country.iso} size={18} />
+                                <span className="truncate">{country.name}</span>
                               </button>
                             ))}
                         </div>
@@ -445,13 +448,14 @@ export default function GlobalPurchasePage() {
                           setSelectedServiceName(matched.name);
                         }
                       }}
-                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                         isSelected
                           ? "bg-brand-blue text-white border-brand-blue shadow-sm shadow-brand-blue/20"
                           : "bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10"
                       }`}
                     >
-                      {s.name}
+                      <ServiceIcon name={s.name} size={15} />
+                      <span>{s.name}</span>
                     </button>
                   );
                 })}
@@ -468,10 +472,13 @@ export default function GlobalPurchasePage() {
                 <button 
                   type="button"
                   onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center"
+                  className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3.5 text-slate-900 dark:text-white text-left focus:border-brand-blue transition-all flex justify-between items-center gap-2"
                 >
-                  <span className="truncate font-bold text-sm">{selectedServiceName}</span>
-                  <CaretDown weight="bold" size={16} className={`transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <ServiceIcon name={selectedServiceName} size={20} />
+                    <span className="truncate font-bold text-sm">{selectedServiceName}</span>
+                  </div>
+                  <CaretDown weight="bold" size={16} className={`shrink-0 transition-transform text-slate-400 ${isServiceDropdownOpen ? "rotate-180" : ""}`} />
                 </button>
                 
                 <AnimatePresence>
@@ -515,9 +522,12 @@ export default function GlobalPurchasePage() {
                                   setIsServiceDropdownOpen(false);
                                   setServiceSearchQuery("");
                                 }}
-                                className={`w-full text-left flex justify-between px-3 py-2 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
+                                className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-colors ${selectedServiceName === service.name ? "bg-brand-blue/10 text-brand-blue font-bold" : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"}`}
                               >
-                                <span>{service.name}</span>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <ServiceIcon name={service.name} size={18} />
+                                  <span className="truncate font-medium">{service.name}</span>
+                                </div>
                               </button>
                             ))}
                         </div>
@@ -614,21 +624,22 @@ export default function GlobalPurchasePage() {
                   >
                     {/* Header: Service + Status Pill */}
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 dark:bg-white/10 text-slate-500'}`}>
-                          {rental.status === 'Waiting' ? <Clock size={18} weight="duotone" className="animate-pulse" /> : rental.status === 'Received' ? <CheckCircle size={18} weight="fill" /> : <WarningCircle size={18} weight="fill" />}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-1.5 shrink-0">
+                          <ServiceIcon name={SERVICES.find(s => s.id === rental.service)?.name || rental.service} size={18} />
                         </div>
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
                             {SERVICES.find(s => s.id === rental.service)?.name || rental.service}
                           </h4>
-                          <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-mono">
-                            Global Virtual Line
+                          <span className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-mono flex items-center gap-1.5">
+                            <CountryFlag country="global" size={12} />
+                            <span>Global Virtual Line</span>
                           </span>
                         </div>
                       </div>
 
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-slate-100 dark:bg-white/10 text-slate-500 border-slate-200 dark:border-white/10'}`}>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${rental.status === 'Waiting' ? 'bg-brand-blue/10 text-brand-blue border-brand-blue/20' : rental.status === 'Received' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-slate-100 dark:bg-white/10 text-slate-500 border-slate-200 dark:border-white/10'}`}>
                         {rental.status === 'Waiting' ? 'Waiting for SMS...' : rental.status === 'Received' ? 'Code Received' : rental.status}
                       </span>
                     </div>

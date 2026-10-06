@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle, Copy, Check, X, ArrowRight, ShieldCheck } from "@phosphor-icons/react";
+import { ServiceIcon } from "@/components/ServiceIcon";
+import { CountryFlag } from "@/components/CountryFlag";
 
 interface PurchaseSuccessModalProps {
   isOpen: boolean;
@@ -11,7 +13,8 @@ interface PurchaseSuccessModalProps {
   phoneNumber: string;
   cost: string;
   orderId: string;
-  countryFlag?: string;
+  country?: string;
+  countryFlag?: React.ReactNode | string;
 }
 
 export function PurchaseSuccessModal({
@@ -21,6 +24,7 @@ export function PurchaseSuccessModal({
   phoneNumber,
   cost,
   orderId,
+  country,
   countryFlag = "🇺🇸"
 }: PurchaseSuccessModalProps) {
   const [copied, setCopied] = useState(false);
@@ -70,8 +74,18 @@ export function PurchaseSuccessModal({
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/5 pb-2.5">
               <span className="text-xs text-slate-500 dark:text-white/40 font-bold uppercase tracking-wider">Service</span>
-              <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>{countryFlag}</span> {serviceName}
+              <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ServiceIcon name={serviceName} size={18} />
+                <span>{serviceName}</span>
+                {country ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-white/40 ml-1">
+                    • <CountryFlag country={country} size={14} />
+                  </span>
+                ) : countryFlag ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-white/40 ml-1">
+                    • {typeof countryFlag === 'string' && (countryFlag.startsWith('🇺') || countryFlag.startsWith('🇨') || countryFlag.length === 2) ? <CountryFlag country={countryFlag} size={14} /> : countryFlag}
+                  </span>
+                ) : null}
               </span>
             </div>
 

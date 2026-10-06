@@ -3,6 +3,8 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Check, Wallet } from "@phosphor-icons/react";
 import Link from "next/link";
+import { ServiceIcon } from "@/components/ServiceIcon";
+import { CountryFlag } from "@/components/CountryFlag";
 
 interface PurchaseConfirmationModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface PurchaseConfirmationModalProps {
   serviceName: string;
   cost: string;
   isProcessing: boolean;
+  countryName?: string;
   error?: string | null;
 }
 
@@ -49,8 +52,15 @@ export function PurchaseConfirmationModal({
           <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/5 bg-[#050505]">
             <div>
               <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1 block">Selected Service</span>
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-xl">📱</span> {serviceName}
+              <h2 className="text-xl font-bold text-white flex items-center gap-2.5">
+                <ServiceIcon name={serviceName} size={22} />
+                <span>{serviceName}</span>
+                {countryName && (
+                  <span className="text-sm font-normal text-white/50 flex items-center gap-1.5 ml-1">
+                    • <CountryFlag country={countryName} size={15} />
+                    <span>{countryName}</span>
+                  </span>
+                )}
               </h2>
             </div>
             {!isProcessing && (

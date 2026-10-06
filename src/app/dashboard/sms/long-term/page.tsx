@@ -22,6 +22,8 @@ import {
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCurrency } from "@/components/CurrencyContext";
+import { ServiceIcon } from "@/components/ServiceIcon";
+import { CountryFlag } from "@/components/CountryFlag";
 
 interface RentalMessage {
   id: string | number;
@@ -331,9 +333,19 @@ export default function LongTermRentalsPage() {
                   return (
                     <tr key={rental.id} className="border-b border-black/5 dark:border-white/5 last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                       <td className="py-4 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-mono font-bold text-slate-900 dark:text-white text-base">{rental.phone_number}</span>
-                          <span className="text-xs text-slate-500 dark:text-white/50 font-bold uppercase tracking-wider">{rental.service} • {rental.country}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-white/5 border border-black/5 dark:border-white/10 flex items-center justify-center p-1.5 shrink-0">
+                            <ServiceIcon name={rental.service} size={20} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-base">{rental.phone_number}</span>
+                            <span className="text-xs text-slate-500 dark:text-white/50 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                              <span>{rental.service}</span>
+                              <span>•</span>
+                              <CountryFlag country={rental.country} size={14} />
+                              <span>{rental.country}</span>
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -441,6 +453,15 @@ export default function LongTermRentalsPage() {
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Selected Preview Badge */}
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10">
+                    <ServiceIcon name={selectedService.name} size={18} />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedService.name}</span>
+                    <span className="text-slate-400">•</span>
+                    <CountryFlag country={selectedCountry.id} size={16} />
+                    <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold">{selectedCountry.name}</span>
                   </div>
 
                   {/* Duration Selection (Presets + Custom Input) */}

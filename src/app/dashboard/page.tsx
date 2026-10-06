@@ -30,6 +30,7 @@ const QuickFund = dynamic(() => import("@/components/dashboard/QuickFund"), {
   ssr: false,
 });
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
+import { CountryFlag } from "@/components/CountryFlag";
 
 interface Transaction {
   id: string;
@@ -260,7 +261,7 @@ export default function DashboardPage() {
       label: "USA Numbers",
       href: "/dashboard/sms/us",
       badge: "POPULAR",
-      flag: "🇺🇸",
+      country: "usa",
       isFlag: true,
       color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
     },
@@ -268,7 +269,7 @@ export default function DashboardPage() {
       id: "cana",
       label: "Canada",
       href: "/dashboard/sms/cana",
-      flag: "🇨🇦",
+      country: "canada",
       isFlag: true,
       color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
     },
@@ -570,7 +571,7 @@ export default function DashboardPage() {
                       {/* Icon / Flag Box */}
                       <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl relative transition-transform duration-200 group-hover/svc:-translate-y-0.5 shadow-sm dark:shadow-none ${svc.color}`}>
                         {svc.isFlag ? (
-                          <span className="text-2xl leading-none select-none">{svc.flag}</span>
+                          <CountryFlag country={svc.country} size={28} />
                         ) : (
                           Icon && <Icon size={22} weight="duotone" />
                         )}
