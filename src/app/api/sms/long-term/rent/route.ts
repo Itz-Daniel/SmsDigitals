@@ -53,22 +53,46 @@ export async function POST(req: Request) {
     const durationDays = Math.max(1, Math.min(365, parseInt(days) || 30));
     const supabaseAdmin = createAdminClient();
 
-    // 1. CALCULATE PRICING FIRST
-    const { data: settings } = await supabaseAdmin
+    // 1. CALCULATE PRICING FIRST (with resilient fallback)
+    let settings: any = null;
+    const { data: sData, error: sErr } = await supabaseAdmin
       .from('settings')
-      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
+      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate, brand_pricing')
       .eq('id', 1)
-      .single();
+      .maybeSingle();
 
-    const { data: apiSettings } = await supabaseAdmin
+    if (sErr && (sErr.message?.includes('column') || sErr.code === 'PGRST204')) {
+      const { data: sFallback } = await supabaseAdmin
+        .from('settings')
+        .select('exchange_rate, brand_pricing')
+        .eq('id', 1)
+        .maybeSingle();
+      settings = sFallback;
+    } else {
+      settings = sData;
+    }
+
+    let apiSettings: any = null;
+    const { data: aData, error: aErr } = await supabaseAdmin
       .from('api_settings')
-      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate')
+      .select('rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent, exchange_rate, brand_pricing')
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    const min1DayFloorUsd = settings?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? 0.80;
-    const dailyBaseRateUsd = settings?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? 0.50;
-    const marginPercent = settings?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? 30;
+    if (aErr && (aErr.message?.includes('column') || aErr.code === 'PGRST204')) {
+      const { data: aFallback } = await supabaseAdmin
+        .from('api_settings')
+        .select('exchange_rate, brand_pricing')
+        .limit(1)
+        .maybeSingle();
+      apiSettings = aFallback;
+    } else {
+      apiSettings = aData;
+    }
+
+    const min1DayFloorUsd = settings?.rental_min_floor_usd ?? settings?.brand_pricing?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? apiSettings?.brand_pricing?.rental_min_floor_usd ?? 0.80;
+    const dailyBaseRateUsd = settings?.rental_daily_rate_usd ?? settings?.brand_pricing?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? apiSettings?.brand_pricing?.rental_daily_rate_usd ?? 0.50;
+    const marginPercent = settings?.rental_margin_percent ?? settings?.brand_pricing?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? apiSettings?.brand_pricing?.rental_margin_percent ?? 30;
     const exchangeRate = settings?.exchange_rate ?? apiSettings?.exchange_rate ?? 1500;
 
     const discountRate = getDurationDiscount(durationDays);

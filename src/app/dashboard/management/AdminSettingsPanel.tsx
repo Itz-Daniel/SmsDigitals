@@ -15,7 +15,8 @@ import {
   Sparkle, 
   Tag, 
   MagnifyingGlass,
-  ArrowRight
+  ArrowRight,
+  FloppyDisk
 } from "@phosphor-icons/react";
 import { DEFAULT_BASELINE_FLOOR_NGN } from "@/lib/pricing-engine";
 import { SERVICES } from "@/lib/data/sms-data";
@@ -100,6 +101,8 @@ export default function AdminSettingsPanel({
   const [rentalMinFloorInput, setRentalMinFloorInput] = useState<string>(initialRentalMinFloor.toString());
   const [rentalDailyRateInput, setRentalDailyRateInput] = useState<string>(initialRentalDailyRate.toString());
   const [rentalMarginInput, setRentalMarginInput] = useState<string>(initialRentalMargin.toString());
+  const [isSavingRentals, setIsSavingRentals] = useState(false);
+  const [rentalMessage, setRentalMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // --- 3. VOUCHER CREATION STATE ---
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
@@ -164,6 +167,55 @@ export default function AdminSettingsPanel({
     });
   };
 
+  const handleSaveRentalSettings = async () => {
+    setIsSavingRentals(true);
+    setRentalMessage(null);
+
+    try {
+      const minFloor = parseFloat(rentalMinFloorInput);
+      const dailyRate = parseFloat(rentalDailyRateInput);
+      const margin = parseFloat(rentalMarginInput);
+
+      if (isNaN(minFloor) || minFloor <= 0) {
+        throw new Error("Minimum 1-day floor must be a valid positive number.");
+      }
+      if (isNaN(dailyRate) || dailyRate <= 0) {
+        throw new Error("Base daily rate must be a valid positive number.");
+      }
+      if (isNaN(margin) || margin < 0) {
+        throw new Error("Rental profit margin must be a valid non-negative number.");
+      }
+
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rental_min_floor_usd: minFloor,
+          rental_daily_rate_usd: dailyRate,
+          rental_margin_percent: margin
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Failed to save long-term rental settings.");
+      }
+
+      setRentalMessage({
+        text: `🎉 Long-Term Rental Settings Saved! 1-Day Floor: $${minFloor.toFixed(2)}, Daily Rate: $${dailyRate.toFixed(2)}, Margin: ${margin}%`,
+        type: "success"
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setRentalMessage({ text: err.message, type: "error" });
+      } else {
+        setRentalMessage({ text: "An unknown error occurred saving rental controls.", type: "error" });
+      }
+    } finally {
+      setIsSavingRentals(false);
+    }
+  };
+
   const handleSaveAllSettings = async () => {
     setIsSaving(true);
     setMessage(null);
@@ -174,17 +226,24 @@ export default function AdminSettingsPanel({
         throw new Error("Affiliate percentage must be a valid positive number.");
       }
 
+      const minFloor = parseFloat(rentalMinFloorInput) || 0.80;
+      const dailyRate = parseFloat(rentalDailyRateInput) || 0.50;
+      const margin = parseFloat(rentalMarginInput) || 30;
+
       const payload = {
         profit_margin: 0.40,
         affiliate_percentage: parsedAffiliate,
         brand_pricing: {
           pricesNgn,
           promoMultiplier,
-          baselineFloorNgn: baselineFloorNgn || DEFAULT_BASELINE_FLOOR_NGN
+          baselineFloorNgn: baselineFloorNgn || DEFAULT_BASELINE_FLOOR_NGN,
+          rental_min_floor_usd: minFloor,
+          rental_daily_rate_usd: dailyRate,
+          rental_margin_percent: margin
         },
-        rental_min_floor_usd: parseFloat(rentalMinFloorInput) || 0.80,
-        rental_daily_rate_usd: parseFloat(rentalDailyRateInput) || 0.50,
-        rental_margin_percent: parseFloat(rentalMarginInput) || 30
+        rental_min_floor_usd: minFloor,
+        rental_daily_rate_usd: dailyRate,
+        rental_margin_percent: margin
       };
 
       const res = await fetch('/api/admin/settings', {
@@ -199,8 +258,13 @@ export default function AdminSettingsPanel({
       }
 
       setMessage({ 
-        text: `🎉 Pricing Saved! Baseline floor is ₦${(baselineFloorNgn || 1200).toLocaleString()} & ${Object.keys(pricesNgn).length} service prices updated live!`, 
+        text: `🎉 All Platform Settings Saved! Updated ${Object.keys(pricesNgn).length} service prices, retail floor (₦${(baselineFloorNgn || 1200).toLocaleString()}), and Long-Term Rentals ($${minFloor} floor, ${margin}% margin) synced live!`, 
         type: "success" 
+      });
+
+      setRentalMessage({
+        text: `🎉 Long-Term Rental Settings Saved! 1-Day Floor: $${minFloor.toFixed(2)}, Daily Rate: $${dailyRate.toFixed(2)}, Margin: ${margin}%`,
+        type: "success"
       });
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -592,28 +656,61 @@ export default function AdminSettingsPanel({
       {/* 2. LONG-TERM RENTAL PROFIT MARGIN & PRICING FLOOR CARD */}
       {/* ======================================================== */}
       <div className="bg-white dark:bg-[#111] border border-brand-blue/20 dark:border-brand-blue/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm transition-colors">
-        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
               <Clock size={22} weight="bold" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Long-Term Rental Profit Margin & Floor Controls</h2>
-              <p className="text-xs text-slate-500 dark:text-white/40">Set minimum floor prices for 1-day rentals to keep pricing fair and highly profitable.</p>
+              <p className="text-xs text-slate-500 dark:text-white/40">Set minimum floor prices and daily rates for multi-day rentals to keep pricing fair and profitable.</p>
             </div>
           </div>
 
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
-            Fair Pricing Active
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+              Live Engine Active
+            </span>
+            <button
+              type="button"
+              onClick={handleSaveRentalSettings}
+              disabled={isSavingRentals}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-brand-blue text-white hover:bg-blue-600 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {isSavingRentals ? (
+                <>
+                  <Spinner size={14} className="animate-spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <FloppyDisk size={14} weight="bold" /> Save Controls
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {rentalMessage && (
+          <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 border ${
+            rentalMessage.type === "success" 
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
+              : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+          }`}>
+            {rentalMessage.type === "success" ? (
+              <CheckCircle size={18} weight="fill" className="shrink-0" />
+            ) : (
+              <WarningCircle size={18} weight="fill" className="shrink-0" />
+            )}
+            <span>{rentalMessage.text}</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Minimum 1-Day Floor ($)
-              <span className="text-[10px] text-emerald-500 font-extrabold">~₦1,200 NGN</span>
+              <span className="text-[10px] text-emerald-500 font-extrabold">~₦{Math.round((parseFloat(rentalMinFloorInput) || 0.80) * 1500).toLocaleString()} NGN</span>
             </label>
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
               <span className="text-slate-400 font-bold">$</span>
@@ -626,13 +723,13 @@ export default function AdminSettingsPanel({
                 placeholder="0.80"
               />
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-white/40">Fair minimum cost for a full 24-hour rental line.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Absolute minimum price for a 24-hour dedicated rental.</span>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40 flex items-center justify-between">
               Base Daily Rate ($)
-              <span className="text-[10px] text-brand-blue font-extrabold">~₦750 NGN/day</span>
+              <span className="text-[10px] text-brand-blue font-extrabold">~₦{Math.round((parseFloat(rentalDailyRateInput) || 0.50) * 1500).toLocaleString()}/day</span>
             </label>
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3">
               <span className="text-slate-400 font-bold">$</span>
@@ -645,7 +742,7 @@ export default function AdminSettingsPanel({
                 placeholder="0.50"
               />
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-white/40">Rate per day before bulk duration discounts.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Rate per day before volume discount curves.</span>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -663,10 +760,48 @@ export default function AdminSettingsPanel({
               />
               <span className="text-slate-400 font-bold">%</span>
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-white/40">Guaranteed profit margin on long-term rental duration.</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/40">Platform margin applied on top of the calculated rate.</span>
           </div>
 
         </div>
+
+        {/* Live Calculation Preview Banner */}
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-black/40 border border-slate-200/80 dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-wider block mb-1">
+              Live Estimated Customer Pricing Preview
+            </span>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+              <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white">
+                1 Day: <strong>${(Math.max(parseFloat(rentalMinFloorInput) || 0.8, (parseFloat(rentalDailyRateInput) || 0.5)) * (1 + (parseFloat(rentalMarginInput) || 30) / 100)).toFixed(2)}</strong> (~₦{Math.round(Math.max(parseFloat(rentalMinFloorInput) || 0.8, (parseFloat(rentalDailyRateInput) || 0.5)) * (1 + (parseFloat(rentalMarginInput) || 30) / 100) * 1500).toLocaleString()})
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white">
+                7 Days (-40%): <strong>${((parseFloat(rentalDailyRateInput) || 0.5) * 7 * 0.6 * (1 + (parseFloat(rentalMarginInput) || 30) / 100)).toFixed(2)}</strong> (~₦{Math.round((parseFloat(rentalDailyRateInput) || 0.5) * 7 * 0.6 * (1 + (parseFloat(rentalMarginInput) || 30) / 100) * 1500).toLocaleString()})
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white">
+                30 Days (-65%): <strong>${((parseFloat(rentalDailyRateInput) || 0.5) * 30 * 0.35 * (1 + (parseFloat(rentalMarginInput) || 30) / 100)).toFixed(2)}</strong> (~₦{Math.round((parseFloat(rentalDailyRateInput) || 0.5) * 30 * 0.35 * (1 + (parseFloat(rentalMarginInput) || 30) / 100) * 1500).toLocaleString()})
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveRentalSettings}
+            disabled={isSavingRentals}
+            className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs bg-brand-blue text-white hover:bg-blue-600 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {isSavingRentals ? (
+              <>
+                <Spinner size={16} className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <FloppyDisk size={16} weight="bold" /> Save Long-Term Controls
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
 
       {/* ======================================================== */}

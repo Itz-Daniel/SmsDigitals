@@ -15,25 +15,50 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: settings } = await supabase
+    // Resilient fetch from settings (handles cases where rental columns are missing)
+    let settings: any = null;
+    const { data: sData, error: sErr } = await supabase
       .from('settings')
       .select('profit_margin, affiliate_percentage, brand_pricing, rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent')
       .eq('id', 1)
-      .single();
+      .maybeSingle();
 
-    const { data: apiSettings } = await supabase
+    if (sErr && (sErr.message?.includes('column') || sErr.code === 'PGRST204')) {
+      const { data: sFallback } = await supabase
+        .from('settings')
+        .select('profit_margin, affiliate_percentage, brand_pricing')
+        .eq('id', 1)
+        .maybeSingle();
+      settings = sFallback;
+    } else {
+      settings = sData;
+    }
+
+    let apiSettings: any = null;
+    const { data: aData, error: aErr } = await supabase
       .from('api_settings')
       .select('profit_margin, affiliate_percentage, brand_pricing, rental_min_floor_usd, rental_daily_rate_usd, rental_margin_percent')
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (aErr && (aErr.message?.includes('column') || aErr.code === 'PGRST204')) {
+      const { data: aFallback } = await supabase
+        .from('api_settings')
+        .select('profit_margin, affiliate_percentage, brand_pricing')
+        .limit(1)
+        .maybeSingle();
+      apiSettings = aFallback;
+    } else {
+      apiSettings = aData;
+    }
 
     return NextResponse.json({ 
       profit_margin: settings?.profit_margin ?? apiSettings?.profit_margin ?? 0.4,
       affiliate_percentage: settings?.affiliate_percentage ?? apiSettings?.affiliate_percentage ?? 5.0,
       brand_pricing: settings?.brand_pricing ?? apiSettings?.brand_pricing ?? null,
-      rental_min_floor_usd: settings?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? 0.80,
-      rental_daily_rate_usd: settings?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? 0.50,
-      rental_margin_percent: settings?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? 30
+      rental_min_floor_usd: settings?.rental_min_floor_usd ?? settings?.brand_pricing?.rental_min_floor_usd ?? apiSettings?.rental_min_floor_usd ?? apiSettings?.brand_pricing?.rental_min_floor_usd ?? 0.80,
+      rental_daily_rate_usd: settings?.rental_daily_rate_usd ?? settings?.brand_pricing?.rental_daily_rate_usd ?? apiSettings?.rental_daily_rate_usd ?? apiSettings?.brand_pricing?.rental_daily_rate_usd ?? 0.50,
+      rental_margin_percent: settings?.rental_margin_percent ?? settings?.brand_pricing?.rental_margin_percent ?? apiSettings?.rental_margin_percent ?? apiSettings?.brand_pricing?.rental_margin_percent ?? 30
     });
   } catch (error: any) {
     console.error("Settings GET API Error:", error);
@@ -68,22 +93,58 @@ export async function POST(req: Request) {
       rental_margin_percent
     } = validationResult.data;
 
-    const updateData: any = { id: 1 };
+    const supabaseAdmin = createAdminClient();
+
+    // Fetch current brand_pricing to preserve existing values
+    let currentBrandPricing: any = {};
+    const { data: currentSettings } = await supabaseAdmin
+      .from('settings')
+      .select('brand_pricing')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (currentSettings?.brand_pricing && typeof currentSettings.brand_pricing === 'object') {
+      currentBrandPricing = currentSettings.brand_pricing;
+    }
+
+    // Merge incoming brand_pricing with rental controls
+    const mergedBrandPricing = {
+      ...currentBrandPricing,
+      ...(brand_pricing || {}),
+      ...(rental_min_floor_usd !== undefined ? { rental_min_floor_usd } : {}),
+      ...(rental_daily_rate_usd !== undefined ? { rental_daily_rate_usd } : {}),
+      ...(rental_margin_percent !== undefined ? { rental_margin_percent } : {})
+    };
+
+    const updateData: any = { id: 1, brand_pricing: mergedBrandPricing };
     if (profit_margin !== undefined) updateData.profit_margin = profit_margin;
     if (affiliate_percentage !== undefined) updateData.affiliate_percentage = affiliate_percentage;
-    if (brand_pricing !== undefined) updateData.brand_pricing = brand_pricing;
     if (rental_min_floor_usd !== undefined) updateData.rental_min_floor_usd = rental_min_floor_usd;
     if (rental_daily_rate_usd !== undefined) updateData.rental_daily_rate_usd = rental_daily_rate_usd;
     if (rental_margin_percent !== undefined) updateData.rental_margin_percent = rental_margin_percent;
-
-    const supabaseAdmin = createAdminClient();
     
-    // Upsert into settings table with id = 1
-    const { error: settingsErr } = await supabaseAdmin
+    // First attempt: upsert with all columns
+    let { error: settingsErr } = await supabaseAdmin
       .from('settings')
       .upsert(updateData, { onConflict: 'id' });
 
-    // Also upsert into api_settings table fallback safely
+    // Fallback attempt: if columns do not exist in the database, persist rental controls inside brand_pricing JSONB
+    if (settingsErr && (settingsErr.message?.includes('column') || settingsErr.code === 'PGRST204')) {
+      const fallbackData: any = {
+        id: 1,
+        brand_pricing: mergedBrandPricing
+      };
+      if (profit_margin !== undefined) fallbackData.profit_margin = profit_margin;
+      if (affiliate_percentage !== undefined) fallbackData.affiliate_percentage = affiliate_percentage;
+
+      const { error: fallbackErr } = await supabaseAdmin
+        .from('settings')
+        .upsert(fallbackData, { onConflict: 'id' });
+
+      settingsErr = fallbackErr;
+    }
+
+    // Also sync to api_settings if table exists
     try {
       await supabaseAdmin
         .from('api_settings')
@@ -94,15 +155,17 @@ export async function POST(req: Request) {
 
     if (settingsErr) {
       console.error("Supabase settings update error:", settingsErr);
-      if (settingsErr.message?.includes('column') || settingsErr.code === 'PGRST204') {
-        return NextResponse.json({ 
-          error: "Supabase table is missing required columns. Please run SQL in Supabase SQL Editor: ALTER TABLE settings ADD COLUMN IF NOT EXISTS rental_min_floor_usd NUMERIC DEFAULT 0.80, ADD COLUMN IF NOT EXISTS rental_daily_rate_usd NUMERIC DEFAULT 0.50, ADD COLUMN IF NOT EXISTS rental_margin_percent NUMERIC DEFAULT 30;" 
-        }, { status: 400 });
-      }
       throw settingsErr;
     }
 
-    return NextResponse.json({ success: true, message: "Settings saved and persisted successfully!", ...updateData });
+    return NextResponse.json({ 
+      success: true, 
+      message: "Settings saved and persisted successfully!", 
+      brand_pricing: mergedBrandPricing,
+      rental_min_floor_usd: rental_min_floor_usd ?? mergedBrandPricing.rental_min_floor_usd,
+      rental_daily_rate_usd: rental_daily_rate_usd ?? mergedBrandPricing.rental_daily_rate_usd,
+      rental_margin_percent: rental_margin_percent ?? mergedBrandPricing.rental_margin_percent
+    });
   } catch (error: any) {
     console.error("Settings POST API Error:", error);
     return NextResponse.json({ error: error?.message || "Failed to update settings" }, { status: 500 });
