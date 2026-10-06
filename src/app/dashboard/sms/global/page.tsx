@@ -309,12 +309,12 @@ export default function GlobalPurchasePage() {
         </span>
       </div>
 
-      {/* ── Main 2-Column Grid ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* ── Main Stack: Order Form Full-Width on Top / Active Lines Down Below ─ */}
+      <div className="flex flex-col gap-8 w-full">
         
-        {/* Left Column: Order Form */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-7 flex flex-col gap-5 shadow-sm dark:shadow-none">
+        {/* Full-Width Order Form */}
+        <div className="w-full flex flex-col gap-6">
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-8 flex flex-col gap-6 shadow-sm dark:shadow-none w-full">
             
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
@@ -592,8 +592,8 @@ export default function GlobalPurchasePage() {
           </div>
         </div>
 
-        {/* Right Column: Active Lines */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
+        {/* Active Lines Down Below */}
+        <div className="w-full flex flex-col gap-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-white/10 px-1">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
               Active Lines ({rentals.length})
@@ -610,7 +610,7 @@ export default function GlobalPurchasePage() {
                   <Broadcast size={32} weight="light" className="opacity-40 mb-1" />
                   <p className="text-sm font-bold text-slate-700 dark:text-white/80">No active Global lines</p>
                   <p className="text-xs max-w-xs text-slate-500 dark:text-white/40">
-                    Select a country and application on the left to deploy your number. Incoming SMS codes will appear here instantly.
+                    Select a country and application above to deploy your number. Incoming SMS codes will appear here instantly.
                   </p>
                 </div>
               ) : (

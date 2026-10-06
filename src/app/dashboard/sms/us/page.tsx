@@ -310,12 +310,12 @@ export default function USPurchasePage() {
         </div>
       </div>
 
-      {/* ── Main 2-Column Grid (Order Form on Left / Active Lines on Right) ─ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* ── Main Stack: Order Form Full-Width on Top / Active Lines Down Below ─ */}
+      <div className="flex flex-col gap-8 w-full">
         
-        {/* Left Column: Order Control Card */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-7 flex flex-col gap-5 shadow-sm dark:shadow-none">
+        {/* Full-Width Order Control Card */}
+        <div className="w-full flex flex-col gap-6">
+          <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 p-6 md:p-8 flex flex-col gap-6 shadow-sm dark:shadow-none w-full">
             
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
@@ -520,27 +520,27 @@ export default function USPurchasePage() {
           </div>
         </div>
 
-        {/* Right Column: Live Verification Monitor (Active Lines) */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-white/10 px-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
-              Active Lines ({rentals.length})
-            </span>
-            <span className="text-[11px] text-slate-400 dark:text-white/30">
-              Real-time OTP listener
-            </span>
-          </div>
+        {/* Live Verification Monitor (Active Lines Down Below) */}
+      <div className="w-full flex flex-col gap-4">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-white/10 px-1">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+            Active Lines ({rentals.length})
+          </span>
+          <span className="text-[11px] text-slate-400 dark:text-white/30">
+            Real-time OTP listener
+          </span>
+        </div>
 
-          <div className="flex flex-col gap-3">
-            <AnimatePresence>
-              {rentals.length === 0 ? (
-                <div className="p-10 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 flex flex-col items-center justify-center text-center gap-2 text-slate-400 dark:text-white/40">
-                  <Broadcast size={32} weight="light" className="opacity-40 mb-1" />
-                  <p className="text-sm font-bold text-slate-700 dark:text-white/80">No active USA lines</p>
-                  <p className="text-xs max-w-xs text-slate-500 dark:text-white/40">
-                    Select a service on the left and deploy your number. Incoming SMS codes will appear here instantly.
-                  </p>
-                </div>
+        <div className="flex flex-col gap-3">
+          <AnimatePresence>
+            {rentals.length === 0 ? (
+              <div className="p-10 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface/30 flex flex-col items-center justify-center text-center gap-2 text-slate-400 dark:text-white/40">
+                <Broadcast size={32} weight="light" className="opacity-40 mb-1" />
+                <p className="text-sm font-bold text-slate-700 dark:text-white/80">No active USA lines</p>
+                <p className="text-xs max-w-xs text-slate-500 dark:text-white/40">
+                  Select a service above and deploy your number. Incoming SMS codes will appear here instantly.
+                </p>
+              </div>
               ) : (
                 rentals.map((rental) => (
                   <motion.div 
