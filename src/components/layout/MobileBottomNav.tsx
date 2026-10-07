@@ -55,6 +55,23 @@ export function MobileBottomNav() {
     };
   }, []);
 
+  // Automatically hide mobile navigation when any modal or drawer is active
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const checkModal = () => {
+      const hasModal = document.body.getAttribute("data-modal-open") === "true" ||
+                       document.body.classList.contains("modal-open") ||
+                       document.body.style.overflow === "hidden";
+      setIsModalOpen(hasModal);
+    };
+
+    checkModal();
+    const observer = new MutationObserver(checkModal);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-modal-open", "class", "style"] });
+    return () => observer.disconnect();
+  }, []);
+
   const isHome = pathname === "/dashboard";
   const isSms = pathname.startsWith("/dashboard/sms");
   const isFund = pathname.startsWith("/dashboard/fund");
@@ -63,14 +80,14 @@ export function MobileBottomNav() {
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && !isModalOpen && (
         <motion.nav
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
           aria-label="Mobile Navigation"
-          className="lg:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 flex justify-center pointer-events-none px-2.5 sm:px-4"
+          className="lg:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-30 flex justify-center pointer-events-none px-2.5 sm:px-4"
         >
           <div className="pointer-events-auto w-full max-w-[360px] bg-white/92 dark:bg-[#121212]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.14)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.7)] rounded-full p-1 select-none [-webkit-tap-highlight-color:transparent]">
             <div className="grid grid-cols-5 items-center">

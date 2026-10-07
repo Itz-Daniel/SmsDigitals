@@ -71,10 +71,26 @@ export function LivePurchaseToast() {
     }, 7000);
   };
 
-  if (isMuted || !currentEvent) return null;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const checkModal = () => {
+      const hasModal = document.body.getAttribute("data-modal-open") === "true" ||
+                       document.body.classList.contains("modal-open") ||
+                       document.body.style.overflow === "hidden";
+      setIsModalOpen(hasModal);
+    };
+
+    checkModal();
+    const observer = new MutationObserver(checkModal);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-modal-open", "class", "style"] });
+    return () => observer.disconnect();
+  }, []);
+
+  if (isMuted || !currentEvent || isModalOpen) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-16 sm:right-auto sm:bottom-6 sm:left-6 z-40 max-w-sm pointer-events-none font-sans">
+    <div className="fixed bottom-4 left-4 right-16 sm:right-auto sm:bottom-6 sm:left-6 z-20 max-w-sm pointer-events-none font-sans">
       <AnimatePresence>
         {isVisible && (
           <motion.div
