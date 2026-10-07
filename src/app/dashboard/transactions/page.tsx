@@ -17,7 +17,8 @@ import {
   Check, 
   Plus, 
   Wallet, 
-  CreditCard 
+  CreditCard,
+  Sparkle
 } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrency } from "@/components/CurrencyContext";
@@ -40,6 +41,11 @@ function formatReference(ref?: string, id?: string): string {
   if (raw.toLowerCase().startsWith("voucher_")) {
     const code = raw.replace(/^voucher_/i, "");
     return `#VCH-${code.toUpperCase()}`;
+  }
+
+  if (raw.toLowerCase().includes("affiliate")) {
+    const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
+    return `#AFF-${clean.slice(-6).toUpperCase()}`;
   }
   
   if (raw.toLowerCase().includes("smspva") || raw.toLowerCase().includes("order")) {
@@ -140,6 +146,14 @@ export default function TransactionsPage() {
     );
   };
 
+  const isAffiliateTx = (tx: Transaction) => {
+    return (
+      tx.type?.toLowerCase().includes("affiliate") || 
+      tx.reference?.toLowerCase().includes("affiliate") ||
+      tx.description?.toLowerCase().includes("affiliate")
+    );
+  };
+
   const formatShortDate = (dateString: string) => {
     try {
       const d = new Date(dateString);
@@ -169,7 +183,8 @@ export default function TransactionsPage() {
       tx.type === "Funding" || 
       tx.type === "Deposit" || 
       tx.type === "Refund" || 
-      isVoucherTx(tx);
+      isVoucherTx(tx) ||
+      isAffiliateTx(tx);
       
     const amount = Number(tx.amount) || 0;
     const isUsd = tx.currency === "USD";
@@ -332,6 +347,8 @@ export default function TransactionsPage() {
             <div className="flex flex-col gap-3 sm:hidden">
               {transactions.map((tx, idx) => {
                 const isVoucher = isVoucherTx(tx);
+                const isAffiliate = isAffiliateTx(tx);
+                const isCredit = tx.type === 'Funding' || tx.type === 'Deposit' || tx.type === 'Refund' || isVoucher || isAffiliate;
                 const formattedRef = formatReference(tx.reference, tx.id);
                 const rawCopyText = tx.reference || tx.id;
                 const txKey = tx.id || tx.reference || idx.toString();
@@ -349,15 +366,23 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                           isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
-                          tx.type === 'Funding' ? 'bg-emerald-500/15 text-emerald-500' : 
+                          isAffiliate ? 'bg-emerald-500/15 text-emerald-500' :
+                          tx.type === 'Funding' || tx.type === 'Deposit' ? 'bg-emerald-500/15 text-emerald-500' : 
                           tx.type === 'Refund' ? 'bg-brand-blue/15 text-brand-blue' : 
                           'bg-red-500/15 text-red-500'
                         }`}>
-                          {isVoucher ? <Ticket weight="fill" size={18} /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" size={18} /> : <ArrowUpRight weight="bold" size={18} />}
+                          {isVoucher ? <Ticket weight="fill" size={18} /> : 
+                           isAffiliate ? <Sparkle weight="fill" size={18} /> :
+                           isCredit ? <ArrowDownLeft weight="bold" size={18} /> : 
+                           <ArrowUpRight weight="bold" size={18} />}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className={`font-bold text-xs ${isVoucher ? 'text-brand-blue dark:text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
-                            {isVoucher ? "Gift Card Voucher" : tx.type}
+                          <span className={`font-bold text-xs ${
+                            isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                            isAffiliate ? 'text-emerald-500 dark:text-emerald-400' :
+                            'text-slate-900 dark:text-white'
+                          }`}>
+                            {isVoucher ? "Gift Card Voucher" : isAffiliate ? "Affiliate Commission" : tx.type}
                           </span>
                           {tx.description && (
                             <span className="text-[11px] font-medium text-slate-500 dark:text-white/50 truncate max-w-[190px]">
@@ -368,9 +393,11 @@ export default function TransactionsPage() {
                       </div>
 
                       <span className={`font-mono text-base font-extrabold shrink-0 ${
-                        isVoucher ? 'text-brand-blue dark:text-cyan-400' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'
+                        isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                        isCredit ? 'text-emerald-500' : 
+                        'text-slate-900 dark:text-white'
                       }`}>
-                        {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                        {isCredit ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
                       </span>
                     </div>
 
@@ -426,6 +453,8 @@ export default function TransactionsPage() {
                   <tbody>
                     {transactions.map((tx, idx) => {
                       const isVoucher = isVoucherTx(tx);
+                      const isAffiliate = isAffiliateTx(tx);
+                      const isCredit = tx.type === 'Funding' || tx.type === 'Deposit' || tx.type === 'Refund' || isVoucher || isAffiliate;
                       const formattedRef = formatReference(tx.reference, tx.id);
                       const rawCopyText = tx.reference || tx.id;
                       const txKey = tx.id || tx.reference || idx.toString();
@@ -440,15 +469,23 @@ export default function TransactionsPage() {
                             <div className="flex items-center gap-2.5">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                                 isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
-                                tx.type === 'Funding' ? 'bg-emerald-500/15 text-emerald-500' : 
+                                isAffiliate ? 'bg-emerald-500/15 text-emerald-500' :
+                                tx.type === 'Funding' || tx.type === 'Deposit' ? 'bg-emerald-500/15 text-emerald-500' : 
                                 tx.type === 'Refund' ? 'bg-brand-blue/15 text-brand-blue' : 
                                 'bg-red-500/15 text-red-500'
                               }`}>
-                                {isVoucher ? <Ticket weight="fill" size={15} /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" size={15} /> : <ArrowUpRight weight="bold" size={15} />}
+                                {isVoucher ? <Ticket weight="fill" size={15} /> : 
+                                 isAffiliate ? <Sparkle weight="fill" size={15} /> :
+                                 isCredit ? <ArrowDownLeft weight="bold" size={15} /> : 
+                                 <ArrowUpRight weight="bold" size={15} />}
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className={`font-bold text-xs ${isVoucher ? 'text-brand-blue dark:text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
-                                  {isVoucher ? "Gift Card Voucher" : tx.type}
+                                <span className={`font-bold text-xs ${
+                                  isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                                  isAffiliate ? 'text-emerald-500 dark:text-emerald-400' :
+                                  'text-slate-900 dark:text-white'
+                                }`}>
+                                  {isVoucher ? "Gift Card Voucher" : isAffiliate ? "Affiliate Commission" : tx.type}
                                 </span>
                                 <span className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
                                   {formatShortDate(tx.created_at)}
@@ -489,9 +526,11 @@ export default function TransactionsPage() {
                           {/* Amount */}
                           <td className="p-3.5 px-4 text-right">
                             <span className={`font-mono text-sm font-bold ${
-                              isVoucher ? 'text-brand-blue dark:text-cyan-400' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'
+                              isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                              isCredit ? 'text-emerald-500' : 
+                              'text-slate-900 dark:text-white'
                             }`}>
-                              {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                              {isCredit ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
                             </span>
                           </td>
                         </tr>
@@ -520,6 +559,8 @@ export default function TransactionsPage() {
                   <tbody>
                     {transactions.map((tx, idx) => {
                       const isVoucher = isVoucherTx(tx);
+                      const isAffiliate = isAffiliateTx(tx);
+                      const isCredit = tx.type === 'Funding' || tx.type === 'Deposit' || tx.type === 'Refund' || isVoucher || isAffiliate;
                       const formattedRef = formatReference(tx.reference, tx.id);
                       const rawCopyText = tx.reference || tx.id;
                       const txKey = tx.id || tx.reference || idx.toString();
@@ -554,16 +595,24 @@ export default function TransactionsPage() {
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                                 isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
-                                tx.type === 'Funding' ? 'bg-emerald-500/15 text-emerald-500' : 
+                                isAffiliate ? 'bg-emerald-500/15 text-emerald-500' :
+                                tx.type === 'Funding' || tx.type === 'Deposit' ? 'bg-emerald-500/15 text-emerald-500' : 
                                 tx.type === 'Refund' ? 'bg-brand-blue/15 text-brand-blue' : 
                                 'bg-red-500/15 text-red-500'
                               }`}>
-                                {isVoucher ? <Ticket weight="fill" /> : tx.type === 'Funding' || tx.type === 'Refund' ? <ArrowDownLeft weight="bold" /> : <ArrowUpRight weight="bold" />}
+                                {isVoucher ? <Ticket weight="fill" /> : 
+                                 isAffiliate ? <Sparkle weight="fill" /> :
+                                 isCredit ? <ArrowDownLeft weight="bold" /> : 
+                                 <ArrowUpRight weight="bold" />}
                               </div>
 
                               <div className="flex flex-col min-w-0 flex-1">
-                                <span className={`font-bold text-xs truncate ${isVoucher ? 'text-brand-blue dark:text-cyan-400' : 'text-slate-900 dark:text-white'}`}>
-                                  {isVoucher ? "Gift Card Voucher" : tx.type}
+                                <span className={`font-bold text-xs truncate ${
+                                  isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                                  isAffiliate ? 'text-emerald-500 dark:text-emerald-400' :
+                                  'text-slate-900 dark:text-white'
+                                }`}>
+                                  {isVoucher ? "Gift Card Voucher" : isAffiliate ? "Affiliate Commission" : tx.type}
                                 </span>
                                 {tx.description && (
                                   <span className="text-[11px] font-semibold text-slate-500 dark:text-white/50 truncate max-w-full" title={tx.description}>
@@ -594,9 +643,11 @@ export default function TransactionsPage() {
                           {/* Amount: Fully Visible and Right-Aligned */}
                           <td className="p-4 px-5 w-[14%] text-right">
                             <span className={`font-mono text-sm font-extrabold whitespace-nowrap ${
-                              isVoucher ? 'text-brand-blue dark:text-cyan-400' : tx.type === 'Funding' || tx.type === 'Refund' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'
+                              isVoucher ? 'text-brand-blue dark:text-cyan-400' : 
+                              isCredit ? 'text-emerald-500' : 
+                              'text-slate-900 dark:text-white'
                             }`}>
-                              {tx.type === 'Funding' || tx.type === 'Refund' || isVoucher ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
+                              {isCredit ? '+' : '-'}{tx.currency === 'USD' ? '$' : '₦'}{tx.amount.toLocaleString()}
                             </span>
                           </td>
                         </motion.tr>

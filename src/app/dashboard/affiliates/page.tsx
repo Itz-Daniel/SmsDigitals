@@ -12,7 +12,10 @@ import {
   Sparkle, 
   ClockCounterClockwise,
   CheckCircle,
-  PaperPlaneTilt
+  PaperPlaneTilt,
+  LinkSimple,
+  Ticket,
+  WarningCircle
 } from "@phosphor-icons/react";
 import { useCurrency } from "@/components/CurrencyContext";
 
@@ -40,6 +43,10 @@ export default function AffiliatesPage() {
   const [recentCommissions, setRecentCommissions] = useState<RecentCommission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [isReferred, setIsReferred] = useState<boolean>(true);
+  const [manualCode, setManualCode] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
 
   useEffect(() => {
     async function loadStats() {
@@ -55,6 +62,9 @@ export default function AffiliatesPage() {
           setActiveReferralsCount(data.activeReferralsCount || 0);
           setRecentReferrals(data.recentReferrals || []);
           setRecentCommissions(data.recentCommissions || []);
+          if (data.isReferred !== undefined) {
+            setIsReferred(Boolean(data.isReferred));
+          }
         }
       } catch (err) {
         console.error("Failed to load affiliate stats:", err);
@@ -65,6 +75,32 @@ export default function AffiliatesPage() {
 
     loadStats();
   }, []);
+
+  const handleLinkReferrer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = manualCode.trim().toUpperCase();
+    if (!clean || linking) return;
+    setLinking(true);
+    setLinkStatus({ type: 'idle', message: '' });
+    try {
+      const res = await fetch("/api/affiliates/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralCode: clean }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setLinkStatus({ type: 'error', message: data.error || "Failed to link referral code" });
+      } else {
+        setIsReferred(true);
+        setLinkStatus({ type: 'success', message: "Referrer linked successfully! Thank you for supporting your friend." });
+      }
+    } catch {
+      setLinkStatus({ type: 'error', message: "Network error. Please try again." });
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const handleCopy = () => {
     if (!referralLink) return;
@@ -232,6 +268,58 @@ export default function AffiliatesPage() {
           </a>
         </div>
       </div>
+
+      {/* ── Optional: Manual Referral Linking (for users who joined without a link) ── */}
+      {(!isReferred || linkStatus.type === 'success') && (
+        <div className="bg-gradient-to-r from-brand-blue/10 via-brand-blue/5 to-transparent border border-brand-blue/20 rounded-3xl p-6 sm:p-7 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1.5 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-blue/20 text-brand-blue text-[11px] font-bold font-mono uppercase">
+                <Ticket size={13} weight="fill" /> Join via an Inviter
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                Were you referred by a friend or colleague?
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                If you forgot to use their link during signup, you can connect their referral code here. This rewards them with lifetime commission whenever you fund your account.
+              </p>
+            </div>
+
+            {linkStatus.type === 'success' ? (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                <CheckCircle size={18} weight="fill" />
+                <span>{linkStatus.message}</span>
+              </div>
+            ) : (
+              <form onSubmit={handleLinkReferrer} className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+                <input
+                  type="text"
+                  placeholder="e.g. VIP-4982"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                  disabled={linking}
+                  maxLength={15}
+                  className="w-full sm:w-44 px-4 py-3 rounded-2xl bg-white dark:bg-black/60 border border-slate-200 dark:border-white/10 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white uppercase placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-brand-blue transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={linking || !manualCode.trim()}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                >
+                  <LinkSimple size={16} weight="bold" />
+                  <span>{linking ? "Linking..." : "Link Code"}</span>
+                </button>
+              </form>
+            )}
+          </div>
+          {linkStatus.type === 'error' && (
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-red-500 font-medium">
+              <WarningCircle size={14} weight="fill" />
+              <span>{linkStatus.message}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Recent Commission History Table ─────────────────────── */}
       <div className="bg-white dark:bg-[#111111] border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">

@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     // 2. Fetch profile info
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("affiliate_earnings, referral_code")
+      .select("affiliate_earnings, referral_code, referred_by")
       .eq("id", user.id)
       .single();
 
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
         .eq("id", 1)
         .maybeSingle();
 
-      if (settingRow?.affiliate_percentage) {
+      if (settingRow?.affiliate_percentage !== undefined && settingRow?.affiliate_percentage !== null) {
         percentage = Number(settingRow.affiliate_percentage);
       } else {
         const { data: apiSettingRow } = await supabaseAdmin
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
           .select("affiliate_percentage")
           .limit(1)
           .maybeSingle();
-        if (apiSettingRow?.affiliate_percentage) {
+        if (apiSettingRow?.affiliate_percentage !== undefined && apiSettingRow?.affiliate_percentage !== null) {
           percentage = Number(apiSettingRow.affiliate_percentage);
         }
       }
@@ -76,6 +76,7 @@ export async function GET(req: Request) {
       referralCode,
       referralLink,
       percentage,
+      isReferred: Boolean(profile?.referred_by),
       totalEarningsNgn: Number(profile?.affiliate_earnings || 0),
       activeReferralsCount: referredCount || 0,
       recentReferrals: (referredProfiles || []).map((p) => ({

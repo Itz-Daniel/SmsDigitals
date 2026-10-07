@@ -69,7 +69,7 @@ export async function creditAffiliateCommission(
         .eq("id", 1)
         .maybeSingle();
 
-      if (settingRow?.affiliate_percentage) {
+      if (settingRow?.affiliate_percentage !== undefined && settingRow?.affiliate_percentage !== null) {
         percentage = Number(settingRow.affiliate_percentage);
       } else {
         const { data: apiSettingRow } = await supabaseAdmin
@@ -77,12 +77,16 @@ export async function creditAffiliateCommission(
           .select("affiliate_percentage")
           .limit(1)
           .maybeSingle();
-        if (apiSettingRow?.affiliate_percentage) {
+        if (apiSettingRow?.affiliate_percentage !== undefined && apiSettingRow?.affiliate_percentage !== null) {
           percentage = Number(apiSettingRow.affiliate_percentage);
         }
       }
     } catch {
       percentage = 5.0;
+    }
+
+    if (percentage <= 0) {
+      return { credited: false, message: "Affiliate commissions are disabled (0%)" };
     }
 
     const commissionNgn = Math.round(depositAmountNgn * (percentage / 100));

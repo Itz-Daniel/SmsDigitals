@@ -19,7 +19,9 @@ import {
   ArrowDownLeft, 
   ArrowUpRight, 
   Plus,
-  PlusCircle
+  PlusCircle,
+  Sparkle,
+  Ticket
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -604,10 +606,14 @@ export default function DashboardPage() {
               {recentTransactions && recentTransactions.length > 0 ? (
                 <div className="divide-y divide-slate-100 dark:divide-white/5">
                   {recentTransactions.map((tx) => {
+                    const isVoucher = tx.type?.toLowerCase().includes("voucher") || tx.description?.toLowerCase().includes("voucher");
+                    const isAffiliate = tx.type?.toLowerCase().includes("affiliate") || tx.description?.toLowerCase().includes("affiliate");
                     const isCredit = tx.type?.toLowerCase().includes("fund") || 
                                      tx.type?.toLowerCase().includes("deposit") ||
                                      tx.type?.toLowerCase().includes("credit") ||
-                                     tx.type?.toLowerCase().includes("voucher");
+                                     tx.type?.toLowerCase().includes("refund") ||
+                                     isVoucher ||
+                                     isAffiliate;
 
                     return (
                       <div
@@ -615,12 +621,24 @@ export default function DashboardPage() {
                         className="flex items-center justify-between p-4 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/60'}`}>
-                            {isCredit ? <ArrowDownLeft size={16} weight="bold" /> : <ArrowUpRight size={16} weight="bold" />}
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                            isVoucher ? 'bg-brand-blue/15 text-brand-blue' :
+                            isAffiliate ? 'bg-emerald-500/15 text-emerald-500' :
+                            isCredit ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
+                            'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/60'
+                          }`}>
+                            {isVoucher ? <Ticket size={16} weight="fill" /> :
+                             isAffiliate ? <Sparkle size={16} weight="fill" /> :
+                             isCredit ? <ArrowDownLeft size={16} weight="bold" /> : 
+                             <ArrowUpRight size={16} weight="bold" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                              {isCredit ? "Wallet Funding" : (tx.description || tx.type || "Number Purchase")}
+                            <p className={`text-xs sm:text-sm font-bold truncate ${
+                              isVoucher ? 'text-brand-blue dark:text-cyan-400' :
+                              isAffiliate ? 'text-emerald-500 dark:text-emerald-400' :
+                              'text-slate-900 dark:text-white'
+                            }`}>
+                              {isVoucher ? "Gift Card Voucher" : isAffiliate ? "Affiliate Commission" : isCredit ? "Wallet Funding" : (tx.description || tx.type || "Number Purchase")}
                             </p>
                             <p className="text-[11px] text-slate-500 dark:text-white/40 truncate font-mono">
                               {tx.reference ? tx.reference.slice(-10).toUpperCase() : "Direct transaction"}
@@ -629,7 +647,11 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="text-right shrink-0 pl-3">
-                          <p className={`text-xs sm:text-sm font-bold font-mono tabular-nums ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                          <p className={`text-xs sm:text-sm font-bold font-mono tabular-nums ${
+                            isVoucher ? 'text-brand-blue dark:text-cyan-400' :
+                            isCredit ? 'text-emerald-600 dark:text-emerald-400' : 
+                            'text-slate-900 dark:text-white'
+                          }`}>
                             {isCredit ? "+" : "−"}{tx.currency === "NGN" ? "₦" : "$"}{Number(tx.amount || 0).toLocaleString(tx.currency === "NGN" ? "en-NG" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                           <p className="text-[10px] text-slate-400 dark:text-white/30">

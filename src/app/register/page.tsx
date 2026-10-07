@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowRight,
@@ -13,6 +13,8 @@ import {
   At,
   CheckCircle,
   XCircle,
+  Ticket,
+  Sparkle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +26,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -31,6 +34,24 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const supabase = createClient();
+
+  // Auto-detect referral code from URL parameter ?ref=... or client cookie
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const refFromUrl = params.get("ref");
+    if (refFromUrl) {
+      setReferralCode(refFromUrl.trim().toUpperCase());
+      const d = new Date();
+      d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+      document.cookie = `ref_code=${refFromUrl.trim().toUpperCase()};expires=${d.toUTCString()};path=/`;
+    } else {
+      const match = document.cookie.match(/(^|;)\s*ref_code=([^;]+)/);
+      if (match) {
+        setReferralCode(decodeURIComponent(match[2]).trim().toUpperCase());
+      }
+    }
+  }, []);
 
   const passwordStrength = password ? zxcvbn(password).score : 0;
 
@@ -66,6 +87,12 @@ export default function RegisterPage() {
 
   const handleOAuthLogin = async (provider: "google" | "github") => {
     setError(null);
+    const cleanRef = referralCode.trim().toUpperCase();
+    if (cleanRef) {
+      const d = new Date();
+      d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+      document.cookie = `ref_code=${cleanRef};expires=${d.toUTCString()};path=/`;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -96,11 +123,21 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
 
+    const cleanRef = referralCode.trim() ? referralCode.trim().toUpperCase() : undefined;
+    if (cleanRef) {
+      const d = new Date();
+      d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+      document.cookie = `ref_code=${cleanRef};expires=${d.toUTCString()};path=/`;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          referral_code: cleanRef,
+        },
       },
     });
 
@@ -438,6 +475,43 @@ export default function RegisterPage() {
                       ) : (
                         <Eye size={18} weight="bold" />
                       )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Referral Code (Optional) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40">
+                    Referral Code <span className="text-white/25 font-normal lowercase">(optional)</span>
+                  </label>
+                  {referralCode && (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                      <Sparkle size={10} weight="fill" /> Applied
+                    </span>
+                  )}
+                </div>
+                <div className="group flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3 focus-within:border-brand-blue/50 focus-within:bg-brand-blue/[0.02] transition-all duration-300">
+                  <Ticket
+                    size={18}
+                    weight="bold"
+                    className="text-white/25 group-focus-within:text-brand-blue transition-colors flex-shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. DANIEL88"
+                    className="flex-1 bg-transparent text-white placeholder-white/25 outline-none text-[15px] font-mono tracking-wider uppercase"
+                  />
+                  {referralCode && (
+                    <button
+                      type="button"
+                      onClick={() => setReferralCode("")}
+                      className="text-white/30 hover:text-white/70 transition-colors text-xs font-semibold shrink-0"
+                    >
+                      Clear
                     </button>
                   )}
                 </div>

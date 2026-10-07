@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser();
 
       // Process Affiliate Link immediately on auth success
-      const refCode = request.cookies.get('ref_code')?.value;
+      const refCode = request.cookies.get('ref_code')?.value || (user?.user_metadata?.referral_code as string | undefined);
       if (refCode && user) {
         try {
           const supabaseAdmin = createAdminClient();
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
             const { data: referrer } = await supabaseAdmin
               .from('profiles')
               .select('id')
-              .eq('referral_code', refCode)
+              .eq('referral_code', refCode.trim().toUpperCase())
               .single();
               
             if (referrer && referrer.id !== user.id) {

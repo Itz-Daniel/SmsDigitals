@@ -30,18 +30,18 @@ export default async function DashboardLayout({
     .eq("id", user.id)
     .single();
 
-  // Automatic referral linking if ref_code cookie is present and user not yet linked
+  // Automatic referral linking if ref_code cookie or user metadata is present and user not yet linked
   try {
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    const refCode = cookieStore.get("ref_code")?.value;
+    const refCode = cookieStore.get("ref_code")?.value || (user?.user_metadata?.referral_code as string | undefined);
     if (refCode && !profileData?.referred_by) {
       const { createAdminClient } = await import("@/lib/supabase/admin");
       const supabaseAdmin = createAdminClient();
       const { data: referrer } = await supabaseAdmin
         .from("profiles")
         .select("id")
-        .eq("referral_code", refCode)
+        .eq("referral_code", refCode.trim().toUpperCase())
         .maybeSingle();
 
       if (referrer && referrer.id !== user.id) {

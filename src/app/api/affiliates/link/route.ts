@@ -11,9 +11,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { referralCode } = await req.json();
+    const cleanCode = String(referralCode || "").trim().toUpperCase();
 
-    if (!referralCode) {
+    if (!cleanCode) {
       return NextResponse.json({ error: "Missing referral code" }, { status: 400 });
     }
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const { data: referrer, error: referrerError } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('referral_code', referralCode)
+      .eq('referral_code', cleanCode)
       .single();
 
     if (referrerError || !referrer) {
