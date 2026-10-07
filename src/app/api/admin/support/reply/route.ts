@@ -51,7 +51,11 @@ export async function POST(request: Request) {
       await sendTicketReplyEmail(userEmail, ticketSubject || 'Support Ticket', replyText);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      messages: newMessages,
+      newMessage: newMessages[newMessages.length - 1] 
+    });
   } catch (error: unknown) {
     console.error("Admin Reply Error:", error);
     const msg = error instanceof Error ? error.message : "Failed to send reply";

@@ -53,7 +53,11 @@ export async function POST(request: Request) {
     // Send async email without blocking the response
     sendAdminNotificationEmail(ticket.subject || 'Support Ticket', true).catch(console.error);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      messages: newMessages,
+      newMessage: newMessages[newMessages.length - 1] 
+    });
   } catch (error: unknown) {
     console.error("User Reply Error:", error);
     const msg = error instanceof Error ? error.message : "Failed to reply to ticket";
