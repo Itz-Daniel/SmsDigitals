@@ -243,21 +243,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Voucher has zero credit value." }, { status: 400 });
     }
 
-    // Atomically Credit ONLY the Selected Currency Balance
+    // Atomically Credit ONLY the Selected Currency Balance & Increment Lifetime Deposits
     if (!userWallet) {
       return NextResponse.json({ error: "Wallet not found." }, { status: 404 });
     }
 
-    let updateWalletData: Record<string, number> = {};
+    const creditUsd = finalCurrency === "NGN" 
+      ? Math.round((creditAmount / exchangeRate) * 100) / 100 
+      : creditAmount;
+
+    const currentLifetime = Number(userWallet.lifetime_deposits_usd) || 0;
+    const newLifetime = currentLifetime + creditUsd;
+
+    let updateWalletData: Record<string, any> = {};
     let formattedSuccessText = "";
 
     if (finalCurrency === "NGN") {
       const newNgnBalance = (userWallet.balance_ngn || 0) + creditAmount;
-      updateWalletData = { balance_ngn: newNgnBalance };
+      updateWalletData = { 
+        balance_ngn: newNgnBalance,
+        lifetime_deposits_usd: newLifetime,
+        updated_at: new Date().toISOString()
+      };
       formattedSuccessText = `₦${creditAmount.toLocaleString()} NGN`;
     } else {
       const newUsdBalance = (userWallet.balance_usd || 0) + creditAmount;
-      updateWalletData = { balance_usd: newUsdBalance };
+      updateWalletData = { 
+        balance_usd: newUsdBalance,
+        lifetime_deposits_usd: newLifetime,
+        updated_at: new Date().toISOString()
+      };
       formattedSuccessText = `$${creditAmount.toFixed(2)} USD`;
     }
 

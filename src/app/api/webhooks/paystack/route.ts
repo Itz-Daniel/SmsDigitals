@@ -41,6 +41,16 @@ export async function POST(req: Request) {
 
       // 4. Atomic Wallet Credit & Transaction Logging
       const supabase = createAdminClient();
+
+      // Fetch exchange rate to convert deposit to USD for account tiers
+      const { data: appSettings } = await supabase
+        .from('settings')
+        .select('exchange_rate')
+        .eq('id', 1)
+        .single();
+      const exchangeRate = appSettings?.exchange_rate || 1500;
+      const depositUsd = Math.round((amountInNgn / exchangeRate) * 100) / 100;
+
       const { data: creditResult, error: creditError } = await supabase.rpc('credit_wallet', {
         p_user_id: userId,
         p_amount: amountInNgn,
@@ -64,19 +74,29 @@ export async function POST(req: Request) {
         // Fetch or create wallet
         const { data: wallet } = await supabase
           .from("wallets")
-          .select("id, balance_ngn")
+          .select("id, balance_ngn, lifetime_deposits_usd")
           .eq("user_id", userId)
           .maybeSingle();
 
         if (wallet) {
+          const newLifetime = (Number(wallet.lifetime_deposits_usd) || 0) + depositUsd;
           await supabase
             .from("wallets")
-            .update({ balance_ngn: (wallet.balance_ngn || 0) + amountInNgn })
+            .update({ 
+              balance_ngn: (wallet.balance_ngn || 0) + amountInNgn,
+              lifetime_deposits_usd: newLifetime,
+              updated_at: new Date().toISOString()
+            })
             .eq("user_id", userId);
         } else {
           await supabase
             .from("wallets")
-            .insert({ user_id: userId, balance_ngn: amountInNgn, balance_usd: 0 });
+            .insert({ 
+              user_id: userId, 
+              balance_ngn: amountInNgn, 
+              balance_usd: 0,
+              lifetime_deposits_usd: depositUsd 
+            });
         }
 
         await supabase.from("transactions").insert({
@@ -101,6 +121,24 @@ export async function POST(req: Request) {
       } else if (creditResult && !creditResult.success) {
         console.log("Transaction already processed (caught by RPC):", reference);
         return NextResponse.json({ success: true, message: "Already processed" });
+      } else if (creditResult) {
+        // Update lifetime_deposits_usd after successful RPC execution
+        const { data: wallet } = await supabase
+          .from("wallets")
+          .select("lifetime_deposits_usd")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (wallet) {
+          const newLifetime = (Number(wallet.lifetime_deposits_usd) || 0) + depositUsd;
+          await supabase
+            .from("wallets")
+            .update({ 
+              lifetime_deposits_usd: newLifetime,
+              updated_at: new Date().toISOString()
+            })
+            .eq("user_id", userId);
+        }
       }
 
       console.log(`Successfully funded ${amountInNgn} NGN for user ${userId} via Webhook`);

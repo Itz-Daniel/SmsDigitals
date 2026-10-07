@@ -102,20 +102,23 @@ export async function POST(req: Request) {
     const baseUsdWithFloor = Math.max(min1DayFloorUsd, rawCalculatedUsd);
     const finalUsd = baseUsdWithFloor * (1 + marginPercent / 100);
 
-    const finalPriceNgn = calculateFinalRetailPrice(finalUsd, exchangeRate, 'NGN');
-    const finalPriceUsd = calculateFinalRetailPrice(finalUsd, exchangeRate, 'USD');
-    const finalCost = currency === 'USD' ? finalPriceUsd : finalPriceNgn;
-
     // 2. CHECK USER WALLET IN 'wallets' BEFORE CONTACTING PROVIDER (ZERO MONEY RISK)
     const { data: wallet, error: walletError } = await supabaseAdmin
       .from('wallets')
-      .select('balance_usd, balance_ngn')
+      .select('balance_usd, balance_ngn, lifetime_deposits_usd')
       .eq('user_id', user.id)
       .single();
 
     if (walletError || !wallet) {
       return NextResponse.json({ error: "Wallet not found. Please contact support." }, { status: 404 });
     }
+
+    const { calculateUserDiscount } = await import("@/lib/pricing-engine");
+    const userDiscount = calculateUserDiscount(Number(wallet.lifetime_deposits_usd) || 0);
+
+    const finalPriceNgn = calculateFinalRetailPrice(finalUsd, exchangeRate, 'NGN', userDiscount);
+    const finalPriceUsd = calculateFinalRetailPrice(finalUsd, exchangeRate, 'USD', userDiscount);
+    const finalCost = currency === 'USD' ? finalPriceUsd : finalPriceNgn;
 
     const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
 

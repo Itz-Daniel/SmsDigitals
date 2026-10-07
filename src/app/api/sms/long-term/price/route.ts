@@ -79,15 +79,43 @@ export async function POST(req: Request) {
     // Apply Admin Profit Margin
     const finalUsd = baseUsdWithFloor * (1 + marginPercent / 100);
 
-    // Convert to target currency
-    const finalCost = calculateFinalRetailPrice(finalUsd, exchangeRate, currency);
+    // Check User VIP Tier Discount if authenticated
+    let userDiscount = 0;
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabaseUser = await createClient();
+      const { data: { user } } = await supabaseUser.auth.getUser();
+      if (user) {
+        const { data: userWallet } = await supabaseAdmin
+          .from('wallets')
+          .select('lifetime_deposits_usd')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (userWallet && userWallet.lifetime_deposits_usd) {
+          const { calculateUserDiscount } = await import("@/lib/pricing-engine");
+          userDiscount = calculateUserDiscount(Number(userWallet.lifetime_deposits_usd));
+        }
+      }
+    } catch (_authErr) {}
+
+    // Convert to target currency with VIP discount
+    const standardCost = calculateFinalRetailPrice(finalUsd, exchangeRate, currency, 0);
+    const finalCost = userDiscount > 0
+      ? calculateFinalRetailPrice(finalUsd, exchangeRate, currency, userDiscount)
+      : standardCost;
+
+    const tierName = userDiscount >= 0.12 ? "GOLD" : userDiscount >= 0.07 ? "SILVER" : userDiscount >= 0.03 ? "BRONZE" : "STANDARD";
 
     return NextResponse.json({
       success: true,
       available: true,
       cost: finalCost,
+      originalCost: userDiscount > 0 ? standardCost : undefined,
       days: durationDays,
       discountPercentage: Math.round(discountRate * 100),
+      userTierDiscountPercentage: Math.round(userDiscount * 100),
+      tier: tierName,
       currency: currency
     });
 

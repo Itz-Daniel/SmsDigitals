@@ -42,6 +42,15 @@ export async function POST(req: Request) {
     const supabaseAdmin = createAdminClient();
     let finalBalance = 0;
 
+    // Fetch exchange rate to convert deposit to USD for account tiers
+    const { data: appSettings } = await supabaseAdmin
+      .from('settings')
+      .select('exchange_rate')
+      .eq('id', 1)
+      .single();
+    const exchangeRate = appSettings?.exchange_rate || 1500;
+    const depositUsd = Math.round((amountNgn / exchangeRate) * 100) / 100;
+
     const { data: creditResult, error: creditError } = await supabaseAdmin.rpc('credit_wallet', {
       p_user_id: user.id,
       p_amount: amountNgn,
@@ -65,21 +74,31 @@ export async function POST(req: Request) {
       // Fetch or initialize user's wallet
       const { data: wallet } = await supabaseAdmin
         .from("wallets")
-        .select("id, balance_ngn")
+        .select("id, balance_ngn, lifetime_deposits_usd")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (wallet) {
         finalBalance = (wallet.balance_ngn || 0) + amountNgn;
+        const newLifetime = (Number(wallet.lifetime_deposits_usd) || 0) + depositUsd;
         await supabaseAdmin
           .from("wallets")
-          .update({ balance_ngn: finalBalance })
+          .update({ 
+            balance_ngn: finalBalance,
+            lifetime_deposits_usd: newLifetime,
+            updated_at: new Date().toISOString()
+          })
           .eq("user_id", user.id);
       } else {
         finalBalance = amountNgn;
         await supabaseAdmin
           .from("wallets")
-          .insert({ user_id: user.id, balance_ngn: amountNgn, balance_usd: 0 });
+          .insert({ 
+            user_id: user.id, 
+            balance_ngn: amountNgn, 
+            balance_usd: 0,
+            lifetime_deposits_usd: depositUsd 
+          });
       }
 
       // Record transaction history
@@ -106,6 +125,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: creditResult.error || "Transaction already processed" }, { status: 400 });
     } else if (creditResult) {
       finalBalance = creditResult.new_balance;
+
+      // Update lifetime_deposits_usd after successful RPC execution
+      const { data: wallet } = await supabaseAdmin
+        .from("wallets")
+        .select("lifetime_deposits_usd")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (wallet) {
+        const newLifetime = (Number(wallet.lifetime_deposits_usd) || 0) + depositUsd;
+        await supabaseAdmin
+          .from("wallets")
+          .update({ 
+            lifetime_deposits_usd: newLifetime,
+            updated_at: new Date().toISOString()
+          })
+          .eq("user_id", user.id);
+      }
     }
 
     // Process Affiliate Commission

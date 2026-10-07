@@ -119,12 +119,24 @@ export default function DashboardPage() {
       if (walletRes.data) {
         const ngnBal = Number(walletRes.data.balance_ngn) || 0;
         const usdBal = Number(walletRes.data.balance_usd) || 0;
+        const lifetimeUsd = Number(walletRes.data.lifetime_deposits_usd) || 0;
 
         setWallet({
           ...walletRes.data,
           balance_ngn: ngnBal,
-          balance_usd: usdBal
+          balance_usd: usdBal,
+          lifetime_deposits_usd: lifetimeUsd
         });
+
+        // Auto-heal / sync lifetime deposits from transaction history for existing users
+        fetch("/api/wallet/sync-lifetime")
+          .then(res => res.json())
+          .then(data => {
+            if (data?.success && typeof data?.lifetime_deposits_usd === "number" && data.lifetime_deposits_usd > lifetimeUsd) {
+              setWallet(prev => prev ? { ...prev, lifetime_deposits_usd: data.lifetime_deposits_usd } : null);
+            }
+          })
+          .catch(() => {});
       }
 
       if (txRes.data) {

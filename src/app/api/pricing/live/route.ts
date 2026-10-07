@@ -75,19 +75,45 @@ export async function POST(req: Request) {
     const exchangeRate = settings?.exchange_rate || 1500;
     const brandPricing = settings?.brand_pricing || null;
 
-    // 4. Calculate Final Retail Price instantaneously
-    const finalCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, 0, serviceName, brandPricing);
+    // 4. Check User VIP Tier Discount if authenticated
+    let userDiscount = 0;
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabaseUser = await createClient();
+      const { data: { user } } = await supabaseUser.auth.getUser();
+      if (user) {
+        const { data: userWallet } = await supabaseAdmin
+          .from('wallets')
+          .select('lifetime_deposits_usd')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (userWallet && userWallet.lifetime_deposits_usd) {
+          const { calculateUserDiscount } = await import("@/lib/pricing-engine");
+          userDiscount = calculateUserDiscount(Number(userWallet.lifetime_deposits_usd));
+        }
+      }
+    } catch (_authErr) {
+      // Guest user or unauthenticated request
+    }
+
+    // 5. Calculate Final Retail Price instantaneously
+    const standardCost = calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, 0, serviceName, brandPricing);
+    const finalCost = userDiscount > 0
+      ? calculateFinalRetailPrice(lowestRawCost, exchangeRate, currency, userDiscount, serviceName, brandPricing)
+      : standardCost;
+
+    const tierName = userDiscount >= 0.12 ? "GOLD" : userDiscount >= 0.07 ? "SILVER" : userDiscount >= 0.03 ? "BRONZE" : "STANDARD";
 
     return NextResponse.json({
       success: true,
       available: true,
       cost: finalCost,
+      originalCost: userDiscount > 0 ? standardCost : undefined,
+      discountPercentage: Math.round(userDiscount * 100),
+      tier: tierName,
       currency: currency,
       cached: fromCache
-    }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
-      }
     });
 
   } catch (error: any) {
