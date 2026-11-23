@@ -30,6 +30,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error("Support API Mark Read Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to mark ticket as read." }, { status: 500 });
   }
 }

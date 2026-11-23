@@ -3,11 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const amount_ngn = parseFloat(body.amount_ngn);
+    const body = await request.json().catch(() => ({}));
+    const amount_ngn = Number(body.amount_ngn);
 
-    if (isNaN(amount_ngn) || amount_ngn <= 0) {
-      return NextResponse.json({ success: false, error: 'Invalid amount' }, { status: 400 });
+    if (!Number.isFinite(amount_ngn) || amount_ngn <= 0 || amount_ngn > 50_000_000) {
+      return NextResponse.json({ success: false, error: 'Invalid conversion amount. Must be a positive finite amount up to ₦50,000,000.' }, { status: 400 });
     }
 
     const supabase = await createClient();

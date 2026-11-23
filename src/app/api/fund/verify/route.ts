@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
     const { reference } = await req.json();
 
-    if (!reference) {
+    if (!reference || typeof reference !== "string") {
       return NextResponse.json({ error: "Transaction reference is required" }, { status: 400 });
     }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Verify the transaction with Paystack
-    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
@@ -35,10 +35,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transaction verification failed or is not successful" }, { status: 400 });
     }
 
+    // 2. Strict Ownership Verification (Prevent cross-account transaction theft)
+    const metadataUserId = verifyData.data.metadata?.user_id || 
+      verifyData.data.metadata?.custom_fields?.find((f: any) => f.variable_name === 'user_id')?.value;
+    const customerEmail = verifyData.data.customer?.email?.toLowerCase()?.trim();
+    const userEmail = user.email?.toLowerCase()?.trim();
+
+    const isOwner = (metadataUserId && metadataUserId === user.id) || (customerEmail && userEmail && customerEmail === userEmail);
+    if (!isOwner) {
+      return NextResponse.json({ error: "Unauthorized: This transaction reference does not belong to your account." }, { status: 403 });
+    }
+
     // Amount from Paystack is in kobo, convert to NGN
     const amountNgn = verifyData.data.amount / 100;
+    if (!Number.isFinite(amountNgn) || amountNgn <= 0) {
+      return NextResponse.json({ error: "Invalid transaction amount" }, { status: 400 });
+    }
 
-    // 2. Credit the wallet using the safe SQL function with direct fallback
     const supabaseAdmin = createAdminClient();
     let finalBalance = 0;
 
@@ -51,6 +64,7 @@ export async function POST(req: Request) {
     const exchangeRate = appSettings?.exchange_rate || 1500;
     const depositUsd = Math.round((amountNgn / exchangeRate) * 100) / 100;
 
+    // 3. Credit wallet using atomic RPC or safe idempotent fallback
     const { data: creditResult, error: creditError } = await supabaseAdmin.rpc('credit_wallet', {
       p_user_id: user.id,
       p_amount: amountNgn,
@@ -101,80 +115,51 @@ export async function POST(req: Request) {
           });
       }
 
-      // Record transaction history
+      // Record in transactions history table
       await supabaseAdmin.from("transactions").insert({
         user_id: user.id,
-        type: "Deposit",
         amount: amountNgn,
         currency: "NGN",
+        type: "Funding",
         status: "Success",
         reference: reference,
-        description: `Paystack Deposit (₦${amountNgn.toLocaleString()})`
+        description: `Paystack Deposit (${amountNgn.toLocaleString()} NGN)`
       });
 
+      // Also record in wallet_transactions for consistency
       await supabaseAdmin.from("wallet_transactions").insert({
         user_id: user.id,
-        type: "deposit",
         amount: amountNgn,
         currency: "NGN",
+        type: "deposit",
         status: "Completed",
         reference: reference,
-        description: `Paystack Deposit (₦${amountNgn.toLocaleString()})`
+        description: `Paystack Deposit (${amountNgn.toLocaleString()} NGN)`
       });
-    } else if (creditResult && !creditResult.success) {
-      return NextResponse.json({ error: creditResult.error || "Transaction already processed" }, { status: 400 });
-    } else if (creditResult) {
-      finalBalance = creditResult.new_balance;
-
-      // Update lifetime_deposits_usd after successful RPC execution
-      const { data: wallet } = await supabaseAdmin
-        .from("wallets")
-        .select("lifetime_deposits_usd")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (wallet) {
-        const newLifetime = (Number(wallet.lifetime_deposits_usd) || 0) + depositUsd;
-        await supabaseAdmin
-          .from("wallets")
-          .update({ 
-            lifetime_deposits_usd: newLifetime,
-            updated_at: new Date().toISOString()
-          })
-          .eq("user_id", user.id);
-      }
+    } else {
+      finalBalance = creditResult;
     }
 
-    // Process Affiliate Commission
+    // 4. Trigger affiliate commission payout
     try {
       const { creditAffiliateCommission } = await import("@/lib/affiliate-engine");
       await creditAffiliateCommission({
         userId: user.id,
         depositAmountNgn: amountNgn,
-        reference,
+        reference: reference,
         gateway: "Paystack",
       });
-    } catch (err) {
-      console.error("Fund Verify Affiliate Error:", err);
+    } catch (affiliateErr) {
+      console.error("Affiliate commission error on verify:", affiliateErr);
     }
-
-    // Trigger WhatsApp Admin Alert in the background (fire and forget)
-    fetch(new URL('/api/admin-alert', req.url), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        message: `💰 *Deposit Alert*\n\nUser: ${user.email}\nAmount: ₦${amountNgn.toLocaleString()}\nRef: ${reference}` 
-      })
-    }).catch(err => console.error("Failed to trigger admin alert:", err));
 
     return NextResponse.json({
       success: true,
-      message: "Wallet credited successfully",
-      new_balance: finalBalance
+      message: "Wallet funded successfully!",
+      balance: finalBalance,
     });
-
-  } catch (error: unknown) {
-    console.error("Fund Verify API Error:", error);
-    return NextResponse.json({ error: (error as Error).message || "Internal Server Error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Fund Verification Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to verify transaction" }, { status: 500 });
   }
 }

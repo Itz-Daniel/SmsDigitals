@@ -111,6 +111,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Security Headers
+  supabaseResponse.headers.set('X-Frame-Options', 'DENY')
+  supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
+  supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  supabaseResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+
   return supabaseResponse
 }
 

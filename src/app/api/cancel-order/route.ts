@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
+import { enforceActiveAccount } from "@/lib/fraud-guard";
 
 interface RentalRecord {
   id: string;
@@ -26,6 +27,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized. Please log in first." }, { status: 401 });
     }
+
+    const accountBlock = await enforceActiveAccount(user.id);
+    if (accountBlock) return accountBlock;
 
     const { rental_id } = await req.json();
 

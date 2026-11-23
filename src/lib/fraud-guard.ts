@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegramAdmin } from "@/lib/telegram-admin";
 import { logAdminSecurityActivity } from "@/lib/admin-activity";
+import { notifyTelegramAdmin, escapeHtml } from "@/lib/telegram-admin";
+import { NextResponse } from "next/server";
 
-export interface FraudCheckParams {
+export interface FlagFraudParams {
   userId: string;
   userEmail: string;
   ipAddress: string;
@@ -11,11 +11,15 @@ export interface FraudCheckParams {
   reason: string;
 }
 
-export async function flagUserForFraud(params: FraudCheckParams): Promise<void> {
+/**
+ * Flag an account for fraud, freeze access to all platform features,
+ * and dispatch urgent security alerts to Admin feed and Telegram.
+ */
+export async function flagUserForFraud(params: FlagFraudParams) {
   try {
     const supabaseAdmin = createAdminClient();
 
-    // 1. Update Profile Status to 'flagged'
+    // 1. Mark account as flagged in database
     const { error } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -38,12 +42,12 @@ export async function flagUserForFraud(params: FraudCheckParams): Promise<void> 
       userEmail: params.userEmail
     });
 
-    // 3. Notify Admin via Telegram
+    // 3. Notify Admin via Telegram with sanitized HTML
     const telegramMessage = `🚨 <b>FRAUD SECURITY ALERT: Suspicious Activity Detected!</b>\n\n` +
-      `👤 User: <code>${params.userEmail}</code> (ID: ${params.userId})\n` +
-      `📍 IP Address: <code>${params.ipAddress}</code>\n` +
-      `💻 Device FP: <code>${params.deviceFingerprint}</code>\n` +
-      `⚠️ Reason: ${params.reason}\n\n` +
+      `👤 User: <code>${escapeHtml(params.userEmail)}</code> (ID: ${escapeHtml(params.userId)})\n` +
+      `📍 IP Address: <code>${escapeHtml(params.ipAddress)}</code>\n` +
+      `💻 Device FP: <code>${escapeHtml(params.deviceFingerprint)}</code>\n` +
+      `⚠️ Reason: ${escapeHtml(params.reason)}\n\n` +
       `<i>Action: Account temporarily soft-frozen. All platform feature access blocked. Please review in Admin Dashboard.</i>`;
 
     await notifyTelegramAdmin(telegramMessage);
@@ -63,7 +67,15 @@ export async function checkUserAccountStatus(userId: string): Promise<{ isBlocke
       .eq("id", userId)
       .single();
 
-    if (error || !profile) return { isBlocked: false, status: "active" };
+    if (error) {
+      console.error("Fraud guard error checking status for", userId, error);
+      // Fail-closed on database connection errors
+      return { isBlocked: true, status: "locked", reason: "Security verification temporarily unavailable. Please retry in a few moments." };
+    }
+
+    if (!profile) {
+      return { isBlocked: true, status: "not_found", reason: "User profile not found." };
+    }
 
     if (profile.account_status === "banned") {
       return {
@@ -83,7 +95,8 @@ export async function checkUserAccountStatus(userId: string): Promise<{ isBlocke
 
     return { isBlocked: false, status: "active" };
   } catch (err) {
-    return { isBlocked: false, status: "active" };
+    console.error("Fraud guard exception for", userId, err);
+    return { isBlocked: true, status: "locked", reason: "Security verification temporarily unavailable." };
   }
 }
 
@@ -104,4 +117,11 @@ export async function enforceActiveAccount(userId: string): Promise<NextResponse
     );
   }
   return null;
+}
+
+export function calculateUserDiscount(lifetimeDepositsUsd: number): number {
+  if (lifetimeDepositsUsd >= 500) return 12; // Gold (12% off)
+  if (lifetimeDepositsUsd >= 100) return 7;  // Silver (7% off)
+  if (lifetimeDepositsUsd >= 20) return 3;   // Bronze (3% off)
+  return 0; // Standard (0% off)
 }

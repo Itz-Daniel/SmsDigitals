@@ -11,6 +11,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const referralCode = body.referralCode || body.code || body.referral_code;
     const cleanCode = String(referralCode || "").trim().toUpperCase();
 
     if (!cleanCode) {

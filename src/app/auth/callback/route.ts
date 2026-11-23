@@ -5,7 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
+  const rawNext = requestUrl.searchParams.get('next') ?? '/dashboard';
+  const safeNext = (rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\')) 
+    ? rawNext 
+    : '/dashboard';
   const oauthError = requestUrl.searchParams.get('error_description') || requestUrl.searchParams.get('error');
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin).replace(/\/$/, '');
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (code) {
-    const response = NextResponse.redirect(new URL(next, origin));
+    const response = NextResponse.redirect(new URL(safeNext, origin));
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
       const now = Date.now().toString();
       response.cookies.set('sms_last_active', now, {
         path: '/',
+        httpOnly: true,
         maxAge: 365 * 24 * 60 * 60,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',

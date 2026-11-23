@@ -78,7 +78,7 @@ export async function POST(req: Request) {
         .from("wallets")
         .update({ 
           balance_ngn: newNgnBalance, 
-          balance_usd: 0,
+          balance_usd: wallet.balance_usd || 0,
           lifetime_deposits_usd: newLifetimeDeposits,
           updated_at: new Date().toISOString() 
         })

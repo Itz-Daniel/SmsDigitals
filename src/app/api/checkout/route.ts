@@ -42,7 +42,7 @@ export async function POST(req: Request) {
               product_data: {
                 name: `Wallet Funding — $${amount} USD`,
               },
-              unit_amount: amount * 100, // Stripe expects cents
+              unit_amount: Math.round(amount * 100), // Stripe expects cents
             },
             quantity: 1,
           },
@@ -57,12 +57,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: session.url });
 
     } else if (type === "paystack" && currency === "NGN") {
-      const originHeader = req.headers.get("origin") || req.headers.get("referer");
-      const cleanOrigin = originHeader 
-        ? originHeader.split("/dashboard")[0].replace(/\/$/, "")
-        : (process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "");
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.smsdigital.fun").replace(/\/$/, "");
+      const originHeader = req.headers.get("origin");
+      let cleanOrigin = siteUrl;
+      if (originHeader) {
+        try {
+          const originHost = new URL(originHeader).hostname;
+          const siteHost = new URL(siteUrl).hostname;
+          if (originHost === siteHost || originHost === 'localhost' || originHost === '127.0.0.1') {
+            cleanOrigin = originHeader.replace(/\/$/, "");
+          }
+        } catch {}
+      }
 
-      const returnPath = originHeader?.includes("/dashboard/fund") ? "/dashboard/fund" : "/dashboard";
+      const returnPath = req.headers.get("referer")?.includes("/dashboard/fund") ? "/dashboard/fund" : "/dashboard";
       const callback_url = `${cleanOrigin}${returnPath}?payment=success`;
 
       // Create Paystack Checkout Session
@@ -74,7 +82,7 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           email: user.email,
-          amount: amount * 100, // Paystack expects kobo
+          amount: Math.round(amount * 100), // Paystack expects integer kobo
           currency: "NGN",
           callback_url: callback_url,
           metadata: {

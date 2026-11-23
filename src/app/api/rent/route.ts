@@ -5,8 +5,17 @@ import { FiveSimApi, GrizzlyApi, ProviderResponse } from "@/lib/providers/sms-pr
 import { calculateFinalRetailPrice, calculateUserDiscount } from "@/lib/pricing-engine";
 import { notifyTelegramAdmin } from "@/lib/telegram-admin";
 import { enforceActiveAccount } from "@/lib/fraud-guard";
+import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
+
+const rentInputSchema = z.object({
+  serviceId: z.string().min(1).max(50).regex(/^[a-zA-Z0-9_\-\.]+$/),
+  serviceName: z.string().max(100).optional().default(""),
+  country: z.string().min(2).max(10).regex(/^[a-zA-Z0-9_\-]+$/),
+  region: z.string().max(50).optional(),
+  currency: z.enum(['USD', 'NGN']).default('USD'),
+});
 
 export async function POST(req: Request) {
   try {
@@ -21,15 +30,21 @@ export async function POST(req: Request) {
     const accountBlock = await enforceActiveAccount(user.id);
     if (accountBlock) return accountBlock;
 
-    const { serviceId, serviceName = "", country, region, currency = 'USD' } = await req.json();
+    const rawBody = await req.json().catch(() => ({}));
+    const parseResult = rentInputSchema.safeParse(rawBody);
 
-    if (!serviceId || !country) {
-      return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
+    if (!parseResult.success) {
+      return NextResponse.json({ 
+        error: "Invalid request parameters.", 
+        details: parseResult.error.flatten() 
+      }, { status: 400 });
     }
+
+    const { serviceId, serviceName, country, region, currency } = parseResult.data;
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Fetch User Wallet, VIP Tier Discount, and Exchange Rate Settings FIRST
+    // 1. Fetch User Wallet, VIP Tier Discount, and Exchange Rate Settings
     const [{ data: wallet }, { data: appSettings }] = await Promise.all([
       supabaseAdmin
         .from('wallets')
@@ -51,8 +66,9 @@ export async function POST(req: Request) {
     const brandPricing = appSettings?.brand_pricing || null;
     const discountPercentage = calculateUserDiscount(wallet.lifetime_deposits_usd || 0);
 
-    // 2. Pre-Check Available Funds BEFORE contacting upstream providers (Stops wholesale balance drain)
-    const totalAvailableNgn = (wallet.balance_ngn || 0) + ((wallet.balance_usd || 0) * exchangeRate);
+    const initialBalanceNgn = Number(wallet.balance_ngn) || 0;
+    const initialBalanceUsd = Number(wallet.balance_usd) || 0;
+    const totalAvailableNgn = initialBalanceNgn + (initialBalanceUsd * exchangeRate);
 
     if (totalAvailableNgn <= 0) {
       return NextResponse.json({ 
@@ -92,7 +108,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Multi-Provider Fallback Cascade Sequence (Primary: 5SIM, Backup: Grizzly SMS)
+    // 2. Multi-Provider Fallback Cascade Sequence (Primary: 5SIM, Backup: Grizzly SMS)
     const providers = [
       new FiveSimApi(),
       new GrizzlyApi()
@@ -121,7 +137,7 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-    // 4. Exact Pricing Calculation
+    // 3. Exact Pricing Calculation
     const wholesaleCostUsd = successResponse.costUsd || 0.50;
 
     const finalPriceNgn = calculateFinalRetailPrice(
@@ -143,7 +159,6 @@ export async function POST(req: Request) {
 
     // Fail-safe check against actual final price
     if (totalAvailableNgn < finalPriceNgn) {
-      // IMMEDIATE ROLLBACK on provider to prevent loss of wholesale balance
       try {
         if (usedProviderName === '5sim') {
           await FiveSimApi.cancelOrder(successResponse.orderId);
@@ -164,9 +179,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Deduct accurately without zeroing out unspent foreign currency
-    let newBalanceNgn = wallet.balance_ngn || 0;
-    let newBalanceUsd = wallet.balance_usd || 0;
+    // 4. Deduct user wallet
+    let newBalanceNgn = initialBalanceNgn;
+    let newBalanceUsd = initialBalanceUsd;
 
     if (currency === 'USD') {
       if (newBalanceUsd >= finalPriceUsd) {
@@ -191,7 +206,7 @@ export async function POST(req: Request) {
     await supabaseAdmin
       .from('wallets')
       .update({ 
-        balance_ngn: newBalanceNgn,
+        balance_ngn: newBalanceNgn, 
         balance_usd: newBalanceUsd 
       })
       .eq('user_id', user.id);
@@ -222,8 +237,8 @@ export async function POST(req: Request) {
       await supabaseAdmin
         .from('wallets')
         .update({ 
-          balance_ngn: wallet.balance_ngn,
-          balance_usd: wallet.balance_usd
+          balance_ngn: initialBalanceNgn, 
+          balance_usd: initialBalanceUsd 
         })
         .eq('user_id', user.id);
 

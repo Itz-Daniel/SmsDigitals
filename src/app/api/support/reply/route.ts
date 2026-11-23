@@ -12,12 +12,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { ticketId, replyText, attachmentUrl } = body;
 
     if (!ticketId || (!replyText && !attachmentUrl)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    let safeAttachmentUrl: string | null = null;
+    if (attachmentUrl && typeof attachmentUrl === 'string') {
+      try {
+        const parsed = new URL(attachmentUrl);
+        if (parsed.protocol === 'https:') {
+          safeAttachmentUrl = attachmentUrl;
+        }
+      } catch {}
+    }
+
+    const cleanReplyText = typeof replyText === 'string' ? replyText.slice(0, 5000) : "";
 
     // 1. Fetch current ticket to verify ownership and get messages
     const { data: ticket, error: fetchError } = await supabase
@@ -35,7 +47,15 @@ export async function POST(request: Request) {
     }
 
     const currentMessages = ticket.messages || [];
-    const newMessages = [...currentMessages, { sender: 'user', text: replyText, timestamp: new Date().toISOString(), attachment_url: attachmentUrl || null }];
+    const newMessages = [
+      ...currentMessages, 
+      { 
+        sender: 'user', 
+        text: cleanReplyText, 
+        timestamp: new Date().toISOString(), 
+        attachment_url: safeAttachmentUrl 
+      }
+    ];
 
     const adminDb = createAdminClient();
 

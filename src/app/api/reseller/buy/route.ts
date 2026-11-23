@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { FiveSimApi, GrizzlyApi } from "@/lib/providers/sms-providers";
 import { calculateFinalRetailPrice } from "@/lib/pricing-engine";
+import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
 
+const buySchema = z.object({
+  storeSlug: z.string().min(1).max(50),
+  country: z.string().min(2).max(10).default('us'),
+  serviceId: z.string().min(1).max(50),
+  serviceName: z.string().max(100).optional(),
+  currency: z.enum(['USD', 'NGN']).default('USD'),
+});
+
 export async function POST(req: Request) {
   try {
-    const { storeSlug, country = 'us', serviceId, serviceName, currency = 'USD' } = await req.json();
+    const rawBody = await req.json().catch(() => ({}));
+    const parseResult = buySchema.safeParse(rawBody);
 
-    if (!storeSlug || !serviceId) {
-      return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
+    if (!parseResult.success) {
+      return NextResponse.json({ error: "Invalid parameters.", details: parseResult.error.flatten() }, { status: 400 });
     }
 
+    const { storeSlug, country, serviceId, serviceName, currency } = parseResult.data;
     const supabaseAdmin = createAdminClient();
 
     // 1. Fetch Reseller Storefront
@@ -26,7 +38,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Reseller storefront not found." }, { status: 404 });
     }
 
-    // 2. Fetch Reseller Wallet Balance and Exchange Rate Settings FIRST
+    // 2. Authentication & Authorization Check
+    // Prevent unauthenticated public visitors from draining reseller wallets
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const apiKey = req.headers.get("x-api-key");
+    let isAuthorized = false;
+
+    if (user && user.id === store.user_id) {
+      // Store owner authenticated
+      isAuthorized = true;
+    } else if (apiKey) {
+      // Authenticated via API key
+      const { data: keyRecord } = await supabaseAdmin
+        .from("user_api_keys")
+        .select("user_id, is_active")
+        .eq("api_key", apiKey)
+        .eq("user_id", store.user_id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (keyRecord) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json({ 
+        error: "Unauthorized: Reseller storefront purchases require authentication as the store owner or a valid API key. Public guest checkout is not yet enabled for this store." 
+      }, { status: 401 });
+    }
+
+    // 3. Fetch Reseller Wallet Balance and Exchange Rate Settings
     const [{ data: resellerWallet }, { data: settings }] = await Promise.all([
       supabaseAdmin
         .from('wallets')
@@ -47,12 +89,11 @@ export async function POST(req: Request) {
     const exchangeRate = settings?.exchange_rate || 1500;
     const totalResellerNgn = (Number(resellerWallet.balance_ngn) || 0) + ((Number(resellerWallet.balance_usd) || 0) * exchangeRate);
 
-    // Pre-check balance before calling upstream providers (Stops wholesale balance drain)
     if (totalResellerNgn <= 0) {
       return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
     }
 
-    // 3. Multi-Provider Number Procurement Cascade (5SIM & Grizzly)
+    // 4. Multi-Provider Procurement (5SIM & Grizzly)
     const providers = [
       new FiveSimApi(),
       new GrizzlyApi()
@@ -69,7 +110,7 @@ export async function POST(req: Request) {
           usedProviderName = provider.name;
           break;
         }
-      } catch (e) {
+      } catch {
         console.warn(`Reseller Cascade: Provider ${provider.name} failed for ${country}/${serviceId}`);
       }
     }
@@ -80,29 +121,26 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-    // 4. Wholesale vs Retail Markup Pricing Math
+    // 5. Pricing
     const wholesaleUsd = successResponse.costUsd || 0.50;
     const resellerMarkupPercent = store.profit_margin_percent || 20;
 
-    // Wholesale price charged to Reseller Wallet
     const wholesaleCostUsd = calculateFinalRetailPrice(wholesaleUsd, 0, serviceName || serviceId);
-    // Retail price displayed to End Customer
     const customerRetailUsd = wholesaleCostUsd * (1 + resellerMarkupPercent / 100);
     const wholesaleNgn = Math.round(wholesaleCostUsd * exchangeRate);
 
     if (totalResellerNgn < wholesaleNgn) {
-      // Immediate cancellation on provider
       try {
         if (usedProviderName === '5sim') {
           await FiveSimApi.cancelOrder(successResponse.orderId);
         } else if (usedProviderName === 'grizzly') {
           await GrizzlyApi.cancelOrder(successResponse.orderId);
         }
-      } catch (_cErr) {}
+      } catch {}
       return NextResponse.json({ error: "Storefront temporarily out of stock (reseller low balance)." }, { status: 402 });
     }
 
-    // Deduct accurately without wiping unspent USD
+    // 6. Deduct balance
     let newResellerNgn = Number(resellerWallet.balance_ngn) || 0;
     let newResellerUsd = Number(resellerWallet.balance_usd) || 0;
 
@@ -120,12 +158,12 @@ export async function POST(req: Request) {
       .update({ balance_ngn: newResellerNgn, balance_usd: newResellerUsd })
       .eq('user_id', store.user_id);
 
-    // 6. Record Rental in Database
+    // 7. Record Rental in Database
     const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
     const { data: newRental, error: rentalError } = await supabaseAdmin
       .from('rentals')
       .insert({
-        user_id: store.user_id, // Owned by Reseller account
+        user_id: store.user_id,
         order_id: successResponse.orderId,
         phone_number: successResponse.phoneNumber,
         service: serviceId,
@@ -142,7 +180,6 @@ export async function POST(req: Request) {
 
     if (rentalError) {
       console.error("Reseller rental insertion failed:", rentalError);
-      // Rollback wallet balance
       await supabaseAdmin
         .from('wallets')
         .update({ 
@@ -157,12 +194,12 @@ export async function POST(req: Request) {
         } else if (usedProviderName === 'grizzly') {
           await GrizzlyApi.cancelOrder(successResponse.orderId);
         }
-      } catch (_cErr) {}
+      } catch {}
 
       return NextResponse.json({ error: "Failed to record rental in database." }, { status: 500 });
     }
 
-    // 7. Log Reseller Passive Profit Transaction
+    // 8. Log Reseller Passive Profit Transaction
     const profitUsd = customerRetailUsd - wholesaleCostUsd;
     await supabaseAdmin.from('transactions').insert({
       user_id: store.user_id,
